@@ -1,17 +1,20 @@
 import { google } from 'googleapis';
 
 // Google Drive API configuration
-const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 
 // Constants from the original Google Apps Script
 const NOTABILITY_FOLDER_NAME = 'Notability';
 const PRIVELES_FOLDER_NAME = 'Priveles';
 
 // Cache configuration
-const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '24');
+const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12'); // Half daily refresh
+const METADATA_CACHE_DURATION_HOURS = 12; // Half daily metadata refresh
+const METADATA_CACHE_DURATION_MS = METADATA_CACHE_DURATION_HOURS * 60 * 60 * 1000;
+
 const CACHE_KEY_STUDENTS = 'cached_students';
 const CACHE_KEY_FILES = 'cached_files_';
 const CACHE_KEY_AI_ANALYSIS = 'cached_ai_analysis_';
+const CACHE_KEY_METADATA = 'cached_metadata';
 
 // In-memory cache (in production, consider using Redis)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -167,60 +170,73 @@ class GoogleDriveService {
   }
 
   /**
+   * Get all students without filtering
+   */
+  async getAllStudents(): Promise<Student[]> {
+    try {
+      // Try to get cached data first
+      const cachedData = this.getCache(CACHE_KEY_STUDENTS);
+      
+      if (cachedData) {
+        console.log('Using cached student data (' + cachedData.students.length + ' students)');
+        return cachedData.students;
+      }
+      
+      console.log('Cache miss, fetching all students...');
+      // Fetch fresh data from Drive
+      const privelesFolderId = await this.getPrivelesFolder();
+      const subjectFolders = await this.drive.files.list({
+        q: `'${privelesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id, name)',
+      });
+
+      const allStudents: Student[] = [];
+
+      // Search through each subject folder
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const subjectFolder of subjectFolders.data.files || []) {
+        const subjectName = subjectFolder.name;
+        
+        // Look for student folders within this subject
+        const studentFolders = await this.drive.files.list({
+          q: `'${subjectFolder.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)',
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const studentFolder of studentFolders.data.files || []) {
+          allStudents.push({
+            id: studentFolder.id,
+            name: studentFolder.name,
+            subject: subjectName,
+            url: `https://drive.google.com/drive/folders/${studentFolder.id}`
+          });
+        }
+      }
+      
+      // Cache the fresh data
+      this.setCache(CACHE_KEY_STUDENTS, {
+        timestamp: new Date().getTime(),
+        students: allStudents
+      });
+      
+      console.log('✅ Cached ' + allStudents.length + ' students');
+      return allStudents;
+      
+    } catch (error) {
+      console.error('❌ Error getting all students: ' + error);
+      return [];
+    }
+  }
+
+  /**
    * Find student folders by name (case-insensitive, partial match)
    * Searches through all subject folders (WO, Rekenen, VO) for student names
    */
   async findStudentFolders(needle: string): Promise<Student[]> {
     try {
-      // Try to get cached data first
-      const cachedData = this.getCache(CACHE_KEY_STUDENTS);
-      
-      let allStudents: Student[] = [];
-      
-      if (cachedData) {
-        console.log('Using cached student data (' + cachedData.students.length + ' students)');
-        allStudents = cachedData.students;
-      } else {
-        console.log('Cache miss or expired, fetching fresh data...');
-        // Fetch fresh data from Drive
-        const privelesFolderId = await this.getPrivelesFolder();
-        const subjectFolders = await this.drive.files.list({
-          q: `'${privelesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-          fields: 'files(id, name)',
-        });
-
-        allStudents = [];
-
-        // Search through each subject folder
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const subjectFolder of subjectFolders.data.files || []) {
-          const subjectName = subjectFolder.name;
-          
-          // Look for student folders within this subject
-          const studentFolders = await this.drive.files.list({
-            q: `'${subjectFolder.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-            fields: 'files(id, name)',
-          });
-
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          for (const studentFolder of studentFolders.data.files || []) {
-            allStudents.push({
-              id: studentFolder.id,
-              name: studentFolder.name,
-              subject: subjectName,
-              url: `https://drive.google.com/drive/folders/${studentFolder.id}`
-            });
-          }
-        }
-        
-        // Cache the fresh data
-        this.setCache(CACHE_KEY_STUDENTS, {
-          timestamp: new Date().getTime(),
-          students: allStudents
-        });
-        
-        console.log('✅ Cached ' + allStudents.length + ' students');
-      }
+      // Get all students first
+      const allStudents = await this.getAllStudents();
       
       // Filter students based on search term
       if (!needle || typeof needle !== 'string') {
@@ -746,6 +762,127 @@ class GoogleDriveService {
         message: `Failed to connect to Google Drive: ${error}`
       };
     }
+  }
+
+
+
+  /**
+   * Preload and cache all metadata for better performance
+   */
+  async preloadMetadata(): Promise<{ success: boolean; message: string; data?: unknown }> {
+    try {
+      console.log('🔄 Starting metadata preload...');
+      
+      // Get all students first
+      const students = await this.getAllStudents();
+      if (!students || students.length === 0) {
+        return { success: false, message: 'No students found for metadata preload' };
+      }
+
+      console.log(`📚 Found ${students.length} students, preloading metadata...`);
+      
+      const metadataResults = [];
+      
+      // Process students in batches to avoid overwhelming the API
+      const batchSize = 5;
+      for (let i = 0; i < students.length; i += batchSize) {
+        const batch = students.slice(i, i + batchSize);
+        
+        const batchPromises = batch.map(async (student) => {
+          try {
+            // Get files for this student
+            const files = await this.listFilesInFolder(student.id);
+            
+            // Get AI analysis for each file (if not already cached)
+            const filesWithMetadata = await Promise.all(
+              files.map(async (file) => {
+                const cacheKey = `${CACHE_KEY_AI_ANALYSIS}${file.id}`;
+                const cached = this.getCache(cacheKey);
+                
+                if (cached) {
+                  return { ...file, ...cached };
+                }
+                
+                // Analyze with AI if not cached
+                const analysis = await this.analyzeDocumentWithAI(file.name);
+                this.setCache(cacheKey, analysis);
+                
+                return { ...file, ...analysis };
+              })
+            );
+            
+            return {
+              studentId: student.id,
+              studentName: student.name,
+              subject: student.subject,
+              fileCount: filesWithMetadata.length,
+              files: filesWithMetadata
+            };
+          } catch (error) {
+            console.error(`❌ Error processing student ${student.name}:`, error);
+            return {
+              studentId: student.id,
+              studentName: student.name,
+              subject: student.subject,
+              fileCount: 0,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            };
+          }
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        metadataResults.push(...batchResults);
+        
+        // Small delay between batches to be respectful to the API
+        if (i + batchSize < students.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      // Cache the complete metadata
+      const metadata = {
+        students: students,
+        metadata: metadataResults,
+        totalStudents: students.length,
+        totalFiles: metadataResults.reduce((sum, result) => sum + result.fileCount, 0),
+        lastUpdated: new Date().toISOString()
+      };
+      
+      this.setCache(CACHE_KEY_METADATA, metadata);
+      
+      console.log(`✅ Metadata preload complete: ${metadata.totalStudents} students, ${metadata.totalFiles} files`);
+      
+      return {
+        success: true,
+        message: `Metadata preloaded successfully: ${metadata.totalStudents} students, ${metadata.totalFiles} files`,
+        data: metadata
+      };
+      
+    } catch (error) {
+      console.error('❌ Error during metadata preload:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error during metadata preload'
+      };
+    }
+  }
+
+  /**
+   * Get cached metadata
+   */
+  getCachedMetadata(): unknown | null {
+    return this.getCache(CACHE_KEY_METADATA);
+  }
+
+  /**
+   * Check if metadata cache is valid
+   */
+  isMetadataCacheValid(): boolean {
+    const cached = memoryCache.get(CACHE_KEY_METADATA);
+    if (!cached) return false;
+    
+    const age = Date.now() - cached.timestamp;
+    return age < METADATA_CACHE_DURATION_MS;
   }
 }
 

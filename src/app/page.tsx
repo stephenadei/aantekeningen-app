@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Search, FileText, Calendar, User, ArrowLeft, Loader2 } from 'lucide-react';
+import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 
 interface Student {
@@ -126,6 +126,23 @@ export default function AantekeningenPage() {
     setError(null);
   };
 
+  const generateShareableLink = async (student: Student) => {
+    try {
+      const response = await fetch(`/api/students/${student.id}/share`);
+      const data = await response.json();
+      
+      if (data.success) {
+        await navigator.clipboard.writeText(data.shareableUrl);
+        alert(`Shareable link voor ${student.name} gekopieerd naar klembord!`);
+      } else {
+        throw new Error(data.message || 'Failed to generate shareable link');
+      }
+    } catch (err) {
+      console.error('Error generating shareable link:', err);
+      alert('Kon shareable link niet genereren');
+    }
+  };
+
   const formatFileSize = (bytes: number): string => {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -212,16 +229,40 @@ export default function AantekeningenPage() {
                   {students.map((student) => (
                     <div
                       key={student.id}
-                      onClick={() => handleStudentSelect(student)}
-                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div 
+                          onClick={() => handleStudentSelect(student)}
+                          className="flex-1 cursor-pointer"
+                        >
                           <h4 className="font-medium text-lg">{student.name}</h4>
                           <p className="text-gray-600">{student.subject}</p>
                         </div>
-                        <div className="text-gray-400">
-                          <User className="w-6 h-6" />
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              generateShareableLink(student);
+                            }}
+                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Deel link"
+                          >
+                            <Share2 className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={student.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Open in Google Drive"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                          <div className="text-gray-400">
+                            <User className="w-6 h-6" />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -290,25 +331,46 @@ export default function AantekeningenPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                  <User className="w-8 h-8 text-blue-600" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">{selectedStudent.name}</h2>
+                    <p className="text-gray-600">{selectedStudent.subject}</p>
+                    {studentOverview && (
+                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                        <span className="flex items-center gap-1">
+                          <FileText className="w-4 h-4" />
+                          {studentOverview.fileCount} bestanden
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-4 h-4" />
+                          Laatste activiteit: {studentOverview.lastActivityDate}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold">{selectedStudent.name}</h2>
-                  <p className="text-gray-600">{selectedStudent.subject}</p>
-                  {studentOverview && (
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                      <span className="flex items-center gap-1">
-                        <FileText className="w-4 h-4" />
-                        {studentOverview.fileCount} bestanden
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        Laatste activiteit: {studentOverview.lastActivityDate}
-                      </span>
-                    </div>
-                  )}
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => generateShareableLink(selectedStudent)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Deel Link
+                  </button>
+                  <a
+                    href={selectedStudent.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open in Drive
+                  </a>
                 </div>
               </div>
             </div>
@@ -348,19 +410,19 @@ export default function AantekeningenPage() {
                         <div className="flex gap-2">
                           <a
                             href={file.viewUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+            target="_blank"
+            rel="noopener noreferrer"
                             className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors"
                           >
                             Bekijken
-                          </a>
-                          <a
+          </a>
+          <a
                             href={file.downloadUrl}
                             className="flex-1 bg-gray-200 text-gray-700 text-center py-2 px-3 rounded text-sm hover:bg-gray-300 transition-colors"
                           >
                             Downloaden
-                          </a>
-                        </div>
+          </a>
+        </div>
                       </div>
                     ) : (
                       <div className="flex-1 flex items-center justify-between">
@@ -381,13 +443,13 @@ export default function AantekeningenPage() {
                         <div className="flex gap-2">
                           <a
                             href={file.viewUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+          target="_blank"
+          rel="noopener noreferrer"
                             className="bg-blue-600 text-white py-2 px-4 rounded text-sm hover:bg-blue-700 transition-colors"
                           >
                             Bekijken
-                          </a>
-                          <a
+        </a>
+        <a
                             href={file.downloadUrl}
                             className="bg-gray-200 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-300 transition-colors"
                           >
