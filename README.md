@@ -1,151 +1,137 @@
-# Aantekeningen App - Stephen's Privelessen
+# Aantekeningen App
 
-Een zelfstandige Next.js applicatie voor het beheren en bekijken van student aantekeningen via Google Drive.
+Een standalone Next.js applicatie voor het beheren van student aantekeningen voor Stephen's Privelessen.
 
-## Features
+## 🚀 Features
 
-- 🔍 **Student Search**: Zoek studenten op naam (case-insensitive)
-- 📁 **File Management**: Bekijk en download aantekeningen per student
-- 🎨 **Modern UI**: Responsive design met Tailwind CSS
-- ⚡ **Caching**: In-memory caching voor betere performance
-- 🤖 **AI Analysis**: OpenAI integratie voor document metadata (optioneel)
-- 🌐 **Multi-language**: Nederlands/Engels support
+- **Student Zoeken**: Zoek studenten op naam
+- **Aantekeningen Bekijken**: Bekijk alle aantekeningen van een student
+- **Sharing Functionaliteit**: Genereer shareable links voor individuele studenten
+- **Google Drive Integratie**: Directe toegang tot Google Drive bestanden
+- **AI Metadata**: Automatische extractie van document metadata
+- **Responsive Design**: Werkt op desktop en mobiel
 
-## Setup
+## 🔗 Live Demo
 
-### 1. Google OAuth2 Setup (Aanbevolen)
+- **Hoofdsite**: [stephensprivelessen.nl/aantekeningen](https://stephensprivelessen.nl/aantekeningen)
+- **Directe App**: [aantekeningen-app.vercel.app](https://aantekeningen-app.vercel.app)
 
-**Stap 1: Google Cloud Console**
-1. Ga naar [Google Cloud Console](https://console.cloud.google.com/)
-2. Maak een nieuw project of selecteer een bestaand project
-3. Activeer de Google Drive API:
-   - Ga naar "APIs & Services" → "Library"
-   - Zoek "Google Drive API" en activeer het
-4. Maak OAuth2 credentials:
-   - Ga naar "APIs & Services" → "Credentials"
-   - Klik "Create Credentials" → "OAuth client ID"
-   - Selecteer "Web application"
-   - Voeg toe: `http://localhost:3001/api/auth/callback`
-   - Download de JSON credentials
+## 🛠️ Tech Stack
 
-**Stap 2: Environment Variables**
-Kopieer `.env.example` naar `.env.local`:
-```bash
-cp .env.example .env.local
-```
+- **Framework**: Next.js 15
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Authentication**: Google OAuth2
+- **Storage**: Google Drive API
+- **AI**: OpenAI API (optioneel)
+- **Deployment**: Vercel
 
-Vul de OAuth2 credentials in uit het gedownloade JSON bestand:
-```bash
-GOOGLE_CLIENT_ID=your_client_id_from_json
-GOOGLE_CLIENT_SECRET=your_client_secret_from_json
-GOOGLE_REDIRECT_URI=http://localhost:3001/api/auth/callback
-```
-
-**Stap 3: OAuth2 Token Setup**
-Run de OAuth setup script:
-```bash
-npm run setup-oauth
-```
-
-Dit script zal:
-1. Een authorization URL genereren
-2. Je vragen om in te loggen en toestemming te geven
-3. Een refresh token genereren
-4. De benodigde environment variables tonen
-
-**Stap 4: Folder Permissions**
-Zorg dat je Google account toegang heeft tot de Notability/Priveles folders.
-
-### 2. Installatie
-
-```bash
-npm install
-```
-
-### 3. Development
-
-```bash
-npm run dev
-```
-
-De app is nu beschikbaar op [http://localhost:3001](http://localhost:3001)
-
-### 4. Build voor Productie
-
-```bash
-npm run build
-npm start
-```
-
-## Deployment
-
-### Vercel (Aanbevolen)
-
-1. Push je code naar GitHub
-2. Ga naar [Vercel](https://vercel.com)
-3. Import je repository
-4. Voeg environment variables toe in Vercel dashboard:
-   - `GOOGLE_CLIENT_ID`
-   - `GOOGLE_CLIENT_SECRET`
-   - `GOOGLE_REFRESH_TOKEN`
-   - `GOOGLE_REDIRECT_URI` (update naar je productie URL)
-5. Deploy!
-
-### Andere Platforms
-
-De app kan ook gedeployed worden op:
-- Netlify
-- Railway
-- Heroku
-- AWS Amplify
-
-## API Endpoints
-
-- `GET /api/students/search?q={name}` - Zoek studenten
-- `GET /api/students/{id}/files` - Lijst bestanden van student
-- `GET /api/students/{id}/overview` - Student overzicht
-- `GET /api/test` - Test Google Drive connectie
-
-## Project Structuur
+## 📁 Project Structuur
 
 ```
 src/
 ├── app/
-│   ├── api/           # API routes
-│   ├── page.tsx       # Hoofdpagina
-│   └── layout.tsx     # App layout
-├── lib/
-│   └── google-drive-simple.ts # Google Drive OAuth service
-├── scripts/
-│   └── setup-oauth.js # OAuth setup script
-└── public/            # Static assets
+│   ├── api/
+│   │   ├── students/
+│   │   │   ├── [id]/
+│   │   │   │   ├── files/route.ts
+│   │   │   │   ├── overview/route.ts
+│   │   │   │   └── share/route.ts
+│   │   │   └── search/route.ts
+│   │   └── metadata/
+│   │       ├── preload/route.ts
+│   │       └── status/route.ts
+│   ├── student/[id]/page.tsx
+│   └── page.tsx
+└── lib/
+    └── google-drive-simple.ts
 ```
 
-## Troubleshooting
+## 🔧 Setup
 
-### OAuth2 Errors
-- Controleer of de redirect URI correct is ingesteld
-- Zorg dat de Google Drive API geactiveerd is
-- Controleer of alle environment variables correct zijn
+1. **Clone de repository**:
+   ```bash
+   git clone https://github.com/stephenadei/aantekeningen-app.git
+   cd aantekeningen-app
+   ```
 
-### Google Drive API Errors
-- Controleer of je account toegang heeft tot de Notability/Priveles folders
-- Zorg dat de OAuth2 consent screen correct is ingesteld
-- Controleer of de refresh token nog geldig is
+2. **Installeer dependencies**:
+   ```bash
+   npm install
+   ```
 
-### Build Errors
-- Zorg dat alle environment variables correct zijn ingesteld
-- Controleer of alle dependencies geïnstalleerd zijn
+3. **Configureer environment variables**:
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Vul de volgende variabelen in:
+   ```env
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   GOOGLE_REDIRECT_URI=your_redirect_uri
+   GOOGLE_REFRESH_TOKEN=your_refresh_token
+   OPENAI_API_KEY=your_openai_api_key (optioneel)
+   ```
 
-### Performance Issues
-- De app gebruikt in-memory caching voor betere performance
-- Voor productie, overweeg Redis voor caching
-- AI analyse kan uitgeschakeld worden door geen OpenAI API key in te stellen
+4. **Start development server**:
+   ```bash
+   npm run dev
+   ```
 
-## Support
+## 📚 API Endpoints
 
-Voor vragen of problemen, neem contact op met Stephen's Privelessen.
+### Student Endpoints
+- `GET /api/students/search?q={name}` - Zoek studenten op naam
+- `GET /api/students/{id}/files` - Haal bestanden van student op
+- `GET /api/students/{id}/overview` - Haal overzicht van student op
+- `GET /api/students/{id}/share` - Genereer shareable link
 
-## License
+### Metadata Endpoints
+- `GET /api/metadata/preload` - Preload alle metadata
+- `GET /api/metadata/status` - Controleer cache status
 
-Privé - Stephen's Privelessen
+## 🔐 Authentication
+
+De app gebruikt Google OAuth2 voor toegang tot Google Drive. Zorg ervoor dat:
+
+1. Google Drive API is geactiveerd
+2. OAuth2 credentials zijn geconfigureerd
+3. Refresh token is gegenereerd
+
+## 🚀 Deployment
+
+De app is geconfigureerd voor deployment op Vercel:
+
+1. **Automatische deployment** via GitHub
+2. **Environment variables** via Vercel dashboard
+3. **Custom domain** mogelijk
+
+## 📱 Sharing Functionaliteit
+
+### Voor Studenten:
+1. Zoek je naam in de app
+2. Klik op het share icoon (📤)
+3. Link wordt gekopieerd naar klembord
+4. Deel met ouders/leraren
+
+### Voor Ouders/Leraren:
+1. Klik op de gedeelde link
+2. Directe toegang tot alle aantekeningen
+3. Download/bekijk bestanden individueel
+
+## 🤝 Contributing
+
+1. Fork de repository
+2. Maak een feature branch
+3. Commit je changes
+4. Push naar de branch
+5. Open een Pull Request
+
+## 📄 License
+
+Dit project is eigendom van Stephen's Privelessen.
+
+## 📞 Contact
+
+Voor vragen of ondersteuning, neem contact op via [stephensprivelessen.nl](https://stephensprivelessen.nl).
