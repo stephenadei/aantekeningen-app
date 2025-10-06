@@ -101,12 +101,30 @@ export default function StudentPage() {
 
   const copyShareableLink = async () => {
     try {
-      await navigator.clipboard.writeText(shareableUrl);
-      // You could add a toast notification here
-      alert('Link gekopieerd naar klembord!');
+      // Try to copy to clipboard
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(shareableUrl);
+        alert('Link gekopieerd naar klembord!');
+      } else {
+        // Fallback: show the link in a prompt
+        const userConfirmed = confirm(
+          `Shareable link:\n\n${shareableUrl}\n\nKlik OK om de link te kopiëren, of Annuleren om te sluiten.`
+        );
+        if (userConfirmed) {
+          // Try alternative clipboard method
+          const textArea = document.createElement('textarea');
+          textArea.value = shareableUrl;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          alert('Link gekopieerd naar klembord!');
+        }
+      }
     } catch (err) {
       console.error('Failed to copy link:', err);
-      alert('Kon link niet kopiëren');
+      // Final fallback: just show the link
+      alert(`Shareable link:\n\n${shareableUrl}\n\nKopieer deze link handmatig.`);
     }
   };
 

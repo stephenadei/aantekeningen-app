@@ -132,8 +132,31 @@ export default function AantekeningenPage() {
       const data = await response.json();
       
       if (data.success) {
-        await navigator.clipboard.writeText(data.shareableUrl);
-        alert(`Shareable link voor ${student.name} gekopieerd naar klembord!`);
+        // Try to copy to clipboard
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(data.shareableUrl);
+            alert(`Shareable link voor ${student.name} gekopieerd naar klembord!`);
+          } else {
+            // Fallback: show the link in a prompt
+            const userConfirmed = confirm(
+              `Shareable link voor ${student.name}:\n\n${data.shareableUrl}\n\nKlik OK om de link te kopiëren, of Annuleren om te sluiten.`
+            );
+            if (userConfirmed) {
+              // Try alternative clipboard method
+              const textArea = document.createElement('textarea');
+              textArea.value = data.shareableUrl;
+              document.body.appendChild(textArea);
+              textArea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textArea);
+              alert('Link gekopieerd naar klembord!');
+            }
+          }
+        } catch (clipboardError) {
+          // Final fallback: just show the link
+          alert(`Shareable link voor ${student.name}:\n\n${data.shareableUrl}\n\nKopieer deze link handmatig.`);
+        }
       } else {
         throw new Error(data.message || 'Failed to generate shareable link');
       }
