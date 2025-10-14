@@ -673,7 +673,7 @@ export default function StudentPage() {
                 </button>
               </div>
             )}
-          )
+          )}
         </div>
       </div>
 
