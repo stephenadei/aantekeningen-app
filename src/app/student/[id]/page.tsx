@@ -655,7 +655,6 @@ export default function StudentPage() {
               ))}
             </ul>
             
-            {/* Load More Button */}
             {hasMoreFiles && (
               <div className="px-4 py-4 sm:px-6 border-t border-gray-200">
                 <button
