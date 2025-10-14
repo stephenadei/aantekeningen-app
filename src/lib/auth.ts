@@ -36,7 +36,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       // Add user ID to session from token
       if (session.user && token.sub) {
-        session.user.id = token.sub;
+        (session.user as any).id = token.sub;
       }
       return session;
     },
@@ -46,7 +46,7 @@ export const authOptions: NextAuthOptions = {
         token.accessToken = account.access_token;
       }
       // Add user ID to token
-      if (user) {
+      if (user && user.email) {
         token.sub = user.email; // Use email as user ID for now
       }
       return token;
