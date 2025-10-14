@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Transform data for response
-    const transformedLogs = auditLogs.map((log: any) => ({
+    const transformedLogs = auditLogs.map((log) => ({
       id: log.id,
       who: log.who,
       action: log.action,
