@@ -84,7 +84,6 @@ class GoogleDriveService {
         });
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.drive = google.drive({ version: 'v3', auth });
       this.isInitialized = true;
     } catch (error) {
@@ -193,7 +192,6 @@ class GoogleDriveService {
       const allStudents: Student[] = [];
 
       // Search through each subject folder
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const subjectFolder of subjectFolders.data.files || []) {
         const subjectName = subjectFolder.name;
         
@@ -203,7 +201,6 @@ class GoogleDriveService {
           fields: 'files(id, name)',
         });
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const studentFolder of studentFolders.data.files || []) {
           allStudents.push({
             id: studentFolder.id,
@@ -296,7 +293,6 @@ class GoogleDriveService {
 
       const fileList: FileInfo[] = [];
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const file of files.data.files || []) {
         const fileName = file.name;
         const cleanTitle = this.cleanFileName(fileName);
@@ -377,9 +373,9 @@ class GoogleDriveService {
         };
       }
       
-      // Always get fresh file count by calling getStudentFiles
+      // Always get fresh file count by calling listFilesInFolder
       console.log('🔄 Fetching fresh file data for overview...');
-      const files = await this.getStudentFiles(folderId);
+      const files = await this.listFilesInFolder(folderId);
       
       if (!files || files.length === 0) {
         return {
@@ -715,7 +711,6 @@ class GoogleDriveService {
 
       let totalStudents = 0;
       
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const subjectFolder of subjectFolders.data.files || []) {
         const subjectName = subjectFolder.name;
         console.log('📚 Subject: ' + subjectName);

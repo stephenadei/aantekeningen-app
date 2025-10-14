@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Student {
   id: string;
@@ -188,7 +189,7 @@ export default function AantekeningenPage() {
               alert('Link gekopieerd naar klembord!');
             }
           }
-        } catch (clipboardError) {
+        } catch {
           // Final fallback: just show the link
           alert(`Shareable link voor ${student.name}:\n\n${data.shareableUrl}\n\nKopieer deze link handmatig.`);
         }
@@ -211,16 +212,9 @@ export default function AantekeningenPage() {
     return values;
   };
 
-  const getUniqueKeywords = (files: FileInfo[]) => {
-    const allKeywords = files
-      .flatMap(file => file.keywords || [])
-      .filter((keyword, index, self) => self.indexOf(keyword) === index)
-      .sort();
-    return allKeywords;
-  };
 
   const filteredAndSortedFiles = () => {
-    let filtered = files.filter(file => {
+    const filtered = files.filter(file => {
       if (filters.subject && file.subject !== filters.subject) return false;
       if (filters.topic && file.topic !== filters.topic) return false;
       if (filters.level && file.level !== filters.level) return false;
@@ -637,13 +631,18 @@ export default function AantekeningenPage() {
                       <div>
                         <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
                           {file.thumbnailUrl ? (
-                            <img 
+                            <Image 
                               src={file.thumbnailUrl} 
                               alt={file.title}
+                              width={400}
+                              height={225}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
-                                e.currentTarget.nextElementSibling.style.display = 'flex';
+                                const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                if (nextElement) {
+                                  nextElement.style.display = 'flex';
+                                }
                               }}
                             />
                           ) : null}

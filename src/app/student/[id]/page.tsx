@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText, Calendar, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-react';
+import { FileText, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface Student {
@@ -190,16 +190,9 @@ export default function StudentPage() {
     return values;
   };
 
-  const getUniqueKeywords = (files: FileInfo[]) => {
-    const allKeywords = files
-      .flatMap(file => file.keywords || [])
-      .filter((keyword, index, self) => self.indexOf(keyword) === index)
-      .sort();
-    return allKeywords;
-  };
 
   const filteredAndSortedFiles = () => {
-    let filtered = files.filter(file => {
+    const filtered = files.filter(file => {
       if (filters.subject && file.subject !== filters.subject) return false;
       if (filters.topic && file.topic !== filters.topic) return false;
       if (filters.level && file.level !== filters.level) return false;
