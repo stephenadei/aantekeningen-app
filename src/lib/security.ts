@@ -1,12 +1,13 @@
-import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 
 /**
  * Generate a cryptographically secure 6-digit PIN
  */
 export function generatePin(): string {
-  const bytes = randomBytes(6);
-  return Array.from(bytes, b => (b % 10).toString()).join('');
+  // Use crypto.getRandomValues for Edge Runtime compatibility
+  const array = new Uint8Array(6);
+  crypto.getRandomValues(array);
+  return Array.from(array, b => (b % 10).toString()).join('');
 }
 
 /**
