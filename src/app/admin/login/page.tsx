@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Shield, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import DarkModeToggle from '@/components/ui/DarkModeToggle';
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
@@ -52,27 +53,33 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <Shield className="h-12 w-12 text-blue-600" />
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+            <Shield className="h-8 w-8 text-white" />
+          </div>
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-slate-100 dark:to-slate-300 bg-clip-text text-transparent">
           Docentenportaal
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
+        <p className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
           Stephen&apos;s Privelessen
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl py-8 px-4 shadow-xl sm:rounded-2xl sm:px-10 border border-white/20 dark:border-slate-700/20">
+          {/* Dark Mode Toggle */}
+          <div className="flex justify-end mb-4">
+            <DarkModeToggle />
+          </div>
           {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="mb-4 bg-red-50/80 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 rounded-xl p-4 backdrop-blur-sm">
               <div className="flex">
-                <AlertCircle className="h-5 w-5 text-red-400" />
+                <AlertCircle className="h-5 w-5 text-red-400 dark:text-red-300" />
                 <div className="ml-3">
-                  <p className="text-sm text-red-800">{error}</p>
+                  <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
                 </div>
               </div>
             </div>
@@ -80,19 +87,19 @@ export default function AdminLoginPage() {
 
           <div className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+              <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100 mb-4">
                 Inloggen met Google
               </h3>
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
                 Alleen docenten met een Google Workspace account van{' '}
-                <span className="font-medium">stephensprivelessen.nl</span> kunnen inloggen.
+                <span className="font-medium text-slate-900 dark:text-slate-200">stephensprivelessen.nl</span> kunnen inloggen.
               </p>
             </div>
 
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
             >
               {loading ? (
                 <>
@@ -127,10 +134,10 @@ export default function AdminLoginPage() {
             <div className="mt-6">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
+                  <div className="w-full border-t border-slate-300 dark:border-slate-600" />
                 </div>
                 <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white text-gray-500">Of</span>
+                  <span className="px-2 bg-white/70 dark:bg-slate-800/70 text-slate-500 dark:text-slate-400">Of</span>
                 </div>
               </div>
             </div>
@@ -138,20 +145,20 @@ export default function AdminLoginPage() {
             <div className="text-center">
               <Link
                 href="/"
-                className="text-sm text-blue-600 hover:text-blue-500"
+                className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors"
               >
                 Terug naar studentenportaal
               </Link>
             </div>
           </div>
 
-          <div className="mt-8 border-t border-gray-200 pt-6">
-            <div className="text-xs text-gray-500">
+          <div className="mt-8 border-t border-slate-200 dark:border-slate-700 pt-6">
+            <div className="text-xs text-slate-500 dark:text-slate-400">
               <p className="mb-2">
-                <strong>Toegang:</strong> Alleen voor docenten van Stephen&apos;s Privelessen
+                <strong className="text-slate-700 dark:text-slate-300">Toegang:</strong> Alleen voor docenten van Stephen&apos;s Privelessen
               </p>
               <p>
-                <strong>Beveiliging:</strong> Alle activiteiten worden gelogd voor audit doeleinden
+                <strong className="text-slate-700 dark:text-slate-300">Beveiliging:</strong> Alle activiteiten worden gelogd voor audit doeleinden
               </p>
             </div>
           </div>
