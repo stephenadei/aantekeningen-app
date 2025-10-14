@@ -320,7 +320,7 @@ class GoogleDriveService {
           url: `https://drive.google.com/file/d/${file.id}/view`,
           downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
           viewUrl: `https://drive.google.com/file/d/${file.id}/preview`,
-          thumbnailUrl: `https://lh3.googleusercontent.com/d/${file.id}=w400-h300`,
+          thumbnailUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300`,
           modifiedTime: file.modifiedTime,
           size: parseInt(file.size || '0'),
           // AI-generated metadata
