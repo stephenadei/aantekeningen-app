@@ -7,7 +7,11 @@ export async function GET(
 ) {
   try {
     const { id: folderId } = await params;
-    console.log('📁 Files API called for folderId:', folderId);
+    const { searchParams } = new URL(request.url);
+    const limit = searchParams.get('limit');
+    const offset = searchParams.get('offset');
+    
+    console.log('📁 Files API called for folderId:', folderId, 'limit:', limit, 'offset:', offset);
 
     if (!folderId) {
       console.log('❌ No folderId provided');
@@ -18,13 +22,24 @@ export async function GET(
     }
 
     console.log('🔄 Fetching files from Google Drive...');
-    const files = await googleDriveService.listFilesInFolder(folderId);
-    console.log('✅ Files fetched:', files.length, 'files');
+    const allFiles = await googleDriveService.listFilesInFolder(folderId);
+    
+    // Apply pagination if requested
+    let files = allFiles;
+    if (limit) {
+      const limitNum = parseInt(limit);
+      const offsetNum = offset ? parseInt(offset) : 0;
+      files = allFiles.slice(offsetNum, offsetNum + limitNum);
+    }
+    
+    console.log('✅ Files fetched:', files.length, 'files (total:', allFiles.length, ')');
 
     return NextResponse.json({
       success: true,
       files,
-      count: files.length
+      count: files.length,
+      totalCount: allFiles.length,
+      hasMore: limit ? (allFiles.length > (parseInt(limit) + (offset ? parseInt(offset) : 0))) : false
     });
 
   } catch (error) {

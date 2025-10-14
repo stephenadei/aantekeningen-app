@@ -54,6 +54,8 @@ export default function StudentPage() {
   const [shareableUrl, setShareableUrl] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreFiles, setHasMoreFiles] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -116,21 +118,22 @@ export default function StudentPage() {
       // Show cache loading immediately when starting to fetch files
       setCacheLoading(true);
       
-      // Get files (this is where AI analysis happens)
-      const filesResponse = await fetch(`/api/students/${studentId}/files`);
+      // Phase 1: Load first 3 most recent files for quick access
+      const recentFilesResponse = await fetch(`/api/students/${studentId}/files?limit=3`);
       
-      if (!filesResponse.ok) {
-        throw new Error('Failed to load files');
+      if (!recentFilesResponse.ok) {
+        throw new Error('Failed to load recent files');
       }
 
-      const filesData = await filesResponse.json();
+      const recentFilesData = await recentFilesResponse.json();
 
-      if (filesData.success) {
-        setFiles(filesData.files);
+      if (recentFilesData.success) {
+        setFiles(recentFilesData.files);
+        setHasMoreFiles(recentFilesData.hasMore);
         
         // Check if files need more processing
-        if (filesData.files && filesData.files.length > 0) {
-          const hasUncachedFiles = filesData.files.some((file: FileInfo) => 
+        if (recentFilesData.files && recentFilesData.files.length > 0) {
+          const hasUncachedFiles = recentFilesData.files.some((file: FileInfo) => 
             !file.subject || !file.topic || !file.keywords || !file.summary
           );
           
@@ -148,11 +151,38 @@ export default function StudentPage() {
         setCacheLoading(false);
       }
 
+      // Phase 2: Load remaining files in background (if there are more)
+      if (recentFilesData.success && recentFilesData.hasMore) {
+        loadRemainingFiles(studentId, 3);
+      }
+
     } catch (err) {
       console.error('Error loading student data:', err);
       setError(err instanceof Error ? err.message : 'Failed to load student data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRemainingFiles = async (studentId: string, offset: number) => {
+    try {
+      setLoadingMore(true);
+      
+      const remainingFilesResponse = await fetch(`/api/students/${studentId}/files?offset=${offset}`);
+      
+      if (remainingFilesResponse.ok) {
+        const remainingFilesData = await remainingFilesResponse.json();
+        
+        if (remainingFilesData.success) {
+          // Append remaining files to existing files
+          setFiles(prevFiles => [...prevFiles, ...remainingFilesData.files]);
+          setHasMoreFiles(remainingFilesData.hasMore);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading remaining files:', error);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -164,6 +194,12 @@ export default function StudentPage() {
   const closeModal = () => {
     setIsModalOpen(false);
     setSelectedFile(null);
+  };
+
+  const loadMoreFiles = () => {
+    if (hasMoreFiles && !loadingMore && studentId) {
+      loadRemainingFiles(studentId, files.length);
+    }
   };
 
   const copyShareableLink = async () => {
@@ -618,6 +654,26 @@ export default function StudentPage() {
                 </li>
               ))}
             </ul>
+            
+            {/* Load More Button */}
+            {hasMoreFiles && (
+              <div className="px-4 py-4 sm:px-6 border-t border-gray-200">
+                <button
+                  onClick={loadMoreFiles}
+                  disabled={loadingMore}
+                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Laden...
+                    </>
+                  ) : (
+                    'Meer aantekeningen laden'
+                  )}
+                </button>
+              </div>
+            )}
           )}
         </div>
       </div>
