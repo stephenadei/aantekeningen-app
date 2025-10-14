@@ -61,20 +61,31 @@ src/
    ```
 
 3. **Configureer environment variables**:
-   ```bash
-   cp .env.example .env.local
-   ```
    
-   Vul de volgende variabelen in:
+   Maak een `.env.local` bestand met de volgende variabelen:
    ```env
+   # Google OAuth2 Configuration (verplicht)
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
-   GOOGLE_REDIRECT_URI=your_redirect_uri
+   GOOGLE_REDIRECT_URI=http://localhost:8080
    GOOGLE_REFRESH_TOKEN=your_refresh_token
-   OPENAI_API_KEY=your_openai_api_key (optioneel)
+   
+   # OpenAI API Key (optioneel, voor AI analyse)
+   OPENAI_API_KEY=your_openai_api_key
+   
+   # Cache duration (optioneel, default: 12 uur)
+   CACHE_DURATION_HOURS=12
    ```
 
-4. **Start development server**:
+4. **Setup Google OAuth2**:
+   ```bash
+   # Run OAuth2 setup script
+   npm run setup-oauth
+   ```
+   
+   Dit script helpt je met het genereren van de refresh token.
+
+5. **Start development server**:
    ```bash
    npm run dev
    ```
