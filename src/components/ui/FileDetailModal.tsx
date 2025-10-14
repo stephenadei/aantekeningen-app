@@ -136,10 +136,10 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
         {/* Modal */}
         <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 dark:border-slate-700">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700">
             <div className="flex-1">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">{file.title}</h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400 dark:text-slate-400 mt-1">{file.name}</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">{file.title}</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">{file.name}</p>
               <div className="flex items-center space-x-4 mt-2">
                 {file.subject && (
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
