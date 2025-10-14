@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import FileDetailModal from '@/components/ui/FileDetailModal';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
+import { useNativeShare } from '@/hooks/useNativeShare';
 
 interface Student {
   id: string;
@@ -57,6 +58,9 @@ export default function StudentPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreFiles, setHasMoreFiles] = useState(false);
+  
+  // Native share functionality
+  const { isSupported: isNativeShareSupported, share: nativeShare, isSharing } = useNativeShare();
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -203,9 +207,24 @@ export default function StudentPage() {
     }
   };
 
-  const copyShareableLink = async () => {
+  const handleShare = async () => {
+    if (!student) return;
+
+    // Try native share first (iOS/Android)
+    if (isNativeShareSupported) {
+      const success = await nativeShare({
+        title: `Aantekeningen van ${student.name}`,
+        text: `Bekijk de aantekeningen van ${student.name} op Stephen's Privelessen`,
+        url: shareableUrl
+      });
+      
+      if (success) {
+        return; // Native share was successful
+      }
+    }
+
+    // Fallback to clipboard copy
     try {
-      // Try to copy to clipboard
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(shareableUrl);
         alert('Link gekopieerd naar klembord!');
@@ -364,11 +383,21 @@ export default function StudentPage() {
             <div className="flex items-center space-x-3">
               <DarkModeToggle />
               <button
-                onClick={copyShareableLink}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 backdrop-blur-sm"
+                onClick={handleShare}
+                disabled={isSharing}
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
-                <Share2 className="h-4 w-4 mr-2" />
-                Deel Link
+                {isSharing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Delen...
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    {isNativeShareSupported ? 'Deel' : 'Deel Link'}
+                  </>
+                )}
               </button>
             </div>
           </div>

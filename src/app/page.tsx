@@ -5,6 +5,7 @@ import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download 
 import Link from 'next/link';
 import Image from 'next/image';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
+import { useNativeShare } from '@/hooks/useNativeShare';
 
 interface Student {
   id: string;
@@ -50,6 +51,9 @@ export default function AantekeningenPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [hasSearched, setHasSearched] = useState(false);
+  
+  // Native share functionality
+  const { isSupported: isNativeShareSupported, share: nativeShare, isSharing } = useNativeShare();
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -202,13 +206,26 @@ export default function AantekeningenPage() {
     setHasSearched(false);
   };
 
-  const generateShareableLink = async (student: Student) => {
+  const handleShareStudent = async (student: Student) => {
     try {
       const response = await fetch(`/api/students/${student.id}/share`);
       const data = await response.json();
       
       if (data.success) {
-        // Try to copy to clipboard
+        // Try native share first (iOS/Android)
+        if (isNativeShareSupported) {
+          const success = await nativeShare({
+            title: `Aantekeningen van ${student.name}`,
+            text: `Bekijk de aantekeningen van ${student.name} op Stephen's Privelessen`,
+            url: data.shareableUrl
+          });
+          
+          if (success) {
+            return; // Native share was successful
+          }
+        }
+
+        // Fallback to clipboard copy
         try {
           if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(data.shareableUrl);
@@ -396,7 +413,7 @@ export default function AantekeningenPage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              generateShareableLink(student);
+                              handleShareStudent(student);
                             }}
                             className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
                             title="Deel link"
@@ -510,11 +527,21 @@ export default function AantekeningenPage() {
                 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => generateShareableLink(selectedStudent)}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    onClick={() => handleShareStudent(selectedStudent)}
+                    disabled={isSharing}
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Deel Link
+                    {isSharing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Delen...
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        {isNativeShareSupported ? 'Deel' : 'Deel Link'}
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
