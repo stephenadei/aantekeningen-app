@@ -654,25 +654,25 @@ export default function StudentPage() {
                 </li>
               ))}
             </ul>
-            
-            {hasMoreFiles && (
-              <div className="px-4 py-4 sm:px-6 border-t border-gray-200">
-                <button
-                  onClick={loadMoreFiles}
-                  disabled={loadingMore}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Laden...
-                    </>
-                  ) : (
-                    'Meer aantekeningen laden'
-                  )}
-                </button>
-              </div>
-            )}
+          )}
+          
+          {hasMoreFiles && (
+            <div className="px-4 py-4 sm:px-6 border-t border-gray-200">
+              <button
+                onClick={loadMoreFiles}
+                disabled={loadingMore}
+                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Laden...
+                  </>
+                ) : (
+                  'Meer aantekeningen laden'
+                )}
+              </button>
+            </div>
           )}
         </div>
       </div>
