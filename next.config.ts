@@ -2,11 +2,15 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   async headers() {
+    // Check if we're in a Vercel preview/development environment
+    const isVercelPreview = process.env.VERCEL_ENV === 'preview' || process.env.VERCEL_ENV === 'development';
+    
     return [
       {
         source: '/(.*)',
         headers: [
-          {
+          // Only add CSP in production, disable for Vercel previews to avoid feedback.js issues
+          ...(isVercelPreview ? [] : [{
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
@@ -22,7 +26,7 @@ const nextConfig: NextConfig = {
               "form-action 'self'",
               "frame-ancestors 'none'"
             ].join('; ')
-          }
+          }])
         ]
       }
     ];
