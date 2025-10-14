@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { User, Key, ArrowRight, AlertCircle, FileText, Calendar } from 'lucide-react';
 import Button from '@/components/ui/Button';
@@ -33,6 +33,19 @@ export default function LeerlingPortal() {
   const [student, setStudent] = useState<Student | null>(null);
   const router = useRouter();
 
+  // Helper functions for sessionStorage (client-side only)
+  const setSessionStorage = (key: string, value: string) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(key, value);
+    }
+  };
+
+  const removeSessionStorage = (key: string) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem(key);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -59,7 +72,7 @@ export default function LeerlingPortal() {
       if (data.success) {
         setStudent(data.student);
         // Store session info
-        sessionStorage.setItem('studentSession', JSON.stringify({
+        setSessionStorage('studentSession', JSON.stringify({
           studentId: data.student.id,
           displayName: data.student.displayName,
           loginTime: Date.now(),
@@ -76,7 +89,7 @@ export default function LeerlingPortal() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem('studentSession');
+    removeSessionStorage('studentSession');
     setStudent(null);
     setFormData({ displayName: '', pin: '' });
     setError(null);
@@ -91,24 +104,27 @@ export default function LeerlingPortal() {
   };
 
   // Check for existing session on component mount
-  useState(() => {
-    const sessionData = sessionStorage.getItem('studentSession');
-    if (sessionData) {
-      try {
-        const session = JSON.parse(sessionData);
-        // Check if session is still valid (30 minutes)
-        if (Date.now() - session.loginTime < 30 * 60 * 1000) {
-          // Session is still valid, fetch student data
-          fetchStudentData(session.studentId);
-        } else {
-          // Session expired, clear it
-          sessionStorage.removeItem('studentSession');
+  useEffect(() => {
+    // Only run on client side
+    if (typeof window !== 'undefined') {
+      const sessionData = typeof window !== 'undefined' ? sessionStorage.getItem('studentSession') : null;
+      if (sessionData) {
+        try {
+          const session = JSON.parse(sessionData);
+          // Check if session is still valid (30 minutes)
+          if (Date.now() - session.loginTime < 30 * 60 * 1000) {
+            // Session is still valid, fetch student data
+            fetchStudentData(session.studentId);
+          } else {
+            // Session expired, clear it
+            removeSessionStorage('studentSession');
+          }
+        } catch (err) {
+          removeSessionStorage('studentSession');
         }
-      } catch (err) {
-        sessionStorage.removeItem('studentSession');
       }
     }
-  });
+  }, []);
 
   const fetchStudentData = async (studentId: string) => {
     try {
@@ -118,10 +134,10 @@ export default function LeerlingPortal() {
       if (data.success) {
         setStudent(data.student);
       } else {
-        sessionStorage.removeItem('studentSession');
+        removeSessionStorage('studentSession');
       }
     } catch (err) {
-      sessionStorage.removeItem('studentSession');
+      removeSessionStorage('studentSession');
     }
   };
 
