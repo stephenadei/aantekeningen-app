@@ -90,10 +90,17 @@ export default function AantekeningenPage() {
           handleStudentSelect(data.students[0]);
         }
       } else {
-        setError(data.message || 'Er is een fout opgetreden bij het zoeken');
+        // More specific error handling
+        if (data.error === 'Configuration error') {
+          setError('De app is momenteel niet beschikbaar. Probeer het later opnieuw.');
+        } else if (data.message) {
+          setError(data.message);
+        } else {
+          setError('Er is een fout opgetreden bij het zoeken. Probeer het opnieuw.');
+        }
       }
     } catch (err) {
-      setError('Er is een fout opgetreden bij het zoeken');
+      setError('Er is een fout opgetreden bij het zoeken. Controleer je internetverbinding.');
       console.error('Search error:', err);
     } finally {
       setLoading(false);
@@ -142,7 +149,14 @@ export default function AantekeningenPage() {
           setCacheLoading(false);
         }
       } else {
-        setError(filesData.message || 'Er is een fout opgetreden bij het laden van bestanden');
+        // More specific error handling for files
+        if (filesData.error === 'Configuration error') {
+          setError('De app is momenteel niet beschikbaar. Probeer het later opnieuw.');
+        } else if (filesData.message) {
+          setError(filesData.message);
+        } else {
+          setError('Er is een fout opgetreden bij het laden van bestanden. Probeer het opnieuw.');
+        }
         setCacheLoading(false);
       }
     } catch (err) {
@@ -279,25 +293,6 @@ export default function AantekeningenPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">📚 Aantekeningen</h1>
-              <p className="text-blue-100 mt-1">Stephen&apos;s Privelessen</p>
-            </div>
-            <Link 
-              href="https://stephensprivelessen.nl" 
-              className="text-blue-100 hover:text-white transition-colors flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Terug naar website
-            </Link>
-          </div>
-        </div>
-      </div>
-
       <div className="container mx-auto px-4 py-8">
         {!selectedStudent ? (
           /* Search Interface */
@@ -379,9 +374,19 @@ export default function AantekeningenPage() {
               {students.length === 0 && !loading && searchQuery && (
                 <div className="text-center py-8">
                   <p className="text-gray-600 mb-2">Geen studenten gevonden</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 mb-4">
                     Probeer een andere naam of controleer de spelling.
                   </p>
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setStudents([]);
+                      setError(null);
+                    }}
+                    className="text-blue-600 hover:text-blue-800 text-sm underline"
+                  >
+                    Opnieuw zoeken
+                  </button>
                 </div>
               )}
             </div>
@@ -629,15 +634,15 @@ export default function AantekeningenPage() {
                   >
                     {viewMode === 'grid' ? (
                       <div>
-                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
                           {file.thumbnailUrl ? (
                             <Image 
                               src={file.thumbnailUrl} 
                               alt={file.title}
                               width={400}
                               height={225}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                                 e.currentTarget.style.display = 'none';
                                 const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
                                 if (nextElement) {
@@ -647,7 +652,19 @@ export default function AantekeningenPage() {
                             />
                           ) : null}
                           <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
-                            <FileText className="w-12 h-12 text-gray-400" />
+                            <div className="text-center">
+                              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                              <p className="text-xs text-gray-500">Preview niet beschikbaar</p>
+                            </div>
+                          </div>
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="bg-white bg-opacity-90 rounded-full p-2">
+                                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         <h3 className="font-medium text-lg mb-2 line-clamp-2">{file.title}</h3>
@@ -687,8 +704,35 @@ export default function AantekeningenPage() {
                     ) : (
                       <div className="flex-1 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <FileText className="w-6 h-6 text-gray-400" />
+                          <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
+                            {file.thumbnailUrl ? (
+                              <Image 
+                                src={file.thumbnailUrl} 
+                                alt={file.title}
+                                width={64}
+                                height={48}
+                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                  if (nextElement) {
+                                    nextElement.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
+                              <FileText className="w-6 h-6 text-gray-400" />
+                            </div>
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="bg-white bg-opacity-90 rounded-full p-1">
+                                  <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                           <div>
                             <h3 className="font-medium text-lg">{file.title}</h3>
@@ -735,9 +779,19 @@ export default function AantekeningenPage() {
               <div className="text-center py-12">
                 <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600 text-lg">Geen bestanden gevonden</p>
-                <p className="text-gray-500 text-sm mt-2">
+                <p className="text-gray-500 text-sm mt-2 mb-4">
                   Er zijn momenteel geen aantekeningen beschikbaar voor {selectedStudent.name}.
                 </p>
+                <button
+                  onClick={() => {
+                    setFiles([]);
+                    setError(null);
+                    handleStudentSelect(selectedStudent);
+                  }}
+                  className="text-blue-600 hover:text-blue-800 text-sm underline"
+                >
+                  Opnieuw laden
+                </button>
               </div>
             )}
           </div>

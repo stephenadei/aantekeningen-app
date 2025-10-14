@@ -233,9 +233,18 @@ export default function LeerlingPortal() {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   Nog geen notities
                 </h3>
-                <p className="text-gray-500">
+                <p className="text-gray-500 mb-4">
                   Je docent heeft nog geen notities voor je toegevoegd.
                 </p>
+                <button
+                  onClick={() => {
+                    setLoadingStudent(true);
+                    fetchStudentData(student.id);
+                  }}
+                  className="text-blue-600 hover:text-blue-800 text-sm underline"
+                >
+                  Opnieuw laden
+                </button>
               </div>
             ) : (
               <div className="divide-y divide-gray-200">

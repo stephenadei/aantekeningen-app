@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { FileText, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface Student {
   id: string;
@@ -24,6 +25,7 @@ interface FileInfo {
   title: string;
   url: string;
   downloadUrl: string;
+  viewUrl: string;
   thumbnailUrl: string;
   modifiedTime: string;
   size: number;
@@ -507,9 +509,19 @@ export default function StudentPage() {
             <div className="text-center py-12">
               <FileText className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Geen bestanden</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-gray-500 mb-4">
                 Er zijn nog geen aantekeningen beschikbaar voor deze student.
               </p>
+              <button
+                onClick={() => {
+                  setFiles([]);
+                  setError(null);
+                  loadStudentData();
+                }}
+                className="text-blue-600 hover:text-blue-800 text-sm underline"
+              >
+                Opnieuw laden
+              </button>
             </div>
           ) : (
             <ul className="divide-y divide-gray-200">
@@ -519,7 +531,36 @@ export default function StudentPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="flex-shrink-0">
-                          <FileText className="h-8 w-8 text-gray-400" />
+                          <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
+                            {file.thumbnailUrl ? (
+                              <Image 
+                                src={file.thumbnailUrl} 
+                                alt={file.title}
+                                width={64}
+                                height={48}
+                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                                  if (nextElement) {
+                                    nextElement.style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            ) : null}
+                            <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
+                              <FileText className="h-6 w-6 text-gray-400" />
+                            </div>
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="bg-white bg-opacity-90 rounded-full p-1">
+                                  <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         <div className="ml-4 min-w-0 flex-1">
                           <p className="text-sm font-medium text-blue-600 truncate">
