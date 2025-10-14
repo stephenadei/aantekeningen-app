@@ -2,19 +2,23 @@
  * WhatsApp sharing utilities
  */
 
+import { getStudentPortalUrl, APP_CONFIG } from './config';
+
 /**
  * Generate WhatsApp share link with prefilled message
  */
 export function generateWhatsAppLink(studentName: string, pin: string, baseUrl?: string): string {
-  const url = baseUrl || process.env.NEXTAUTH_URL || 'https://stephensprive.app';
+  const url = baseUrl || getStudentPortalUrl().replace('/leerling', '');
   const studentPortalUrl = `${url}/leerling`;
   
-  const message = `Hoi ${studentName}, dit is je toegang tot je bijlesnotities.
+  const message = `Hoi ${studentName}! 👋
+
+Dit is je toegang tot je bijlesnotities van Stephen's Privelessen:
 
 🔑 PIN: ${pin}
 📒 Link: ${studentPortalUrl}
 
-Bewaar de code. Tot in de les!`;
+Bewaar deze code veilig. Tot in de les! 📚`;
   
   return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
@@ -23,14 +27,16 @@ Bewaar de code. Tot in de les!`;
  * Generate WhatsApp link for sharing student portal
  */
 export function generateStudentPortalWhatsAppLink(studentName: string, baseUrl?: string): string {
-  const url = baseUrl || process.env.NEXTAUTH_URL || 'https://stephensprive.app';
+  const url = baseUrl || getStudentPortalUrl().replace('/leerling', '');
   const studentPortalUrl = `${url}/leerling`;
   
-  const message = `Hoi ${studentName}, hier is de link naar je bijlesnotities:
+  const message = `Hoi ${studentName}! 👋
+
+Hier is de link naar je bijlesnotities van Stephen's Privelessen:
 
 📒 ${studentPortalUrl}
 
-Je hebt je PIN nodig om in te loggen.`;
+Je hebt je PIN nodig om in te loggen. 📚`;
   
   return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
@@ -39,14 +45,14 @@ Je hebt je PIN nodig om in te loggen.`;
  * Generate WhatsApp link for sharing admin portal (for other teachers)
  */
 export function generateAdminPortalWhatsAppLink(baseUrl?: string): string {
-  const url = baseUrl || process.env.NEXTAUTH_URL || 'https://stephensprive.app';
+  const url = baseUrl || getStudentPortalUrl().replace('/leerling', '');
   const adminUrl = `${url}/admin`;
   
-  const message = `Toegang tot het docentenportaal:
+  const message = `Toegang tot het docentenportaal van Stephen's Privelessen:
 
 🔐 ${adminUrl}
 
-Log in met je Google Workspace account (@stephensprivelessen.nl)`;
+Log in met je Google Workspace account (@stephensprivelessen.nl) 👨‍🏫`;
   
   return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }
@@ -93,9 +99,11 @@ export function createSecurePinDisplay(pin: string, studentName: string): {
   
   const message = `PIN gegenereerd voor ${studentName}:
 
-${pin}
+🔑 ${pin}
 
-⚠️ Bewaar deze PIN veilig. Deze wordt niet opnieuw getoond.`;
+⚠️ Bewaar deze PIN veilig. Deze wordt niet opnieuw getoond.
+
+📱 Gebruik de WhatsApp knop om de PIN direct te delen!`;
 
   return {
     message,
