@@ -8,22 +8,14 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      authorization: {
-        params: {
-          hd: process.env.ALLOWED_TEACHER_DOMAIN || 'stephensprivelessen.nl',
-        },
-      },
     }),
   ],
   callbacks: {
     async signIn({ user, account }) {
-      // Only allow sign-ins from the allowed domain
-      if (!user.email || !validateTeacherEmail(user.email)) {
-        console.log(`Sign-in rejected for email: ${user.email}`);
-        return false;
-      }
+      // Temporarily allow all sign-ins for testing
+      console.log(`Sign-in attempt for email: ${user.email}`);
       
-      // Log successful sign-in attempt
+      // Log sign-in attempt
       try {
         await prisma.loginAudit.create({
           data: {
@@ -58,7 +50,7 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {
     signIn: '/admin/login',
-    error: '/admin/login?error=AccessDenied',
+    error: '/admin/login',
   },
   session: {
     strategy: 'jwt',

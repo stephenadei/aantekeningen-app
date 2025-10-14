@@ -22,11 +22,11 @@ export default function AdminLayout({
       return;
     }
 
-    // Check if user email is from allowed domain
-    if (!session.user?.email?.endsWith('@stephensprivelessen.nl')) {
-      router.push('/admin/login?error=AccessDenied');
-      return;
-    }
+    // Temporarily disable domain check for testing
+    // if (!session.user?.email?.endsWith('@stephensprivelessen.nl')) {
+    //   router.push('/admin/login?error=AccessDenied');
+    //   return;
+    // }
   }, [session, status, router]);
 
   if (status === 'loading') {
