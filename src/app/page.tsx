@@ -48,6 +48,7 @@ export default function AantekeningenPage() {
   const [cacheLoading, setCacheLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [hasSearched, setHasSearched] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -70,6 +71,14 @@ export default function AantekeningenPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-load files when student is selected
+  useEffect(() => {
+    if (selectedStudent && files.length === 0 && !loading && !cacheLoading) {
+      console.log('🔄 Auto-loading files for selected student:', selectedStudent.name);
+      handleStudentSelect(selectedStudent);
+    }
+  }, [selectedStudent]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSearch = async (query: string = searchQuery) => {
     if (!query.trim()) return;
 
@@ -78,6 +87,7 @@ export default function AantekeningenPage() {
     setStudents([]);
     setSelectedStudent(null);
     setFiles([]);
+    setHasSearched(true);
 
     try {
       const response = await fetch(`/api/students/search?q=${encodeURIComponent(query)}`);
@@ -108,29 +118,39 @@ export default function AantekeningenPage() {
   };
 
   const handleStudentSelect = async (student: Student) => {
+    console.log('🔄 Loading student:', student.name, 'ID:', student.id);
     setSelectedStudent(student);
     setLoading(true);
     setCacheLoading(false);
     setError(null);
+    setFiles([]); // Clear previous files
 
     try {
+      console.log('📊 Fetching overview for student:', student.id);
       // Get overview first
       const overviewResponse = await fetch(`/api/students/${student.id}/overview`);
       const overviewData = await overviewResponse.json();
 
       if (overviewData.success) {
+        console.log('✅ Overview loaded:', overviewData.overview);
         setStudentOverview(overviewData.overview);
+      } else {
+        console.log('❌ Overview failed:', overviewData);
       }
 
       // Show cache loading immediately when starting to fetch files
       setCacheLoading(true);
       
+      console.log('📁 Fetching files for student:', student.id);
       // Get files (this is where AI analysis happens)
       const filesResponse = await fetch(`/api/students/${student.id}/files`);
       const filesData = await filesResponse.json();
 
+      console.log('📁 Files response:', filesData);
+
       if (filesData.success) {
-        setFiles(filesData.files);
+        console.log('✅ Files loaded:', filesData.files?.length || 0, 'files');
+        setFiles(filesData.files || []);
         
         // Check if files need more processing
         if (filesData.files && filesData.files.length > 0) {
@@ -139,16 +159,20 @@ export default function AantekeningenPage() {
           );
           
           if (hasUncachedFiles) {
+            console.log('⏳ Files need processing, showing cache loading...');
             // Keep showing cache loading for a bit longer
             setTimeout(() => setCacheLoading(false), 2000);
           } else {
+            console.log('✅ All files processed, hiding cache loading');
             // Hide cache loading immediately if all files are processed
             setCacheLoading(false);
           }
         } else {
+          console.log('📭 No files found for student');
           setCacheLoading(false);
         }
       } else {
+        console.log('❌ Files loading failed:', filesData);
         // More specific error handling for files
         if (filesData.error === 'Configuration error') {
           setError('De app is momenteel niet beschikbaar. Probeer het later opnieuw.');
@@ -160,8 +184,8 @@ export default function AantekeningenPage() {
         setCacheLoading(false);
       }
     } catch (err) {
+      console.error('❌ Student select error:', err);
       setError('Er is een fout opgetreden bij het laden van studentgegevens');
-      console.error('Student select error:', err);
       setCacheLoading(false);
     } finally {
       setLoading(false);
@@ -174,6 +198,7 @@ export default function AantekeningenPage() {
     setFiles([]);
     setError(null);
     setCacheLoading(false);
+    setHasSearched(false);
   };
 
   const generateShareableLink = async (student: Student) => {
@@ -300,7 +325,7 @@ export default function AantekeningenPage() {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold mb-4">Zoek je aantekeningen</h2>
               
-              <div className="flex gap-2 mb-6">
+              <div className="flex gap-2 mb-4">
                 <div className="flex-1 relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
@@ -318,13 +343,26 @@ export default function AantekeningenPage() {
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {loading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Zoeken...
+                    </>
                   ) : (
-                    <Search className="w-5 h-5" />
+                    <>
+                      <Search className="w-5 h-5" />
+                      Zoeken
+                    </>
                   )}
-                  Zoeken
                 </button>
               </div>
+              
+              {!hasSearched && searchQuery && (
+                <div className="mb-4 text-center">
+                  <p className="text-sm text-gray-500">
+                    Druk op Enter of klik op "Zoeken" om te zoeken
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -371,7 +409,7 @@ export default function AantekeningenPage() {
                 </div>
               )}
 
-              {students.length === 0 && !loading && searchQuery && (
+              {students.length === 0 && !loading && hasSearched && searchQuery && (
                 <div className="text-center py-8">
                   <p className="text-gray-600 mb-2">Geen studenten gevonden</p>
                   <p className="text-sm text-gray-500 mb-4">
@@ -382,6 +420,7 @@ export default function AantekeningenPage() {
                       setSearchQuery('');
                       setStudents([]);
                       setError(null);
+                      setHasSearched(false);
                     }}
                     className="text-blue-600 hover:text-blue-800 text-sm underline"
                   >

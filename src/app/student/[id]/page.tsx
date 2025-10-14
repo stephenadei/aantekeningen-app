@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { FileText, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import FileDetailModal from '@/components/ui/FileDetailModal';
 
 interface Student {
   id: string;
@@ -51,6 +52,8 @@ export default function StudentPage() {
   const [cacheLoading, setCacheLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareableUrl, setShareableUrl] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Filter states
   const [filters, setFilters] = useState({
@@ -151,6 +154,16 @@ export default function StudentPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFileClick = (file: FileInfo) => {
+    setSelectedFile(file);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedFile(null);
   };
 
   const copyShareableLink = async () => {
@@ -531,7 +544,7 @@ export default function StudentPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="flex-shrink-0">
-                          <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
+                          <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => handleFileClick(file)}>
                             {file.thumbnailUrl ? (
                               <Image 
                                 src={file.thumbnailUrl} 
@@ -608,6 +621,14 @@ export default function StudentPage() {
           )}
         </div>
       </div>
+
+      {/* File Detail Modal */}
+      <FileDetailModal
+        file={selectedFile}
+        studentId={studentId}
+        isOpen={isModalOpen}
+        onClose={closeModal}
+      />
     </div>
   );
 }

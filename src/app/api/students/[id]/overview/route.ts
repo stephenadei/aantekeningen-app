@@ -7,15 +7,19 @@ export async function GET(
 ) {
   try {
     const { id: folderId } = await params;
+    console.log('📊 Overview API called for folderId:', folderId);
 
     if (!folderId) {
+      console.log('❌ No folderId provided');
       return NextResponse.json(
         { error: 'Folder ID is required' },
         { status: 400 }
       );
     }
 
+    console.log('🔄 Fetching student overview from Google Drive...');
     const overview = await googleDriveService.getStudentOverview(folderId);
+    console.log('✅ Overview fetched:', overview);
 
     return NextResponse.json({
       success: true,
@@ -23,7 +27,7 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Error getting student overview:', error);
+    console.error('❌ Error getting student overview:', error);
     return NextResponse.json(
       { 
         success: false, 

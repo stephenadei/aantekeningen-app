@@ -138,4 +138,19 @@ model User {
   @@map("users")
 }
 
+model KeyConcept {
+  id          String   @id @default(cuid())
+  driveFileId String
+  term        String   // Het belangrijke begrip
+  explanation String   // Uitleg/toelichting
+  example     String?  // Optioneel voorbeeld
+  orderIndex  Int      @default(0)
+  isAiGenerated Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([driveFileId])
+  @@map("key_concepts")
+}
+
 // NextAuth models removed - using custom Session model instead

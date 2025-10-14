@@ -7,8 +7,8 @@ export default withAuth(
     const token = req.nextauth.token;
     const pathname = req.nextUrl.pathname;
 
-    // Admin routes require authentication
-    if (pathname.startsWith('/admin')) {
+    // Admin routes require authentication (except login page)
+    if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
       if (!token) {
         return NextResponse.redirect(new URL('/admin/login', req.url));
       }
@@ -43,8 +43,13 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const pathname = req.nextUrl.pathname;
         
+        // Admin login page is always accessible
+        if (pathname === '/admin/login') {
+          return true;
+        }
+        
         // Admin routes require token
-        if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
+        if (pathname.startsWith('/admin')) {
           return !!token;
         }
         
@@ -67,7 +72,7 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    '/admin/:path*',
+    '/admin/((?!login).)*',
     '/api/admin/:path*',
     '/leerling/:path*',
     '/student/:path*',

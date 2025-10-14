@@ -27,6 +27,14 @@ export interface Student {
   url: string;
 }
 
+export interface KeyConcept {
+  id: string;
+  term: string;
+  explanation: string;
+  example?: string;
+  isAiGenerated: boolean;
+}
+
 export interface FileInfo {
   id: string;
   name: string;
@@ -47,6 +55,7 @@ export interface FileInfo {
   summaryEn?: string;
   topicEn?: string;
   keywordsEn?: string[];
+  keyConcepts?: KeyConcept[];
 }
 
 export interface StudentOverview {
@@ -310,7 +319,7 @@ class GoogleDriveService {
           title: cleanTitle,
           url: `https://drive.google.com/file/d/${file.id}/view`,
           downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
-          viewUrl: `https://drive.google.com/file/d/${file.id}/view?usp=sharing`,
+          viewUrl: `https://drive.google.com/file/d/${file.id}/preview`,
           thumbnailUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w800-h600`,
           modifiedTime: file.modifiedTime,
           size: parseInt(file.size || '0'),
@@ -323,7 +332,14 @@ class GoogleDriveService {
           summary: aiAnalysis.summary,
           summaryEn: aiAnalysis.summaryEn,
           topicEn: aiAnalysis.topicEn,
-          keywordsEn: aiAnalysis.keywordsEn
+          keywordsEn: aiAnalysis.keywordsEn,
+          keyConcepts: aiAnalysis.keyConcepts?.map((concept: any, index: number) => ({
+            id: `ai-${file.id}-${index}`,
+            term: concept.term,
+            explanation: concept.explanation,
+            example: concept.example,
+            isAiGenerated: true
+          }))
         });
       }
       
@@ -538,6 +554,10 @@ class GoogleDriveService {
       - summaryEn: Brief 1-sentence summary in English
       - topicEn: The specific topic in English
       - keywordsEn: Array of 3-5 relevant keywords in English
+      - keyConcepts: Array of 3-5 important concepts/terms from the document, each with:
+        - term: The concept name
+        - explanation: Brief explanation in Dutch
+        - example: Optional example or application
       
       Document name: "${fileName}"
       
@@ -599,7 +619,14 @@ class GoogleDriveService {
       summary: 'Lesmateriaal document',
       topicEn: 'General',
       keywordsEn: ['study material'],
-      summaryEn: 'Study material document'
+      summaryEn: 'Study material document',
+      keyConcepts: [
+        {
+          term: 'Algemeen begrip',
+          explanation: 'Basis concept uit het lesmateriaal',
+          example: 'Voorbeeld toepassing'
+        }
+      ]
     };
     
     // Try to extract subject from filename
@@ -610,6 +637,18 @@ class GoogleDriveService {
       analysis.topicEn = 'Mathematics';
       analysis.keywords = ['wiskunde', 'rekenen', 'algebra'];
       analysis.keywordsEn = ['mathematics', 'calculations', 'algebra'];
+      analysis.keyConcepts = [
+        {
+          term: 'Algebra',
+          explanation: 'Wiskundige bewerkingen met variabelen',
+          example: 'x + 5 = 10'
+        },
+        {
+          term: 'Functies',
+          explanation: 'Relatie tussen input en output',
+          example: 'f(x) = 2x + 3'
+        }
+      ];
     } else if (lowerName.includes('nederlands') || lowerName.includes('dutch')) {
       analysis.subject = 'Nederlands';
       analysis.topic = 'Taal';
