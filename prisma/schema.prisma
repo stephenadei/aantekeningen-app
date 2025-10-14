@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Teacher {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  role         String   @default("admin") // admin, staff
+  otpSecret    String?  // TOTP secret for 2FA
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  sessions     Session[]
+  loginAudits  LoginAudit[]
+  
+  @@map("teachers")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  teacherId String
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  
+  @@map("sessions")
+}
+
+model Student {
+  id           String   @id @default(cuid())
+  displayName  String   @unique
+  pinHash      String
+  pinUpdatedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  notes        Note[]
+  tags         StudentTag[]
+  loginAudits  LoginAudit[]
+  
+  @@map("students")
+}
+
+model Note {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  contentMd  String
+  subject    String   // "wiskunde-a", "statistiek", etc.
+  level      String   // "havo-4", "vmbo-bk-3", etc.
+  topic      String   // "breuken", "logaritmen", etc.
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  // Optional: Google Drive file reference
+  driveFileId String?
+  driveFileName String?
+  
+  @@map("notes")
+}
+
+model StudentTag {
+  id        String  @id @default(cuid())
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  key       String  // "subject" | "level" | "topic"
+  value     String  // normalized slug value
+  
+  @@unique([studentId, key, value])
+  @@index([key, value])
+  @@map("student_tags")
+}
+
+model LoginAudit {
+  id        String   @id @default(cuid())
+  who       String   // "teacher:<id>" | "student:<id>"
+  action    String   // "login_ok" | "login_fail" | "pin_reset" | "pin_attempt" | "impersonate"
+  ip        String?
+  userAgent String?
+  metadata  Json?    // Additional context (e.g., PIN attempt count)
+  createdAt DateTime @default(now())
+  
+  // Optional relations
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id])
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
+  
+  @@index([who, action])
+  @@index([createdAt])
+  @@map("login_audits")
+}
+
+// NextAuth.js required tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions NextAuthSession[]
+
+  @@map("users")
+}
+
+model NextAuthSession {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
