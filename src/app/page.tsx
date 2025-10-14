@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, ExternalLink } from 'lucide-react';
+import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download } from 'lucide-react';
 import Link from 'next/link';
 
 interface Student {
@@ -23,7 +23,6 @@ interface FileInfo {
   title: string;
   url: string;
   downloadUrl: string;
-  viewUrl: string;
   thumbnailUrl: string;
   modifiedTime: string;
   size: number;
@@ -33,6 +32,9 @@ interface FileInfo {
   schoolYear?: string;
   keywords?: string[];
   summary?: string;
+  summaryEn?: string;
+  topicEn?: string;
+  keywordsEn?: string[];
 }
 
 export default function AantekeningenPage() {
@@ -42,8 +44,20 @@ export default function AantekeningenPage() {
   const [studentOverview, setStudentOverview] = useState<StudentOverview | null>(null);
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [cacheLoading, setCacheLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    subject: '',
+    topic: '',
+    level: '',
+    schoolYear: '',
+    keyword: ''
+  });
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'subject' | 'topic'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Auto-search from URL parameter
   useEffect(() => {
@@ -88,32 +102,52 @@ export default function AantekeningenPage() {
   const handleStudentSelect = async (student: Student) => {
     setSelectedStudent(student);
     setLoading(true);
+    setCacheLoading(false);
     setError(null);
 
     try {
-      // Get overview and files in parallel
-      const [overviewResponse, filesResponse] = await Promise.all([
-        fetch(`/api/students/${student.id}/overview`),
-        fetch(`/api/students/${student.id}/files`)
-      ]);
-
-      const [overviewData, filesData] = await Promise.all([
-        overviewResponse.json(),
-        filesResponse.json()
-      ]);
+      // Get overview first
+      const overviewResponse = await fetch(`/api/students/${student.id}/overview`);
+      const overviewData = await overviewResponse.json();
 
       if (overviewData.success) {
         setStudentOverview(overviewData.overview);
       }
 
+      // Show cache loading immediately when starting to fetch files
+      setCacheLoading(true);
+      
+      // Get files (this is where AI analysis happens)
+      const filesResponse = await fetch(`/api/students/${student.id}/files`);
+      const filesData = await filesResponse.json();
+
       if (filesData.success) {
         setFiles(filesData.files);
+        
+        // Check if files need more processing
+        if (filesData.files && filesData.files.length > 0) {
+          const hasUncachedFiles = filesData.files.some((file: FileInfo) => 
+            !file.subject || !file.topic || !file.keywords || !file.summary
+          );
+          
+          if (hasUncachedFiles) {
+            // Keep showing cache loading for a bit longer
+            setTimeout(() => setCacheLoading(false), 2000);
+          } else {
+            // Hide cache loading immediately if all files are processed
+            setCacheLoading(false);
+          }
+        } else {
+          setCacheLoading(false);
+        }
       } else {
         setError(filesData.message || 'Er is een fout opgetreden bij het laden van bestanden');
+        setCacheLoading(false);
       }
     } catch (err) {
       setError('Er is een fout opgetreden bij het laden van studentgegevens');
       console.error('Student select error:', err);
+      setCacheLoading(false);
     } finally {
       setLoading(false);
     }
@@ -124,6 +158,7 @@ export default function AantekeningenPage() {
     setStudentOverview(null);
     setFiles([]);
     setError(null);
+    setCacheLoading(false);
   };
 
   const generateShareableLink = async (student: Student) => {
@@ -164,6 +199,70 @@ export default function AantekeningenPage() {
       console.error('Error generating shareable link:', err);
       alert('Kon shareable link niet genereren');
     }
+  };
+
+  // Filter and sort functions
+  const getUniqueValues = (files: FileInfo[], key: keyof FileInfo) => {
+    const values = files
+      .map(file => file[key])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .filter((value, index, self) => self.indexOf(value) === index)
+      .sort();
+    return values;
+  };
+
+  const getUniqueKeywords = (files: FileInfo[]) => {
+    const allKeywords = files
+      .flatMap(file => file.keywords || [])
+      .filter((keyword, index, self) => self.indexOf(keyword) === index)
+      .sort();
+    return allKeywords;
+  };
+
+  const filteredAndSortedFiles = () => {
+    let filtered = files.filter(file => {
+      if (filters.subject && file.subject !== filters.subject) return false;
+      if (filters.topic && file.topic !== filters.topic) return false;
+      if (filters.level && file.level !== filters.level) return false;
+      if (filters.schoolYear && file.schoolYear !== filters.schoolYear) return false;
+      if (filters.keyword && !file.keywords?.some(k => k.toLowerCase().includes(filters.keyword.toLowerCase()))) return false;
+      return true;
+    });
+
+    // Sort files
+    filtered.sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.modifiedTime).getTime();
+          bValue = new Date(b.modifiedTime).getTime();
+          break;
+        case 'name':
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+          break;
+        case 'subject':
+          aValue = a.subject || '';
+          bValue = b.subject || '';
+          break;
+        case 'topic':
+          aValue = a.topic || '';
+          bValue = b.topic || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+    return filtered;
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -273,16 +372,6 @@ export default function AantekeningenPage() {
                           >
                             <Share2 className="w-4 h-4" />
                           </button>
-                          <a
-                            href={student.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="Open in Google Drive"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
                           <div className="text-gray-400">
                             <User className="w-6 h-6" />
                           </div>
@@ -385,15 +474,6 @@ export default function AantekeningenPage() {
                     <Share2 className="h-4 w-4 mr-2" />
                     Deel Link
                   </button>
-                  <a
-                    href={selectedStudent.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Open in Drive
-                  </a>
                 </div>
               </div>
             </div>
@@ -401,6 +481,140 @@ export default function AantekeningenPage() {
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
                 <p className="text-red-800">{error}</p>
+              </div>
+            )}
+
+            {cacheLoading && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-600 mr-3" />
+                  <div>
+                    <p className="text-blue-800 font-medium">Metadata wordt verwerkt...</p>
+                    <p className="text-blue-600 text-sm">AI analyseert de documenten voor betere zoekresultaten</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Filters and Sort */}
+            {files.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  {/* Subject Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vak</label>
+                    <select
+                      value={filters.subject}
+                      onChange={(e) => setFilters(prev => ({ ...prev, subject: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Alle vakken</option>
+                      {getUniqueValues(files, 'subject').map(subject => (
+                        <option key={subject} value={subject}>{subject}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Topic Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp</label>
+                    <select
+                      value={filters.topic}
+                      onChange={(e) => setFilters(prev => ({ ...prev, topic: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Alle onderwerpen</option>
+                      {getUniqueValues(files, 'topic').map(topic => (
+                        <option key={topic} value={topic}>{topic}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Level Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label>
+                    <select
+                      value={filters.level}
+                      onChange={(e) => setFilters(prev => ({ ...prev, level: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Alle niveaus</option>
+                      {getUniqueValues(files, 'level').map(level => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* School Year Filter */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Schooljaar</label>
+                    <select
+                      value={filters.schoolYear}
+                      onChange={(e) => setFilters(prev => ({ ...prev, schoolYear: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Alle schooljaren</option>
+                      {getUniqueValues(files, 'schoolYear').map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Keyword Search */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Zoek in trefwoorden</label>
+                    <input
+                      type="text"
+                      value={filters.keyword}
+                      onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                      placeholder="Typ trefwoord..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Sort By */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sorteer op</label>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="date">Datum</option>
+                      <option value="name">Naam</option>
+                      <option value="subject">Vak</option>
+                      <option value="topic">Onderwerp</option>
+                    </select>
+                  </div>
+
+                  {/* Sort Order */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Volgorde</label>
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="desc">Nieuwste eerst</option>
+                      <option value="asc">Oudste eerst</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Clear Filters */}
+                <div className="mt-4 flex justify-between items-center">
+                  <span className="text-sm text-gray-600">
+                    {filteredAndSortedFiles().length} van {files.length} bestanden
+                  </span>
+                  <button
+                    onClick={() => setFilters({ subject: '', topic: '', level: '', schoolYear: '', keyword: '' })}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    Filters wissen
+                  </button>
+                </div>
               </div>
             )}
 
@@ -412,7 +626,7 @@ export default function AantekeningenPage() {
             ) : files.length > 0 ? (
               /* Files Display */
               <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-                {files.map((file) => (
+                {filteredAndSortedFiles().map((file) => (
                   <div
                     key={file.id}
                     className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${
@@ -421,8 +635,21 @@ export default function AantekeningenPage() {
                   >
                     {viewMode === 'grid' ? (
                       <div>
-                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                          <FileText className="w-12 h-12 text-gray-400" />
+                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                          {file.thumbnailUrl ? (
+                            <img 
+                              src={file.thumbnailUrl} 
+                              alt={file.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
+                            <FileText className="w-12 h-12 text-gray-400" />
+                          </div>
                         </div>
                         <h3 className="font-medium text-lg mb-2 line-clamp-2">{file.title}</h3>
                         <p className="text-sm text-gray-500 mb-2">{file.name}</p>
@@ -430,22 +657,33 @@ export default function AantekeningenPage() {
                           <span>{formatDate(file.modifiedTime)}</span>
                           <span>{formatFileSize(file.size)}</span>
                         </div>
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {file.subject && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
+                          {file.topic && <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
+                          {file.level && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">{file.level}</span>}
+                          {file.schoolYear && <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
+                        </div>
+                        {file.keywords && file.keywords.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {file.keywords.slice(0, 3).map((keyword, index) => (
+                              <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {file.summary && (
+                          <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded mb-3">{file.summary}</p>
+                        )}
                         <div className="flex gap-2">
                           <a
-                            href={file.viewUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+                            href={file.downloadUrl}
                             className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors"
                           >
-                            Bekijken
-          </a>
-          <a
-                            href={file.downloadUrl}
-                            className="flex-1 bg-gray-200 text-gray-700 text-center py-2 px-3 rounded text-sm hover:bg-gray-300 transition-colors"
-                          >
+                            <Download className="h-4 w-4 inline mr-1" />
                             Downloaden
-          </a>
-        </div>
+                          </a>
+                        </div>
                       </div>
                     ) : (
                       <div className="flex-1 flex items-center justify-between">
@@ -459,23 +697,33 @@ export default function AantekeningenPage() {
                             <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
                               <span>{formatDate(file.modifiedTime)}</span>
                               <span>{formatFileSize(file.size)}</span>
-                              {file.subject && <span>{file.subject}</span>}
                             </div>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {file.subject && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
+                              {file.topic && <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
+                              {file.level && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">{file.level}</span>}
+                              {file.schoolYear && <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
+                            </div>
+                            {file.keywords && file.keywords.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {file.keywords.slice(0, 4).map((keyword, index) => (
+                                  <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {file.summary && (
+                              <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded mt-2 max-w-md">{file.summary}</p>
+                            )}
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <a
-                            href={file.viewUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+                            href={file.downloadUrl}
                             className="bg-blue-600 text-white py-2 px-4 rounded text-sm hover:bg-blue-700 transition-colors"
                           >
-                            Bekijken
-        </a>
-        <a
-                            href={file.downloadUrl}
-                            className="bg-gray-200 text-gray-700 py-2 px-4 rounded text-sm hover:bg-gray-300 transition-colors"
-                          >
+                            <Download className="h-4 w-4 inline mr-2" />
                             Downloaden
                           </a>
                         </div>

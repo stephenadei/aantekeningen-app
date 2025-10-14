@@ -377,68 +377,11 @@ class GoogleDriveService {
         };
       }
       
-      // Try to get from cache first
-      const cacheKey = CACHE_KEY_FILES + folderId;
-      const cachedData = this.getCache(cacheKey);
+      // Always get fresh file count by calling getStudentFiles
+      console.log('🔄 Fetching fresh file data for overview...');
+      const files = await this.getStudentFiles(folderId);
       
-      console.log('📊 Cache check for folderId:', folderId, 'cachedData:', !!cachedData);
-      
-      if (cachedData) {
-        const files = cachedData.files;
-        console.log('📁 Using cached data for folderId:', folderId, 'files count:', files ? files.length : 'null');
-        
-        // Validate cached files data
-        if (!files || !Array.isArray(files)) {
-          console.log('⚠️ Warning: Cached files data is invalid for folder:', folderId, 'files type:', typeof files);
-          // Fall through to direct Drive access
-        } else {
-          if (files.length === 0) {
-            return {
-              fileCount: 0,
-              lastActivity: null,
-              lastActivityDate: 'Geen bestanden'
-            };
-          }
-        
-          const lastFile = files[0]; // Files are sorted by date, newest first
-          
-          // Try to get lesson date from filename, fallback to modified time
-          const lessonDate = this.extractDateFromFilename(lastFile.name);
-          const lastActivityDate = lessonDate ? 
-            lessonDate.toLocaleDateString('nl-NL', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric'
-            }) :
-            new Date(lastFile.modifiedTime).toLocaleDateString('nl-NL', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric'
-            });
-          
-          return {
-            fileCount: files.length,
-            lastActivity: lessonDate ? lessonDate.toISOString() : lastFile.modifiedTime,
-            lastActivityDate: lastActivityDate
-          };
-        }
-      }
-      
-      // If not cached, get minimal info directly from Drive
-      console.log('🔄 Fetching data directly from Drive for folderId:', folderId);
-      
-      await this.ensureInitialized();
-      
-      const files = await this.drive.files.list({
-        q: `'${folderId}' in parents and trashed=false`,
-        fields: 'files(id, name, modifiedTime)',
-        orderBy: 'modifiedTime desc',
-        pageSize: 1,
-      });
-
-      const fileCount = files.data.files?.length || 0;
-      
-      if (fileCount === 0) {
+      if (!files || files.length === 0) {
         return {
           fileCount: 0,
           lastActivity: null,
@@ -446,21 +389,27 @@ class GoogleDriveService {
         };
       }
       
-      const lastFile = files.data.files[0];
-      const lastActivityDate = new Date(lastFile.modifiedTime).toLocaleDateString('nl-NL', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
+      const lastFile = files[0]; // Files are sorted by date, newest first
       
-      const result = {
-        fileCount: fileCount,
-        lastActivity: lastFile.modifiedTime,
+      // Try to get lesson date from filename, fallback to modified time
+      const lessonDate = this.extractDateFromFilename(lastFile.name);
+      const lastActivityDate = lessonDate ? 
+        lessonDate.toLocaleDateString('nl-NL', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }) :
+        new Date(lastFile.modifiedTime).toLocaleDateString('nl-NL', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+      
+      return {
+        fileCount: files.length,
+        lastActivity: lessonDate ? lessonDate.toISOString() : lastFile.modifiedTime,
         lastActivityDate: lastActivityDate
       };
-      
-      console.log('✅ getStudentOverview returning for folderId:', folderId, 'result:', JSON.stringify(result));
-      return result;
       
     } catch (error) {
       console.error('❌ Error getting student overview for folderId:', folderId, 'error:', error);
@@ -522,6 +471,24 @@ class GoogleDriveService {
       const dateMatch = filename.match(/^(\d{4}-\d{2}-\d{2})/);
       if (dateMatch) {
         return new Date(dateMatch[1]);
+      }
+      
+      // Try to extract date from "Priveles 27 Jan 2025 15_42_04.pdf" format
+      const privelesDateMatch = filename.match(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/i);
+      if (privelesDateMatch) {
+        const day = parseInt(privelesDateMatch[1]);
+        const monthName = privelesDateMatch[2].toLowerCase();
+        const year = parseInt(privelesDateMatch[3]);
+        
+        const monthMap: { [key: string]: number } = {
+          'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+          'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+        };
+        
+        const month = monthMap[monthName];
+        if (month !== undefined) {
+          return new Date(year, month, day);
+        }
       }
       
       // Fallback: try other common date formats
@@ -669,15 +636,32 @@ class GoogleDriveService {
       analysis.keywordsEn = ['physics', 'mechanics', 'forces'];
     }
     
-    // Extract school year from filename if present
-    const yearMatch = fileName.match(/(\d{4})/);
-    if (yearMatch) {
-      const year = parseInt(yearMatch[1]);
-      if (year >= 2020 && year <= 2030) {
-        // Convert to school year format (e.g., 2024 -> 24/25)
-        const shortYear = year.toString().slice(-2);
-        const nextShortYear = (year + 1).toString().slice(-2);
-        analysis.schoolYear = `${shortYear}/${nextShortYear}`;
+    // Extract school year from date in filename
+    const lessonDate = this.extractDateFromFilename(fileName);
+    if (lessonDate) {
+      const year = lessonDate.getFullYear();
+      const month = lessonDate.getMonth(); // 0-11
+      
+      // School year starts in August/September
+      // If lesson is before August, it belongs to previous school year
+      let schoolYearStart = year;
+      if (month < 7) { // Before August (month 7)
+        schoolYearStart = year - 1;
+      }
+      
+      const shortYear = schoolYearStart.toString().slice(-2);
+      const nextShortYear = (schoolYearStart + 1).toString().slice(-2);
+      analysis.schoolYear = `${shortYear}/${nextShortYear}`;
+    } else {
+      // Fallback: try to extract year from filename
+      const yearMatch = fileName.match(/(\d{4})/);
+      if (yearMatch) {
+        const year = parseInt(yearMatch[1]);
+        if (year >= 2020 && year <= 2030) {
+          const shortYear = year.toString().slice(-2);
+          const nextShortYear = (year + 1).toString().slice(-2);
+          analysis.schoolYear = `${shortYear}/${nextShortYear}`;
+        }
       }
     }
     

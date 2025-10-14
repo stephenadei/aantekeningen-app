@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText, Calendar, User, Share2, Download, ExternalLink, ArrowLeft, Loader2 } from 'lucide-react';
+import { FileText, Calendar, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface Student {
@@ -24,7 +24,6 @@ interface FileInfo {
   title: string;
   url: string;
   downloadUrl: string;
-  viewUrl: string;
   thumbnailUrl: string;
   modifiedTime: string;
   size: number;
@@ -34,6 +33,9 @@ interface FileInfo {
   schoolYear?: string;
   keywords?: string[];
   summary?: string;
+  summaryEn?: string;
+  topicEn?: string;
+  keywordsEn?: string[];
 }
 
 export default function StudentPage() {
@@ -44,8 +46,20 @@ export default function StudentPage() {
   const [studentOverview, setStudentOverview] = useState<StudentOverview | null>(null);
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cacheLoading, setCacheLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareableUrl, setShareableUrl] = useState<string>('');
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    subject: '',
+    topic: '',
+    level: '',
+    schoolYear: '',
+    keyword: ''
+  });
+  const [sortBy, setSortBy] = useState<'date' | 'name' | 'subject' | 'topic'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (studentId) {
@@ -56,23 +70,22 @@ export default function StudentPage() {
   const loadStudentData = async () => {
     try {
       setLoading(true);
+      setCacheLoading(false);
       setError(null);
 
-      // Load student info, overview, and files in parallel
-      const [studentResponse, overviewResponse, filesResponse, shareResponse] = await Promise.all([
+      // Load student info, overview, and share in parallel first
+      const [studentResponse, overviewResponse, shareResponse] = await Promise.all([
         fetch(`/api/students/search?q=${encodeURIComponent(studentId)}`),
         fetch(`/api/students/${studentId}/overview`),
-        fetch(`/api/students/${studentId}/files`),
         fetch(`/api/students/${studentId}/share`)
       ]);
 
-      if (!studentResponse.ok || !overviewResponse.ok || !filesResponse.ok) {
+      if (!studentResponse.ok || !overviewResponse.ok) {
         throw new Error('Failed to load student data');
       }
 
       const studentData = await studentResponse.json();
       const overviewData = await overviewResponse.json();
-      const filesData = await filesResponse.json();
       const shareData = await shareResponse.json();
 
       if (studentData.success && studentData.students.length > 0) {
@@ -83,12 +96,43 @@ export default function StudentPage() {
         setStudentOverview(overviewData.overview);
       }
 
-      if (filesData.success) {
-        setFiles(filesData.files);
-      }
-
       if (shareData.success) {
         setShareableUrl(shareData.shareableUrl);
+      }
+
+      // Show cache loading immediately when starting to fetch files
+      setCacheLoading(true);
+      
+      // Get files (this is where AI analysis happens)
+      const filesResponse = await fetch(`/api/students/${studentId}/files`);
+      
+      if (!filesResponse.ok) {
+        throw new Error('Failed to load files');
+      }
+
+      const filesData = await filesResponse.json();
+
+      if (filesData.success) {
+        setFiles(filesData.files);
+        
+        // Check if files need more processing
+        if (filesData.files && filesData.files.length > 0) {
+          const hasUncachedFiles = filesData.files.some((file: FileInfo) => 
+            !file.subject || !file.topic || !file.keywords || !file.summary
+          );
+          
+          if (hasUncachedFiles) {
+            // Keep showing cache loading for a bit longer
+            setTimeout(() => setCacheLoading(false), 2000);
+          } else {
+            // Hide cache loading immediately if all files are processed
+            setCacheLoading(false);
+          }
+        } else {
+          setCacheLoading(false);
+        }
+      } else {
+        setCacheLoading(false);
       }
 
     } catch (err) {
@@ -134,6 +178,70 @@ export default function StudentPage() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Filter and sort functions
+  const getUniqueValues = (files: FileInfo[], key: keyof FileInfo) => {
+    const values = files
+      .map(file => file[key])
+      .filter((value): value is string => typeof value === 'string' && value.length > 0)
+      .filter((value, index, self) => self.indexOf(value) === index)
+      .sort();
+    return values;
+  };
+
+  const getUniqueKeywords = (files: FileInfo[]) => {
+    const allKeywords = files
+      .flatMap(file => file.keywords || [])
+      .filter((keyword, index, self) => self.indexOf(keyword) === index)
+      .sort();
+    return allKeywords;
+  };
+
+  const filteredAndSortedFiles = () => {
+    let filtered = files.filter(file => {
+      if (filters.subject && file.subject !== filters.subject) return false;
+      if (filters.topic && file.topic !== filters.topic) return false;
+      if (filters.level && file.level !== filters.level) return false;
+      if (filters.schoolYear && file.schoolYear !== filters.schoolYear) return false;
+      if (filters.keyword && !file.keywords?.some(k => k.toLowerCase().includes(filters.keyword.toLowerCase()))) return false;
+      return true;
+    });
+
+    // Sort files
+    filtered.sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.modifiedTime).getTime();
+          bValue = new Date(b.modifiedTime).getTime();
+          break;
+        case 'name':
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+          break;
+        case 'subject':
+          aValue = a.subject || '';
+          bValue = b.subject || '';
+          break;
+        case 'topic':
+          aValue = a.topic || '';
+          bValue = b.topic || '';
+          break;
+        default:
+          return 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+    return filtered;
   };
 
   const formatDate = (dateString: string): string => {
@@ -206,15 +314,6 @@ export default function StudentPage() {
                 <Share2 className="h-4 w-4 mr-2" />
                 Deel Link
               </button>
-              <a
-                href={student.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open in Drive
-              </a>
             </div>
           </div>
         </div>
@@ -222,7 +321,7 @@ export default function StudentPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="p-5">
               <div className="flex items-center">
@@ -257,24 +356,142 @@ export default function StudentPage() {
             </div>
           </div>
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Calendar className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Laatste activiteit</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {studentOverview?.lastActivityDate || 'Onbekend'}
-                    </dd>
-                  </dl>
-                </div>
+        </div>
+
+        {/* Cache Loading Banner */}
+        {cacheLoading && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-600 mr-3" />
+              <div>
+                <p className="text-blue-800 font-medium">Metadata wordt verwerkt...</p>
+                <p className="text-blue-600 text-sm">AI analyseert de documenten voor betere zoekresultaten</p>
               </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Filters and Sort */}
+        {files.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Subject Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vak</label>
+                <select
+                  value={filters.subject}
+                  onChange={(e) => setFilters(prev => ({ ...prev, subject: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Alle vakken</option>
+                  {getUniqueValues(files, 'subject').map(subject => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Topic Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp</label>
+                <select
+                  value={filters.topic}
+                  onChange={(e) => setFilters(prev => ({ ...prev, topic: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Alle onderwerpen</option>
+                  {getUniqueValues(files, 'topic').map(topic => (
+                    <option key={topic} value={topic}>{topic}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Level Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label>
+                <select
+                  value={filters.level}
+                  onChange={(e) => setFilters(prev => ({ ...prev, level: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Alle niveaus</option>
+                  {getUniqueValues(files, 'level').map(level => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* School Year Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Schooljaar</label>
+                <select
+                  value={filters.schoolYear}
+                  onChange={(e) => setFilters(prev => ({ ...prev, schoolYear: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Alle schooljaren</option>
+                  {getUniqueValues(files, 'schoolYear').map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Keyword Search */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Zoek in trefwoorden</label>
+                <input
+                  type="text"
+                  value={filters.keyword}
+                  onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+                  placeholder="Typ trefwoord..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Sort By */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Sorteer op</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="date">Datum</option>
+                  <option value="name">Naam</option>
+                  <option value="subject">Vak</option>
+                  <option value="topic">Onderwerp</option>
+                </select>
+              </div>
+
+              {/* Sort Order */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Volgorde</label>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="desc">Nieuwste eerst</option>
+                  <option value="asc">Oudste eerst</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Clear Filters */}
+            <div className="mt-4 flex justify-between items-center">
+              <span className="text-sm text-gray-600">
+                {filteredAndSortedFiles().length} van {files.length} bestanden
+              </span>
+              <button
+                onClick={() => setFilters({ subject: '', topic: '', level: '', schoolYear: '', keyword: '' })}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Filters wissen
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Files List */}
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -295,7 +512,7 @@ export default function StudentPage() {
             </div>
           ) : (
             <ul className="divide-y divide-gray-200">
-              {files.map((file) => (
+              {filteredAndSortedFiles().map((file) => (
                 <li key={file.id}>
                   <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
                     <div className="flex items-center justify-between">
@@ -313,29 +530,31 @@ export default function StudentPage() {
                           <div className="mt-1 flex items-center space-x-4 text-xs text-gray-500">
                             <span>{formatDate(file.modifiedTime)}</span>
                             <span>{formatFileSize(file.size)}</span>
-                            {file.subject && <span>{file.subject}</span>}
-                            {file.topic && <span>{file.topic}</span>}
+                            {file.subject && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{file.subject}</span>}
+                            {file.topic && <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full">{file.topic}</span>}
+                            {file.level && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full">{file.level}</span>}
+                            {file.schoolYear && <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full">{file.schoolYear}</span>}
                           </div>
+                          {file.keywords && file.keywords.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {file.keywords.map((keyword, index) => (
+                                <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {file.summary && (
-                            <p className="mt-1 text-xs text-gray-600">{file.summary}</p>
+                            <p className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded">{file.summary}</p>
                           )}
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
                         <a
-                          href={file.viewUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          Bekijk
-                        </a>
-                        <a
                           href={file.downloadUrl}
-                          className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
                         >
-                          <Download className="h-3 w-3 mr-1" />
+                          <Download className="h-4 w-4 mr-2" />
                           Download
                         </a>
                       </div>
