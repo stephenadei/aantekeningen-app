@@ -40,7 +40,6 @@ export function checkRateLimit(
   options: RateLimitOptions
 ): { allowed: boolean; remaining: number; resetTime: number } {
   const now = Date.now();
-  const windowStart = now - options.windowMs;
   
   const current = rateLimitStore.get(key);
   

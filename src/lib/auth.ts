@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // Only allow sign-ins from the allowed domain
       if (!user.email || !validateTeacherEmail(user.email)) {
         console.log(`Sign-in rejected for email: ${user.email}`);
@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, account }) {
       // Persist the OAuth access_token to the token right after signin
       if (account) {
         token.accessToken = account.access_token;
@@ -67,7 +67,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   events: {
-    async signIn({ user, account, profile, isNewUser }) {
+    async signIn({ user, account, isNewUser }) {
       // Log successful sign-in
       try {
         await prisma.loginAudit.create({
@@ -85,7 +85,7 @@ export const authOptions: NextAuthOptions = {
         console.error('Failed to log successful sign-in:', error);
       }
     },
-    async signOut({ session, token }) {
+    async signOut({ session }) {
       // Log sign-out
       if (session?.user?.email) {
         try {
