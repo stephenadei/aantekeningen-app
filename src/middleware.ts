@@ -20,8 +20,8 @@ export default withAuth(
     }
 
     // Student portal routes (public, no auth required)
-    if (pathname.startsWith('/leerling')) {
-      // Allow access to student portal
+    if (pathname.startsWith('/leerling') || pathname.startsWith('/student')) {
+      // Allow access to student portal and student pages
       return NextResponse.next();
     }
 
@@ -53,6 +53,11 @@ export default withAuth(
           return !!token;
         }
         
+        // Student routes don't require authentication
+        if (pathname.startsWith('/student') || pathname.startsWith('/leerling')) {
+          return true;
+        }
+        
         // Other routes don't require authentication
         return true;
       },
@@ -65,5 +70,6 @@ export const config = {
     '/admin/:path*',
     '/api/admin/:path*',
     '/leerling/:path*',
+    '/student/:path*',
   ],
 };
