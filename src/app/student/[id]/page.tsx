@@ -90,6 +90,14 @@ export default function StudentPage() {
 
       if (studentData.success && studentData.students.length > 0) {
         setStudent(studentData.students[0]);
+      } else if (overviewData.success) {
+        // If search didn't find the student but overview did, create a basic student object
+        setStudent({
+          id: studentId,
+          name: `Student ${studentId.slice(0, 8)}...`, // Show partial ID as name
+          subject: 'Onbekend',
+          url: ''
+        });
       }
 
       if (overviewData.success) {
