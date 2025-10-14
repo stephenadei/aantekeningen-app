@@ -42,14 +42,14 @@ export async function GET(request: NextRequest) {
     }
 
     if (startDate || endDate) {
-      where.createdAt = {};
+      where.createdAt = {} as Record<string, Date>;
       
       if (startDate) {
-        where.createdAt.gte = startDate;
+        (where.createdAt as Record<string, Date>).gte = startDate;
       }
       
       if (endDate) {
-        where.createdAt.lte = endDate;
+        (where.createdAt as Record<string, Date>).lte = endDate;
       }
     }
 
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Transform data for response
-    const transformedLogs = auditLogs.map(log => ({
+    const transformedLogs = auditLogs.map((log: any) => ({
       id: log.id,
       who: log.who,
       action: log.action,
