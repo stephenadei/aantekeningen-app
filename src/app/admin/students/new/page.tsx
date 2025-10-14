@@ -15,7 +15,11 @@ export default function NewStudentPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{
-    student: any;
+    student: {
+      id: string;
+      displayName: string;
+      createdAt: string;
+    };
     pin: string;
   } | null>(null);
   const router = useRouter();

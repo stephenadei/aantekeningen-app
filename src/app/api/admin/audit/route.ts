@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {};
+    const where: Record<string, unknown> = {};
 
     if (action) {
       where.action = action;

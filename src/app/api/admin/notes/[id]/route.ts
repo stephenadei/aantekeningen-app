@@ -93,7 +93,7 @@ export async function PATCH(
     }
 
     // Normalize tags if they're being updated
-    const normalizedData: any = { ...updateData };
+    const normalizedData: Record<string, unknown> = { ...updateData };
     
     if (updateData.subject) {
       normalizedData.subject = canonSubject(updateData.subject);

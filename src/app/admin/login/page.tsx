@@ -4,6 +4,7 @@ import { signIn, getSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Shield, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
@@ -135,12 +136,12 @@ export default function AdminLoginPage() {
             </div>
 
             <div className="text-center">
-              <a
+              <Link
                 href="/"
                 className="text-sm text-blue-600 hover:text-blue-500"
               >
                 Terug naar studentenportaal
-              </a>
+              </Link>
             </div>
           </div>
 
