@@ -114,7 +114,7 @@ export async function PATCH(
     }
 
     // Update note and tags in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Update the note
       const updatedNote = await tx.note.update({
         where: { id: id },
@@ -175,7 +175,7 @@ export async function PATCH(
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid input data', details: error.errors },
+        { error: 'Invalid input data', details: error.issues },
         { status: 400 }
       );
     }
