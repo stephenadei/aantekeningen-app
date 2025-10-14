@@ -114,7 +114,7 @@ export async function PATCH(
     }
 
     // Update note and tags in a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Update the note
       const updatedNote = await tx.note.update({
         where: { id: id },
