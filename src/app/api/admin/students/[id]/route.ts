@@ -10,7 +10,7 @@ const updateStudentSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession();
@@ -19,8 +19,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const student = await prisma.student.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         notes: {
           orderBy: {
@@ -62,7 +63,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession();
@@ -71,12 +72,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const updateData = updateStudentSchema.parse(body);
 
     // Check if student exists
     const existingStudent = await prisma.student.findUnique({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     if (!existingStudent) {
@@ -102,7 +104,7 @@ export async function PATCH(
 
     // Update student
     const updatedStudent = await prisma.student.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...updateData,
         displayName: updateData.displayName ? sanitizeInput(updateData.displayName) : undefined,
@@ -114,7 +116,7 @@ export async function PATCH(
       data: {
         who: `teacher:${session.user.email}`,
         action: 'student_updated',
-        studentId: params.id,
+        studentId: id,
         metadata: {
           changes: updateData,
           studentName: updatedStudent.displayName,
@@ -149,7 +151,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession();
@@ -158,9 +160,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     // Check if student exists
     const existingStudent = await prisma.student.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         _count: {
           select: {
@@ -182,7 +185,7 @@ export async function DELETE(
       data: {
         who: `teacher:${session.user.email}`,
         action: 'student_deleted',
-        studentId: params.id,
+        studentId: id,
         metadata: {
           studentName: existingStudent.displayName,
           notesCount: existingStudent._count.notes,
@@ -192,7 +195,7 @@ export async function DELETE(
 
     // Delete student (cascade will handle related records)
     await prisma.student.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({

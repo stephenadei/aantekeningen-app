@@ -16,7 +16,7 @@ const updateNoteSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession();
@@ -25,8 +25,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const note = await prisma.note.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         student: {
           select: {
@@ -60,7 +61,7 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession();
@@ -69,12 +70,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const body = await request.json();
     const updateData = updateNoteSchema.parse(body);
 
     // Check if note exists
     const existingNote = await prisma.note.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         student: {
           select: {
@@ -115,7 +117,7 @@ export async function PATCH(
     const result = await prisma.$transaction(async (tx) => {
       // Update the note
       const updatedNote = await tx.note.update({
-        where: { id: params.id },
+        where: { id: id },
         data: normalizedData,
       });
 
@@ -156,7 +158,7 @@ export async function PATCH(
         action: 'note_updated',
         studentId: existingNote.studentId,
         metadata: {
-          noteId: params.id,
+          noteId: id,
           studentName: existingNote.student.displayName,
           changes: updateData,
         },
@@ -187,7 +189,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession();
@@ -196,9 +198,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     // Check if note exists
     const existingNote = await prisma.note.findUnique({
-      where: { id: params.id },
+      where: { id: id },
       include: {
         student: {
           select: {
@@ -223,7 +226,7 @@ export async function DELETE(
         action: 'note_deleted',
         studentId: existingNote.studentId,
         metadata: {
-          noteId: params.id,
+          noteId: id,
           studentName: existingNote.student.displayName,
           subject: existingNote.subject,
           level: existingNote.level,
@@ -234,7 +237,7 @@ export async function DELETE(
 
     // Delete note (cascade will handle related records)
     await prisma.note.delete({
-      where: { id: params.id },
+      where: { id: id },
     });
 
     return NextResponse.json({

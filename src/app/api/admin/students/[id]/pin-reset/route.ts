@@ -6,7 +6,7 @@ import { generatePin, hashPin } from '@/lib/security';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession();
@@ -15,9 +15,10 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     // Check if student exists
     const existingStudent = await prisma.student.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingStudent) {
@@ -33,7 +34,7 @@ export async function POST(
 
     // Update student with new PIN
     const updatedStudent = await prisma.student.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         pinHash: newPinHash,
         pinUpdatedAt: new Date(),
@@ -45,7 +46,7 @@ export async function POST(
       data: {
         who: `teacher:${session.user.email}`,
         action: 'pin_reset',
-        studentId: params.id,
+        studentId: id,
         metadata: {
           studentName: updatedStudent.displayName,
           resetBy: session.user.email,
