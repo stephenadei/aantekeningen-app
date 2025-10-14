@@ -338,30 +338,32 @@ export default function StudentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Link 
                 href="/"
-                className="inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                className="inline-flex items-center text-slate-600 hover:text-slate-900 transition-all duration-200 hover:scale-105"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Terug
               </Link>
-              <div className="h-6 w-px bg-gray-300" />
+              <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">{student.name}</h1>
-                <p className="text-sm text-gray-500">{student.subject}</p>
+                <h1 className="text-xl font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  {student.name}
+                </h1>
+                <p className="text-sm text-slate-500">{student.subject}</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-3">
               <button
                 onClick={copyShareableLink}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 backdrop-blur-sm"
               >
                 <Share2 className="h-4 w-4 mr-2" />
                 Deel Link
@@ -374,33 +376,19 @@ export default function StudentPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
+          <div className="bg-white/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <User className="h-6 w-6 text-gray-400" />
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <User className="h-6 w-6 text-white" />
+                  </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Student</dt>
-                    <dd className="text-lg font-medium text-gray-900">{student.name}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <FileText className="h-6 w-6 text-gray-400" />
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">Aantal bestanden</dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {studentOverview?.fileCount || 0}
+                    <dt className="text-sm font-medium text-slate-500 truncate">Student</dt>
+                    <dd className="text-lg font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                      {student.name}
                     </dd>
                   </dl>
                 </div>
@@ -408,16 +396,37 @@ export default function StudentPage() {
             </div>
           </div>
 
+          <div className="bg-white/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <div className="p-6">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <FileText className="h-6 w-6 text-white" />
+                  </div>
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-slate-500 truncate">Aantal bestanden</dt>
+                    <dd className="text-lg font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                      {studentOverview?.fileCount || 0}
+                    </dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Cache Loading Banner */}
         {cacheLoading && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 backdrop-blur-xl border border-blue-200/30 rounded-2xl p-6 mb-6 shadow-lg">
             <div className="flex items-center">
-              <Loader2 className="w-5 h-5 animate-spin text-blue-600 mr-3" />
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg mr-4">
+                <Loader2 className="w-5 h-5 animate-spin text-white" />
+              </div>
               <div>
-                <p className="text-blue-800 font-medium">Metadata wordt verwerkt...</p>
-                <p className="text-blue-600 text-sm">AI analyseert de documenten voor betere zoekresultaten</p>
+                <p className="text-slate-800 font-semibold">Metadata wordt verwerkt...</p>
+                <p className="text-slate-600 text-sm">AI analyseert de documenten voor betere zoekresultaten</p>
               </div>
             </div>
           </div>
@@ -425,15 +434,15 @@ export default function StudentPage() {
 
         {/* Filters and Sort */}
         {files.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+          <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               {/* Subject Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vak</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Vak</label>
                 <select
                   value={filters.subject}
                   onChange={(e) => setFilters(prev => ({ ...prev, subject: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle vakken</option>
                   {getUniqueValues(files, 'subject').map(subject => (
@@ -444,11 +453,11 @@ export default function StudentPage() {
 
               {/* Topic Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Onderwerp</label>
                 <select
                   value={filters.topic}
                   onChange={(e) => setFilters(prev => ({ ...prev, topic: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle onderwerpen</option>
                   {getUniqueValues(files, 'topic').map(topic => (
@@ -459,11 +468,11 @@ export default function StudentPage() {
 
               {/* Level Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Niveau</label>
                 <select
                   value={filters.level}
                   onChange={(e) => setFilters(prev => ({ ...prev, level: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle niveaus</option>
                   {getUniqueValues(files, 'level').map(level => (
@@ -474,11 +483,11 @@ export default function StudentPage() {
 
               {/* School Year Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Schooljaar</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Schooljaar</label>
                 <select
                   value={filters.schoolYear}
                   onChange={(e) => setFilters(prev => ({ ...prev, schoolYear: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle schooljaren</option>
                   {getUniqueValues(files, 'schoolYear').map(year => (
@@ -491,23 +500,23 @@ export default function StudentPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Keyword Search */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Zoek in trefwoorden</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Zoek in trefwoorden</label>
                 <input
                   type="text"
                   value={filters.keyword}
                   onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
                   placeholder="Typ trefwoord..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 />
               </div>
 
               {/* Sort By */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sorteer op</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Sorteer op</label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="date">Datum</option>
                   <option value="name">Naam</option>
@@ -518,11 +527,11 @@ export default function StudentPage() {
 
               {/* Sort Order */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Volgorde</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Volgorde</label>
                 <select
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="desc">Nieuwste eerst</option>
                   <option value="asc">Oudste eerst</option>
@@ -546,19 +555,23 @@ export default function StudentPage() {
         )}
 
         {/* Files List */}
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
-          <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">Aantekeningen</h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">
+        <div className="bg-white/70 backdrop-blur-xl shadow-xl overflow-hidden rounded-2xl border border-white/20">
+          <div className="px-6 py-6 sm:px-8">
+            <h3 className="text-xl leading-6 font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              Aantekeningen
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">
               Alle bestanden van {student.name}
             </p>
           </div>
           
           {files.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Geen bestanden</h3>
-              <p className="mt-1 text-sm text-gray-500 mb-4">
+            <div className="text-center py-16">
+              <div className="w-16 h-16 bg-gradient-to-br from-slate-200 to-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <FileText className="h-8 w-8 text-slate-500" />
+              </div>
+              <h3 className="mt-2 text-lg font-semibold text-slate-900">Geen bestanden</h3>
+              <p className="mt-2 text-sm text-slate-600 mb-6">
                 Er zijn nog geen aantekeningen beschikbaar voor deze student.
               </p>
               <button
@@ -567,20 +580,21 @@ export default function StudentPage() {
                   setError(null);
                   loadStudentData();
                 }}
-                className="text-blue-600 hover:text-blue-800 text-sm underline"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
               >
+                <Loader2 className="h-4 w-4 mr-2" />
                 Opnieuw laden
               </button>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-200">
+            <ul className="divide-y divide-slate-200/50">
               {filteredAndSortedFiles().map((file) => (
                 <li key={file.id}>
-                  <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                  <div className="px-6 py-6 sm:px-8 hover:bg-white/50 transition-all duration-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="flex-shrink-0">
-                          <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => handleFileClick(file)}>
+                          <div className="w-20 h-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center overflow-hidden relative group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" onClick={() => handleFileClick(file)}>
                             {file.thumbnailUrl ? (
                               <Image 
                                 src={file.thumbnailUrl} 
@@ -643,7 +657,7 @@ export default function StudentPage() {
                       <div className="flex items-center space-x-2">
                         <a
                           href={file.downloadUrl}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
+                          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
                         >
                           <Download className="h-4 w-4 mr-2" />
                           Download
@@ -657,11 +671,11 @@ export default function StudentPage() {
           )}
           
           {hasMoreFiles && (
-            <div className="px-4 py-4 sm:px-6 border-t border-gray-200">
+            <div className="px-6 py-6 sm:px-8 border-t border-slate-200/50">
               <button
                 onClick={loadMoreFiles}
                 disabled={loadingMore}
-                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                className="w-full flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-lg"
               >
                 {loadingMore ? (
                   <>

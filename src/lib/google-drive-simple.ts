@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { getSchoolYearFromDate, getSchoolYearLabel } from './school-year-utils';
 
 // Google Drive API configuration
 
@@ -543,12 +544,16 @@ class GoogleDriveService {
       
       console.log('Analyzing document with AI: ' + fileName);
       
+      // Extract date from filename to determine school year
+      const extractedDate = this.extractDateFromFilename(fileName);
+      const schoolYearInfo = extractedDate ? getSchoolYearFromDate(extractedDate.toISOString()) : null;
+      const autoSchoolYear = schoolYearInfo ? schoolYearInfo.schoolYear : null;
+
       // Prepare prompt for OpenAI with bilingual support
       const prompt = `Analyze this document and extract metadata. Return a JSON object with:
       - subject: The main subject/vak from this list: Wiskunde A, Wiskunde B, Wiskunde C, Wiskunde D, Natuurkunde, Scheikunde, Informatica, Programmeren, Python, Rekenen, Statistiek, Data-analyse
       - topic: The specific topic/onderwerp (e.g., "Algebra", "Functies", "Differentiëren", "Integreren", "Mechanica", "Elektriciteit", "Organische chemie", "Python basics", "Statistiek")
       - level: Educational level (e.g., "VO", "WO", "HBO")
-      - schoolYear: School year in format "YY/YY" (e.g., "24/25", "23/24", "22/23")
       - keywords: Array of 3-5 relevant keywords
       - summary: Brief 1-sentence summary
       - summaryEn: Brief 1-sentence summary in English
@@ -560,6 +565,7 @@ class GoogleDriveService {
         - example: Optional example or application
       
       Document name: "${fileName}"
+      ${autoSchoolYear ? `Auto-detected school year: ${autoSchoolYear}` : ''}
       
       Return only valid JSON, no other text.`;
       
@@ -590,6 +596,11 @@ class GoogleDriveService {
       const responseData = await response.json();
       const analysis = JSON.parse(responseData.choices[0].message.content);
       
+      // Override schoolYear with auto-detected value if available
+      if (autoSchoolYear) {
+        analysis.schoolYear = autoSchoolYear;
+      }
+      
       // Cache the result
       this.setCache(cacheKey, {
         timestamp: new Date().getTime(),
@@ -610,11 +621,16 @@ class GoogleDriveService {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private basicAnalysis(fileName: string): any {
+    // Extract date from filename to determine school year
+    const extractedDate = this.extractDateFromFilename(fileName);
+    const schoolYearInfo = extractedDate ? getSchoolYearFromDate(extractedDate.toISOString()) : null;
+    const autoSchoolYear = schoolYearInfo ? schoolYearInfo.schoolYear : '24/25';
+
     const analysis = {
       subject: 'Onbekend',
       topic: 'Algemeen',
       level: 'VO',
-      schoolYear: '24/25',
+      schoolYear: autoSchoolYear,
       keywords: ['lesmateriaal'],
       summary: 'Lesmateriaal document',
       topicEn: 'General',
