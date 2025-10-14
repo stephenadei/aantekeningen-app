@@ -29,6 +29,7 @@ export default function LeerlingPortal() {
     pin: '',
   });
   const [loading, setLoading] = useState(false);
+  const [loadingStudent, setLoadingStudent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [student, setStudent] = useState<Student | null>(null);
   const router = useRouter();
@@ -127,6 +128,7 @@ export default function LeerlingPortal() {
   }, []);
 
   const fetchStudentData = async (studentId: string) => {
+    setLoadingStudent(true);
     try {
       const response = await fetch(`/api/leerling/student/${studentId}`);
       const data = await response.json();
@@ -138,6 +140,8 @@ export default function LeerlingPortal() {
       }
     } catch (err) {
       removeSessionStorage('studentSession');
+    } finally {
+      setLoadingStudent(false);
     }
   };
 
@@ -175,7 +179,9 @@ export default function LeerlingPortal() {
                 <FileText className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500">Totaal Notities</p>
-                  <p className="text-2xl font-bold text-gray-900">{student.notes.length}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {loadingStudent ? '...' : student.notes.length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -185,9 +191,11 @@ export default function LeerlingPortal() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500">Laatste Notitie</p>
                   <p className="text-lg font-bold text-gray-900">
-                    {student.notes.length > 0
-                      ? formatDate(student.notes[0].createdAt)
-                      : 'Geen notities'}
+                    {loadingStudent 
+                      ? '...' 
+                      : student.notes.length > 0
+                        ? formatDate(student.notes[0].createdAt)
+                        : 'Geen notities'}
                   </p>
                 </div>
               </div>
@@ -209,7 +217,17 @@ export default function LeerlingPortal() {
               <h2 className="text-lg font-medium text-gray-900">Mijn Notities</h2>
             </div>
 
-            {student.notes.length === 0 ? (
+            {loadingStudent ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Notities laden...
+                </h3>
+                <p className="text-gray-500">
+                  Even geduld, je notities worden opgehaald.
+                </p>
+              </div>
+            ) : student.notes.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
