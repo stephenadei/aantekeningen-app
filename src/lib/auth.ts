@@ -33,17 +33,21 @@ export const authOptions: NextAuthOptions = {
       
       return true;
     },
-    async session({ session, user }) {
-      // Add user ID to session
-      if (session.user) {
-        session.user.id = user.id;
+    async session({ session, token }) {
+      // Add user ID to session from token
+      if (session.user && token.sub) {
+        session.user.id = token.sub;
       }
       return session;
     },
-    async jwt({ token, account }) {
+    async jwt({ token, account, user }) {
       // Persist the OAuth access_token to the token right after signin
       if (account) {
         token.accessToken = account.access_token;
+      }
+      // Add user ID to token
+      if (user) {
+        token.sub = user.email; // Use email as user ID for now
       }
       return token;
     },
