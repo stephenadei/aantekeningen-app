@@ -134,12 +134,12 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
         />
         
         {/* Modal */}
-        <div className="relative bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+        <div className="relative bg-white dark:bg-slate-800 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b">
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 dark:border-slate-700">
             <div className="flex-1">
-              <h2 className="text-xl font-semibold text-gray-900">{file.title}</h2>
-              <p className="text-sm text-gray-500 mt-1">{file.name}</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">{file.title}</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400 dark:text-slate-400 mt-1">{file.name}</p>
               <div className="flex items-center space-x-4 mt-2">
                 {file.subject && (
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">
@@ -160,7 +160,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
             </div>
             <button
               onClick={onClose}
-              className="ml-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="ml-4 p-2 text-gray-400 hover:text-gray-600 dark:text-slate-300 transition-colors"
             >
               <X className="h-6 w-6" />
             </button>
@@ -182,7 +182,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
             {/* Concepts Panel */}
             <div className="w-96 border-l bg-gray-50 p-6 overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 flex items-center">
                   <BookOpen className="h-5 w-5 mr-2" />
                   Belangrijke Begrippen
                 </h3>
@@ -197,7 +197,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
               {/* Add Concept Form */}
               {showAddForm && (
                 <div className="bg-white p-4 rounded-lg border mb-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Nieuw Begrip Toevoegen</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-slate-100 mb-3">Nieuw Begrip Toevoegen</h4>
                   <div className="space-y-3">
                     <input
                       type="text"
@@ -244,7 +244,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
                   <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
                 </div>
               ) : concepts.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-gray-500 dark:text-slate-400">
                   <BookOpen className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                   <p>Geen begrippen beschikbaar</p>
                   <p className="text-sm">Voeg handmatig begrippen toe</p>
@@ -262,7 +262,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
                       ) : (
                         <div>
                           <div className="flex items-start justify-between mb-2">
-                            <h4 className="font-medium text-gray-900">{concept.term}</h4>
+                            <h4 className="font-medium text-gray-900 dark:text-slate-100">{concept.term}</h4>
                             <div className="flex items-center space-x-1">
                               {concept.isAiGenerated && (
                                 <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
@@ -271,7 +271,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
                               )}
                               <button
                                 onClick={() => setEditingConcept(concept.id)}
-                                className="p-1 text-gray-400 hover:text-gray-600"
+                                className="p-1 text-gray-400 hover:text-gray-600 dark:text-slate-300"
                               >
                                 <Edit3 className="h-3 w-3" />
                               </button>
@@ -283,11 +283,11 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
                               </button>
                             </div>
                           </div>
-                          <p className="text-sm text-gray-600 mb-2">{concept.explanation}</p>
+                          <p className="text-sm text-gray-600 dark:text-slate-300 mb-2">{concept.explanation}</p>
                           {concept.example && (
                             <div className="bg-gray-50 p-2 rounded text-sm">
                               <span className="font-medium text-gray-700">Voorbeeld:</span>
-                              <p className="text-gray-600 mt-1">{concept.example}</p>
+                              <p className="text-gray-600 dark:text-slate-300 mt-1">{concept.example}</p>
                             </div>
                           )}
                         </div>

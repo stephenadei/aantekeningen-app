@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import DarkModeToggle from '@/components/ui/DarkModeToggle';
 
 interface Student {
   id: string;
@@ -317,13 +318,16 @@ export default function AantekeningenPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       <div className="container mx-auto px-4 py-8">
         {!selectedStudent ? (
           /* Search Interface */
           <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h2 className="text-xl font-semibold mb-4">Zoek je aantekeningen</h2>
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Zoek je aantekeningen</h2>
+                <DarkModeToggle />
+              </div>
               
               <div className="flex gap-2 mb-4">
                 <div className="flex-1 relative">
@@ -334,7 +338,7 @@ export default function AantekeningenPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                     placeholder="Typ je naam om je aantekeningen te vinden..."
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400"
                   />
                 </div>
                 <button

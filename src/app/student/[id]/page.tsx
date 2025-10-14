@@ -6,6 +6,7 @@ import { FileText, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-rea
 import Link from 'next/link';
 import Image from 'next/image';
 import FileDetailModal from '@/components/ui/FileDetailModal';
+import DarkModeToggle from '@/components/ui/DarkModeToggle';
 
 interface Student {
   id: string;
@@ -338,9 +339,9 @@ export default function StudentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-xl shadow-lg border-b border-white/20">
+      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl shadow-lg border-b border-white/20 dark:border-slate-700/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
@@ -361,6 +362,7 @@ export default function StudentPage() {
             </div>
             
             <div className="flex items-center space-x-3">
+              <DarkModeToggle />
               <button
                 onClick={copyShareableLink}
                 className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 backdrop-blur-sm"
@@ -376,7 +378,7 @@ export default function StudentPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 dark:border-slate-700/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -396,7 +398,7 @@ export default function StudentPage() {
             </div>
           </div>
 
-          <div className="bg-white/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 dark:border-slate-700/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
@@ -419,7 +421,7 @@ export default function StudentPage() {
 
         {/* Cache Loading Banner */}
         {cacheLoading && (
-          <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 backdrop-blur-xl border border-blue-200/30 rounded-2xl p-6 mb-6 shadow-lg">
+          <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 dark:from-blue-500/20 dark:to-indigo-500/20 backdrop-blur-xl border border-blue-200/30 dark:border-blue-400/30 rounded-2xl p-6 mb-6 shadow-lg">
             <div className="flex items-center">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg mr-4">
                 <Loader2 className="w-5 h-5 animate-spin text-white" />
@@ -434,15 +436,15 @@ export default function StudentPage() {
 
         {/* Filters and Sort */}
         {files.length > 0 && (
-          <div className="bg-white/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 p-6 mb-6">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 dark:border-slate-700/20 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               {/* Subject Filter */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Vak</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Vak</label>
                 <select
                   value={filters.subject}
                   onChange={(e) => setFilters(prev => ({ ...prev, subject: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle vakken</option>
                   {getUniqueValues(files, 'subject').map(subject => (
@@ -453,11 +455,11 @@ export default function StudentPage() {
 
               {/* Topic Filter */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Onderwerp</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Onderwerp</label>
                 <select
                   value={filters.topic}
                   onChange={(e) => setFilters(prev => ({ ...prev, topic: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle onderwerpen</option>
                   {getUniqueValues(files, 'topic').map(topic => (
@@ -468,11 +470,11 @@ export default function StudentPage() {
 
               {/* Level Filter */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Niveau</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Niveau</label>
                 <select
                   value={filters.level}
                   onChange={(e) => setFilters(prev => ({ ...prev, level: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle niveaus</option>
                   {getUniqueValues(files, 'level').map(level => (
@@ -483,11 +485,11 @@ export default function StudentPage() {
 
               {/* School Year Filter */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Schooljaar</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Schooljaar</label>
                 <select
                   value={filters.schoolYear}
                   onChange={(e) => setFilters(prev => ({ ...prev, schoolYear: e.target.value }))}
-                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="">Alle schooljaren</option>
                   {getUniqueValues(files, 'schoolYear').map(year => (
@@ -500,23 +502,23 @@ export default function StudentPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Keyword Search */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Zoek in trefwoorden</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Zoek in trefwoorden</label>
                 <input
                   type="text"
                   value={filters.keyword}
                   onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
                   placeholder="Typ trefwoord..."
-                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 />
               </div>
 
               {/* Sort By */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Sorteer op</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Sorteer op</label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
-                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="date">Datum</option>
                   <option value="name">Naam</option>
@@ -527,11 +529,11 @@ export default function StudentPage() {
 
               {/* Sort Order */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Volgorde</label>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Volgorde</label>
                 <select
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                  className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-slate-200/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full px-4 py-3 bg-white/80 dark:bg-slate-700/80 backdrop-blur-sm border border-slate-200/50 dark:border-slate-600/50 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-200 shadow-sm hover:shadow-md"
                 >
                   <option value="desc">Nieuwste eerst</option>
                   <option value="asc">Oudste eerst</option>
@@ -555,7 +557,7 @@ export default function StudentPage() {
         )}
 
         {/* Files List */}
-        <div className="bg-white/70 backdrop-blur-xl shadow-xl overflow-hidden rounded-2xl border border-white/20">
+        <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl shadow-xl overflow-hidden rounded-2xl border border-white/20 dark:border-slate-700/20">
           <div className="px-6 py-6 sm:px-8">
             <h3 className="text-xl leading-6 font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
               Aantekeningen
@@ -567,11 +569,11 @@ export default function StudentPage() {
           
           {files.length === 0 ? (
             <div className="text-center py-16">
-              <div className="w-16 h-16 bg-gradient-to-br from-slate-200 to-slate-300 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <FileText className="h-8 w-8 text-slate-500" />
+              <div className="w-16 h-16 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <FileText className="h-8 w-8 text-slate-500 dark:text-slate-400" />
               </div>
-              <h3 className="mt-2 text-lg font-semibold text-slate-900">Geen bestanden</h3>
-              <p className="mt-2 text-sm text-slate-600 mb-6">
+              <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">Geen bestanden</h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 mb-6">
                 Er zijn nog geen aantekeningen beschikbaar voor deze student.
               </p>
               <button
@@ -587,14 +589,14 @@ export default function StudentPage() {
               </button>
             </div>
           ) : (
-            <ul className="divide-y divide-slate-200/50">
+            <ul className="divide-y divide-slate-200/50 dark:divide-slate-700/50">
               {filteredAndSortedFiles().map((file) => (
                 <li key={file.id}>
-                  <div className="px-6 py-6 sm:px-8 hover:bg-white/50 transition-all duration-200">
+                  <div className="px-6 py-6 sm:px-8 hover:bg-white/50 dark:hover:bg-slate-700/50 transition-all duration-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center min-w-0 flex-1">
                         <div className="flex-shrink-0">
-                          <div className="w-20 h-16 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl flex items-center justify-center overflow-hidden relative group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" onClick={() => handleFileClick(file)}>
+                          <div className="w-20 h-16 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-600 dark:to-slate-700 rounded-xl flex items-center justify-center overflow-hidden relative group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" onClick={() => handleFileClick(file)}>
                             {file.thumbnailUrl ? (
                               <Image 
                                 src={file.thumbnailUrl} 
@@ -671,7 +673,7 @@ export default function StudentPage() {
           )}
           
           {hasMoreFiles && (
-            <div className="px-6 py-6 sm:px-8 border-t border-slate-200/50">
+            <div className="px-6 py-6 sm:px-8 border-t border-slate-200/50 dark:border-slate-700/50">
               <button
                 onClick={loadMoreFiles}
                 disabled={loadingMore}
