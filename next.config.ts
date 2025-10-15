@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
               "font-src 'self' data: https://fonts.gstatic.com",
-              "connect-src 'self' https: wss: https://api.openai.com",
+              "connect-src 'self' https: wss: https://api.openai.com https://vercel.live",
               "frame-src 'self' https://drive.google.com",
               "object-src 'none'",
               "base-uri 'self'",
