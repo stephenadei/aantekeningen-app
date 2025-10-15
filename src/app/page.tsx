@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useNativeShare } from '@/hooks/useNativeShare';
 
@@ -76,13 +75,8 @@ export default function AantekeningenPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-load files when student is selected
-  useEffect(() => {
-    if (selectedStudent && files.length === 0 && !loading && !cacheLoading) {
-      console.log('🔄 Auto-loading files for selected student:', selectedStudent.name);
-      handleStudentSelect(selectedStudent);
-    }
-  }, [selectedStudent]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Auto-load files when student is selected (removed redundant logic)
+  // The handleStudentSelect function is called directly when student is selected
 
   const handleSearch = async (query: string = searchQuery) => {
     if (!query.trim()) return;
@@ -271,7 +265,12 @@ export default function AantekeningenPage() {
 
 
   const filteredAndSortedFiles = () => {
-    const filtered = files.filter(file => {
+    // Remove duplicates by file.id first
+    const uniqueFiles = files.filter((file, index, self) => 
+      index === self.findIndex(f => f.id === file.id)
+    );
+    
+    const filtered = uniqueFiles.filter(file => {
       if (filters.subject && file.subject !== filters.subject) return false;
       if (filters.topic && file.topic !== filters.topic) return false;
       if (filters.level && file.level !== filters.level) return false;
@@ -706,11 +705,9 @@ export default function AantekeningenPage() {
                       <div>
                         <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
                           {file.thumbnailUrl ? (
-                            <Image 
+                            <img 
                               src={file.thumbnailUrl} 
                               alt={file.title}
-                              width={400}
-                              height={225}
                               className="w-full h-full object-cover transition-transform group-hover:scale-105"
                               onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                                 e.currentTarget.style.display = 'none';
@@ -776,11 +773,9 @@ export default function AantekeningenPage() {
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
                             {file.thumbnailUrl ? (
-                              <Image 
+                              <img 
                                 src={file.thumbnailUrl} 
                                 alt={file.title}
-                                width={64}
-                                height={48}
                                 className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                 onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                                   e.currentTarget.style.display = 'none';

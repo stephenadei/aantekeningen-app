@@ -1,6 +1,29 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Disable source maps in development to avoid warnings
+  productionBrowserSourceMaps: false,
+  
+  // Disable source maps completely in development
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.devtool = false;
+    }
+    return config;
+  },
+  
+  // Configure image domains for Next.js Image component
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'drive.google.com',
+        port: '',
+        pathname: '/thumbnail**',
+      },
+    ],
+  },
+  
   async headers() {
     // Check if we're in a Vercel preview/development environment
     const isVercelPreview = process.env.VERCEL_ENV === 'preview' || process.env.VERCEL_ENV === 'development';

@@ -1,8 +1,8 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 
@@ -13,9 +13,21 @@ export default function AdminLayout({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
+  const [isClient, setIsClient] = useState(false);
+
+  // Prevent hydration mismatch by only checking pathname on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (status === 'loading') return; // Still loading
+
+    // Don't redirect if we're already on the login page
+    if (pathname === '/admin/login') {
+      return;
+    }
 
     if (!session) {
       router.push('/admin/login');
@@ -27,7 +39,13 @@ export default function AdminLayout({
     //   router.push('/admin/login?error=AccessDenied');
     //   return;
     // }
-  }, [session, status, router]);
+  }, [session, status, router, pathname, isClient]);
+
+  // If we're on the login page, always show the children (login form)
+  // Only check this on client side to prevent hydration mismatch
+  if (isClient && pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   if (status === 'loading') {
     return (

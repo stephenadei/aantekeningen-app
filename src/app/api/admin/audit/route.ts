@@ -2,16 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { validateTeacherEmail } from '@/lib/security';
-import { z } from 'zod';
-
-const getAuditSchema = z.object({
-  action: z.string().optional(),
-  who: z.string().optional(),
-  page: z.string().optional().transform(val => val ? parseInt(val) : 1),
-  limit: z.string().optional().transform(val => val ? parseInt(val) : 50),
-  startDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
-  endDate: z.string().optional().transform(val => val ? new Date(val) : undefined),
-});
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,94 +12,123 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const query = Object.fromEntries(searchParams.entries());
-    
-    const { action, who, page, limit, startDate, endDate } = getAuditSchema.parse(query);
-    const offset = (page - 1) * limit;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
+    const search = searchParams.get('search') || '';
+    const action = searchParams.get('action') || '';
+    const dateFrom = searchParams.get('dateFrom') || '';
+    const dateTo = searchParams.get('dateTo') || '';
+    const exportCsv = searchParams.get('export') === 'csv';
+
+    const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: Record<string, unknown> = {};
-
+    const where: any = {};
+    
+    if (search) {
+      where.OR = [
+        { who: { contains: search, mode: 'insensitive' } },
+        { ip: { contains: search, mode: 'insensitive' } },
+        { userAgent: { contains: search, mode: 'insensitive' } }
+      ];
+    }
+    
     if (action) {
       where.action = action;
     }
-
-    if (who) {
-      where.who = {
-        contains: who,
-        mode: 'insensitive',
-      };
-    }
-
-    if (startDate || endDate) {
-      where.createdAt = {} as Record<string, Date>;
-      
-      if (startDate) {
-        (where.createdAt as Record<string, Date>).gte = startDate;
+    
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) {
+        where.createdAt.gte = new Date(dateFrom);
       }
-      
-      if (endDate) {
-        (where.createdAt as Record<string, Date>).lte = endDate;
+      if (dateTo) {
+        where.createdAt.lte = new Date(dateTo + 'T23:59:59.999Z');
       }
     }
 
-    // Get audit logs with pagination
-    const [auditLogs, totalCount] = await Promise.all([
-      prisma.loginAudit.findMany({
+    // Handle CSV export
+    if (exportCsv) {
+      const audits = await prisma.loginAudit.findMany({
         where,
         include: {
           teacher: {
             select: {
-              email: true,
-            },
+              id: true,
+              name: true,
+              email: true
+            }
           },
           student: {
             select: {
-              displayName: true,
-            },
-          },
+              id: true,
+              displayName: true
+            }
+          }
         },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      prisma.loginAudit.count({ where }),
-    ]);
+        orderBy: { createdAt: 'desc' }
+      });
 
-    // Transform data for response
-    const transformedLogs = auditLogs.map((log: {
-      id: string;
-      who: string;
-      action: string;
-      ip: string | null;
-      userAgent: string | null;
-      metadata: unknown;
-      createdAt: Date;
-      teacher?: { email: string } | null;
-      student?: { displayName: string } | null;
-    }) => ({
-      id: log.id,
-      who: log.who,
-      action: log.action,
-      ip: log.ip,
-      userAgent: log.userAgent,
-      metadata: log.metadata,
-      createdAt: log.createdAt,
-      teacherEmail: log.teacher?.email,
-      studentName: log.student?.displayName,
-    }));
+      // Generate CSV
+      const csvHeaders = ['ID', 'Wie', 'Actie', 'IP', 'User Agent', 'Tijdstip', 'Metadata'];
+      const csvRows = audits.map((audit: any) => [
+        audit.id,
+        audit.teacher ? `${audit.teacher.name} (${audit.teacher.email})` : 
+         audit.student ? `Student: ${audit.student.displayName}` : audit.who,
+        audit.action,
+        audit.ip || '',
+        audit.userAgent || '',
+        new Date(audit.createdAt).toISOString(),
+        JSON.stringify(audit.metadata || {})
+      ]);
+
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvRows.map((row: any) => row.map((field: any) => `"${field}"`).join(','))
+      ].join('\n');
+
+      return new NextResponse(csvContent, {
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="audit-logs-${new Date().toISOString().split('T')[0]}.csv"`
+        }
+      });
+    }
+
+    // Get total count
+    const total = await prisma.loginAudit.count({ where });
+
+    // Get audits with pagination
+    const audits = await prisma.loginAudit.findMany({
+      where,
+      include: {
+        teacher: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        student: {
+          select: {
+            id: true,
+            displayName: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    });
+
+    const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      success: true,
-      auditLogs: transformedLogs,
-      pagination: {
-        page,
-        limit,
-        total: totalCount,
-        pages: Math.ceil(totalCount / limit),
-      },
+      audits,
+      total,
+      page,
+      totalPages,
+      limit
     });
 
   } catch (error) {

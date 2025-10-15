@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -44,6 +44,14 @@ model Student {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
+  // Google Drive folder linking
+  driveFolderId    String?  @unique  // Google Drive folder ID
+  driveFolderName  String?            // Original folder name
+  subject          String?            // HBO/Universiteit, Middelbareschool, MBO
+  folderConfirmed  Boolean @default(false)  // Has teacher confirmed this link?
+  folderLinkedAt   DateTime?         // When was folder first linked
+  folderConfirmedAt DateTime?        // When was link confirmed
+  
   // Relations
   notes        Note[]
   tags         StudentTag[]
@@ -67,6 +75,11 @@ model Note {
   driveFileId String?
   driveFileName String?
   
+  // AI analysis tracking
+  aiGenerated     Boolean @default(true)   // Was this AI generated?
+  aiConfirmed     Boolean @default(false)  // Has teacher confirmed AI data?
+  manuallyEdited  Boolean @default(false)  // Has teacher edited this?
+  
   @@map("notes")
 }
 
@@ -80,6 +93,17 @@ model StudentTag {
   @@unique([studentId, key, value])
   @@index([key, value])
   @@map("student_tags")
+}
+
+model UnlinkedFolder {
+  id              String   @id @default(cuid())
+  driveFolderId   String   @unique
+  folderName      String
+  subject         String   // HBO/Universiteit, Middelbareschool, MBO
+  suggestedStudentId String?  // Auto-matched student
+  createdAt       DateTime @default(now())
+  
+  @@map("unlinked_folders")
 }
 
 model LoginAudit {
@@ -109,12 +133,12 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

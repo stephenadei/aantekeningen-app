@@ -21,6 +21,8 @@ export async function GET(request: NextRequest) {
       totalNotes,
       recentActivity,
       activeStudents,
+      unconfirmedFolders,
+      unlinkedFolders,
     ] = await Promise.all([
       // Total students
       prisma.student.count(),
@@ -49,6 +51,17 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
+      
+      // Unconfirmed folder links
+      prisma.student.count({
+        where: {
+          driveFolderId: { not: null },
+          folderConfirmed: false,
+        },
+      }),
+      
+      // Unlinked folders
+      prisma.unlinkedFolder.count(),
     ]);
 
     return NextResponse.json({
@@ -57,6 +70,8 @@ export async function GET(request: NextRequest) {
       totalNotes,
       recentActivity,
       activeStudents,
+      unconfirmedFolders,
+      unlinkedFolders,
     });
 
   } catch (error) {

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { FileText, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import FileDetailModal from '@/components/ui/FileDetailModal';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useNativeShare } from '@/hooks/useNativeShare';
@@ -271,7 +270,12 @@ export default function StudentPage() {
 
 
   const filteredAndSortedFiles = () => {
-    const filtered = files.filter(file => {
+    // Remove duplicates by file.id first
+    const uniqueFiles = files.filter((file, index, self) => 
+      index === self.findIndex(f => f.id === file.id)
+    );
+    
+    const filtered = uniqueFiles.filter(file => {
       if (filters.subject && file.subject !== filters.subject) return false;
       if (filters.topic && file.topic !== filters.topic) return false;
       if (filters.level && file.level !== filters.level) return false;
@@ -627,11 +631,9 @@ export default function StudentPage() {
                         <div className="flex-shrink-0">
                           <div className="w-20 h-16 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-600 dark:to-slate-700 rounded-xl flex items-center justify-center overflow-hidden relative group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" onClick={() => handleFileClick(file)}>
                             {file.thumbnailUrl ? (
-                              <Image 
+                              <img 
                                 src={file.thumbnailUrl} 
                                 alt={file.title}
-                                width={64}
-                                height={48}
                                 className="w-full h-full object-cover transition-transform group-hover:scale-105"
                                 onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                                   e.currentTarget.style.display = 'none';

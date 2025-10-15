@@ -52,7 +52,7 @@ export default function StudentsPage() {
         params.append('search', search.trim());
       }
 
-      const response = await fetch(`/api/admin/students?${params}`);
+      const response = await fetch(`/api/admin/students?${params}&_t=${Date.now()}`);
       const data: StudentsResponse = await response.json();
 
       if (data.success) {

@@ -46,6 +46,49 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
         <link rel="manifest" href="/site.webmanifest" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Suppress browser extension errors
+              (function() {
+                // Suppress message port errors
+                window.addEventListener('error', function(e) {
+                  if (e.message && (
+                    e.message.includes('message port closed') ||
+                    e.message.includes('runtime.lastError') ||
+                    e.message.includes('Extension context invalidated')
+                  )) {
+                    e.preventDefault();
+                    return false;
+                  }
+                });
+                
+                // Suppress unhandled promise rejections from extensions
+                window.addEventListener('unhandledrejection', function(e) {
+                  if (e.reason && (
+                    e.reason.message && e.reason.message.includes('message port closed') ||
+                    e.reason.message && e.reason.message.includes('runtime.lastError')
+                  )) {
+                    e.preventDefault();
+                    return false;
+                  }
+                });
+                
+                // Override console.error to filter extension errors
+                const originalConsoleError = console.error;
+                console.error = function(...args) {
+                  const message = args.join(' ');
+                  if (message.includes('message port closed') || 
+                      message.includes('runtime.lastError') ||
+                      message.includes('Extension context invalidated')) {
+                    return; // Suppress the error
+                  }
+                  originalConsoleError.apply(console, args);
+                };
+              })();
+            `,
+          }}
+        />
       </head>
       <body className={inter.className}>
         <DarkModeProvider>

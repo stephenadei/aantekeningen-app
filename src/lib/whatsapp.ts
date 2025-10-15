@@ -2,13 +2,14 @@
  * WhatsApp sharing utilities
  */
 
-import { getStudentPortalUrl, APP_CONFIG } from './config';
+import { config, ensureConfigValidated } from './config';
 
 /**
  * Generate WhatsApp share link with prefilled message
  */
 export function generateWhatsAppLink(studentName: string, pin: string, baseUrl?: string): string {
-  const url = baseUrl || getStudentPortalUrl().replace('/leerling', '');
+  ensureConfigValidated();
+  const url = baseUrl || config.baseUrl;
   const studentPortalUrl = `${url}/leerling`;
   
   const message = `Hoi ${studentName}! 👋
@@ -27,7 +28,8 @@ Bewaar deze code veilig. Tot in de les! 📚`;
  * Generate WhatsApp link for sharing student portal
  */
 export function generateStudentPortalWhatsAppLink(studentName: string, baseUrl?: string): string {
-  const url = baseUrl || getStudentPortalUrl().replace('/leerling', '');
+  ensureConfigValidated();
+  const url = baseUrl || config.baseUrl;
   const studentPortalUrl = `${url}/leerling`;
   
   const message = `Hoi ${studentName}! 👋
@@ -45,7 +47,8 @@ Je hebt je PIN nodig om in te loggen. 📚`;
  * Generate WhatsApp link for sharing admin portal (for other teachers)
  */
 export function generateAdminPortalWhatsAppLink(baseUrl?: string): string {
-  const url = baseUrl || getStudentPortalUrl().replace('/leerling', '');
+  ensureConfigValidated();
+  const url = baseUrl || config.baseUrl;
   const adminUrl = `${url}/admin`;
   
   const message = `Toegang tot het docentenportaal van Stephen's Privelessen:

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleDriveService } from '@/lib/google-drive-simple';
-import { getBaseUrl } from '@/lib/config';
+import { config, ensureConfigValidated } from '@/lib/config';
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +28,8 @@ export async function GET(
     }
 
     // Generate shareable link using proper domain configuration
-    const baseUrl = getBaseUrl();
+    ensureConfigValidated();
+    const baseUrl = config.baseUrl;
     const shareableUrl = `${baseUrl}/student/${id}`;
     
     return NextResponse.json({

@@ -1,5 +1,5 @@
 import { google } from 'googleapis';
-import { getSchoolYearFromDate, getSchoolYearLabel } from './school-year-utils';
+// import { getSchoolYearFromDate, getSchoolYearLabel } from './school-year-utils';
 
 // Google Drive API configuration
 
@@ -298,10 +298,10 @@ class GoogleDriveService {
       
       await this.ensureInitialized();
       
-      // Fetch only metadata from Drive (fast operation)
+      // Fetch metadata including thumbnail links from Drive
       const files = await this.drive.files.list({
         q: `'${folderId}' in parents and trashed=false`,
-        fields: 'files(id, name, modifiedTime, size)',
+        fields: 'files(id, name, modifiedTime, size, thumbnailLink)',
         orderBy: 'modifiedTime desc',
       });
 
@@ -321,7 +321,7 @@ class GoogleDriveService {
           url: `https://drive.google.com/file/d/${file.id}/view`,
           downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
           viewUrl: `https://drive.google.com/file/d/${file.id}/preview`,
-          thumbnailUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h300`,
+          thumbnailUrl: file.thumbnailLink || `https://drive.google.com/file/d/${file.id}/preview`,
           modifiedTime: file.modifiedTime,
           size: parseInt(file.size || '0'),
           // AI-generated metadata
@@ -480,6 +480,25 @@ class GoogleDriveService {
   }
 
   /**
+   * Get school year from date
+   */
+  private getSchoolYearFromDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = date.getMonth(); // 0-11
+    
+    // School year starts in August/September
+    // If lesson is before August, it belongs to previous school year
+    let schoolYearStart = year;
+    if (month < 7) { // Before August (month 7)
+      schoolYearStart = year - 1;
+    }
+    
+    const shortYear = schoolYearStart.toString().slice(-2);
+    const nextShortYear = (schoolYearStart + 1).toString().slice(-2);
+    return `${shortYear}/${nextShortYear}`;
+  }
+
+  /**
    * Extract date from filename
    */
   private extractDateFromFilename(filename: string): Date | null {
@@ -546,8 +565,7 @@ class GoogleDriveService {
       
       // Extract date from filename to determine school year
       const extractedDate = this.extractDateFromFilename(fileName);
-      const schoolYearInfo = extractedDate ? getSchoolYearFromDate(extractedDate.toISOString()) : null;
-      const autoSchoolYear = schoolYearInfo ? schoolYearInfo.schoolYear : null;
+      const autoSchoolYear = extractedDate ? this.getSchoolYearFromDate(extractedDate) : null;
 
       // Prepare prompt for OpenAI with bilingual support
       const prompt = `Analyze this document and extract metadata. Return a JSON object with:
@@ -623,8 +641,7 @@ class GoogleDriveService {
   private basicAnalysis(fileName: string): any {
     // Extract date from filename to determine school year
     const extractedDate = this.extractDateFromFilename(fileName);
-    const schoolYearInfo = extractedDate ? getSchoolYearFromDate(extractedDate.toISOString()) : null;
-    const autoSchoolYear = schoolYearInfo ? schoolYearInfo.schoolYear : '24/25';
+    const autoSchoolYear = extractedDate ? this.getSchoolYearFromDate(extractedDate) : '24/25';
 
     const analysis = {
       subject: 'Onbekend',
@@ -691,41 +708,55 @@ class GoogleDriveService {
       analysis.keywordsEn = ['physics', 'mechanics', 'forces'];
     }
     
-    // Extract school year from date in filename
-    const lessonDate = this.extractDateFromFilename(fileName);
-    if (lessonDate) {
-      const year = lessonDate.getFullYear();
-      const month = lessonDate.getMonth(); // 0-11
+    // First, try to extract explicit school year in filename (e.g., "2024-10-15__wiskunde_24-25__v001.pdf")
+    // Only match patterns that look like school years (20-25, 24-25, etc.) and not times (12_39_30)
+    // Use a more specific pattern that avoids matching times like "16_22_26"
+    const explicitYearMatch = fileName.match(/(\d{2})[_-](\d{2})(?![_-]\d{2})(?![_-]\d{2})/);
+    if (explicitYearMatch) {
+      const year1 = parseInt(explicitYearMatch[1]);
+      const year2 = parseInt(explicitYearMatch[2]);
       
-      // School year starts in August/September
-      // If lesson is before August, it belongs to previous school year
-      let schoolYearStart = year;
-      if (month < 7) { // Before August (month 7)
-        schoolYearStart = year - 1;
-      }
-      
-      const shortYear = schoolYearStart.toString().slice(-2);
-      const nextShortYear = (schoolYearStart + 1).toString().slice(-2);
-      analysis.schoolYear = `${shortYear}/${nextShortYear}`;
-    } else {
-      // Fallback: try to extract year from filename
-      const yearMatch = fileName.match(/(\d{4})/);
-      if (yearMatch) {
-        const year = parseInt(yearMatch[1]);
-        if (year >= 2020 && year <= 2030) {
-          const shortYear = year.toString().slice(-2);
-          const nextShortYear = (year + 1).toString().slice(-2);
-          analysis.schoolYear = `${shortYear}/${nextShortYear}`;
+      // Only accept if it looks like a school year (year2 should be year1 + 1, or close to it)
+      // And make sure it's not a time pattern (hours should be 0-23, minutes 0-59)
+      if (year2 === year1 + 1 || (year1 >= 20 && year1 <= 30 && year2 >= 20 && year2 <= 30)) {
+        // Additional check: if year1 looks like hours (0-23) and year2 looks like minutes (0-59), skip it
+        if (year1 <= 23 && year2 <= 59) {
+          // This looks like a time, not a school year
+        } else {
+          analysis.schoolYear = `${year1}/${year2}`;
         }
       }
     }
     
-    // Also check for explicit school year in filename (e.g., "2024-10-15__wiskunde_24-25__v001.pdf")
-    const explicitYearMatch = fileName.match(/(\d{2})[_-](\d{2})/);
-    if (explicitYearMatch) {
-      const year1 = explicitYearMatch[1];
-      const year2 = explicitYearMatch[2];
-      analysis.schoolYear = `${year1}/${year2}`;
+    // If no explicit school year found, extract school year from date in filename - this is the primary method
+    if (!analysis.schoolYear) {
+      const lessonDate = this.extractDateFromFilename(fileName);
+      if (lessonDate) {
+        const year = lessonDate.getFullYear();
+        const month = lessonDate.getMonth(); // 0-11
+        
+        // School year starts in August/September
+        // If lesson is before August, it belongs to previous school year
+        let schoolYearStart = year;
+        if (month < 7) { // Before August (month 7)
+          schoolYearStart = year - 1;
+        }
+        
+        const shortYear = schoolYearStart.toString().slice(-2);
+        const nextShortYear = (schoolYearStart + 1).toString().slice(-2);
+        analysis.schoolYear = `${shortYear}/${nextShortYear}`;
+      } else {
+        // Fallback: try to extract year from filename
+        const yearMatch = fileName.match(/(\d{4})/);
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1]);
+          if (year >= 2020 && year <= 2030) {
+            const shortYear = year.toString().slice(-2);
+            const nextShortYear = (year + 1).toString().slice(-2);
+            analysis.schoolYear = `${shortYear}/${nextShortYear}`;
+          }
+        }
+      }
     }
     
     // Try to extract level

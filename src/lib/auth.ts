@@ -2,12 +2,19 @@ import { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import { prisma } from './prisma';
 import { validateTeacherEmail } from './security';
+import { config, ensureConfigValidated } from './config';
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: (() => {
+        ensureConfigValidated();
+        return config.oauth.google.clientId;
+      })(),
+      clientSecret: (() => {
+        ensureConfigValidated();
+        return config.oauth.google.clientSecret;
+      })(),
     }),
   ],
   callbacks: {

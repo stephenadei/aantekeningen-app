@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, FileText, Shield, TrendingUp } from 'lucide-react';
+import { Users, FileText, Shield, TrendingUp, Folder, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface DashboardStats {
@@ -9,6 +9,8 @@ interface DashboardStats {
   totalNotes: number;
   recentActivity: number;
   activeStudents: number;
+  unconfirmedFolders?: number;
+  unlinkedFolders?: number;
 }
 
 export default function AdminDashboard() {
@@ -121,6 +123,18 @@ export default function AdminDashboard() {
             >
               <FileText className="h-4 w-4 mr-2" />
               Nieuwe Notitie
+            </Link>
+            <Link
+              href="/admin/drive-data"
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Folder className="h-4 w-4 mr-2" />
+              Drive Data
+              {stats?.unconfirmedFolders && stats.unconfirmedFolders > 0 && (
+                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  {stats.unconfirmedFolders}
+                </span>
+              )}
             </Link>
             <Link
               href="/admin/audit"

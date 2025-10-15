@@ -1,22 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { validateTeacherEmail, sanitizeInput } from '@/lib/security';
-import { canonSubject, canonLevel, canonTopic, generateTags } from '@/lib/normalization';
-import { z } from 'zod';
-
-const updateNoteSchema = z.object({
-  contentMd: z.string().min(1).optional(),
-  subject: z.string().min(1).optional(),
-  level: z.string().min(1).optional(),
-  topic: z.string().min(1).optional(),
-  driveFileId: z.string().optional(),
-  driveFileName: z.string().optional(),
-});
+import { validateTeacherEmail } from '@/lib/security';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession();
@@ -25,30 +14,23 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
     const note = await prisma.note.findUnique({
-      where: { id },
+      where: { id: params.id },
       include: {
         student: {
           select: {
             id: true,
-            displayName: true,
-          },
-        },
-      },
+            displayName: true
+          }
+        }
+      }
     });
 
     if (!note) {
-      return NextResponse.json(
-        { error: 'Note not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
-      success: true,
-      note,
-    });
+    return NextResponse.json(note);
 
   } catch (error) {
     console.error('Error fetching note:', error);
@@ -59,9 +41,9 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession();
@@ -70,116 +52,26 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
     const body = await request.json();
-    const updateData = updateNoteSchema.parse(body);
+    const { subject, level, topic, contentMd, manuallyEdited, aiConfirmed } = body;
 
-    // Check if note exists
-    const existingNote = await prisma.note.findUnique({
-      where: { id: id },
-      include: {
-        student: {
-          select: {
-            id: true,
-            displayName: true,
-          },
-        },
-      },
-    });
-
-    if (!existingNote) {
-      return NextResponse.json(
-        { error: 'Note not found' },
-        { status: 404 }
-      );
-    }
-
-    // Normalize tags if they're being updated
-    const normalizedData: Record<string, unknown> = { ...updateData };
-    
-    if (updateData.subject) {
-      normalizedData.subject = canonSubject(updateData.subject);
-    }
-    
-    if (updateData.level) {
-      normalizedData.level = canonLevel(updateData.level);
-    }
-    
-    if (updateData.topic) {
-      normalizedData.topic = canonTopic(updateData.topic);
-    }
-
-    if (updateData.contentMd) {
-      normalizedData.contentMd = sanitizeInput(updateData.contentMd);
-    }
-
-    // Update note and tags in a transaction
-    const result = await prisma.$transaction(async (tx: any) => {
-      // Update the note
-      const updatedNote = await tx.note.update({
-        where: { id: id },
-        data: normalizedData,
-      });
-
-      // Update student tags if subject, level, or topic changed
-      if (updateData.subject || updateData.level || updateData.topic) {
-        const finalSubject = normalizedData.subject || existingNote.subject;
-        const finalLevel = normalizedData.level || existingNote.level;
-        const finalTopic = normalizedData.topic || existingNote.topic;
-
-        const tags = generateTags(finalSubject, finalLevel, finalTopic);
-        
-        // Delete old tags for this student
-        await tx.studentTag.deleteMany({
-          where: {
-            studentId: existingNote.studentId,
-          },
-        });
-
-        // Create new tags
-        for (const tag of tags) {
-          await tx.studentTag.create({
-            data: {
-              studentId: existingNote.studentId,
-              key: tag.key,
-              value: tag.value,
-            },
-          });
-        }
-      }
-
-      return updatedNote;
-    });
-
-    // Log the update
-    await prisma.loginAudit.create({
+    const note = await prisma.note.update({
+      where: { id: params.id },
       data: {
-        who: `teacher:${session.user.email}`,
-        action: 'note_updated',
-        studentId: existingNote.studentId,
-        metadata: {
-          noteId: id,
-          studentName: existingNote.student.displayName,
-          changes: updateData,
-        },
-      },
+        subject,
+        level,
+        topic,
+        contentMd,
+        manuallyEdited: manuallyEdited ?? false,
+        aiConfirmed: aiConfirmed ?? false,
+        updatedAt: new Date()
+      }
     });
 
-    return NextResponse.json({
-      success: true,
-      note: result,
-    });
+    return NextResponse.json(note);
 
   } catch (error) {
     console.error('Error updating note:', error);
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input data', details: error.issues },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Failed to update note' },
       { status: 500 }
@@ -189,7 +81,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession();
@@ -198,52 +90,21 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id } = await params;
     // Check if note exists
-    const existingNote = await prisma.note.findUnique({
-      where: { id: id },
-      include: {
-        student: {
-          select: {
-            id: true,
-            displayName: true,
-          },
-        },
-      },
+    const note = await prisma.note.findUnique({
+      where: { id: params.id }
     });
 
-    if (!existingNote) {
-      return NextResponse.json(
-        { error: 'Note not found' },
-        { status: 404 }
-      );
+    if (!note) {
+      return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
 
-    // Log the deletion
-    await prisma.loginAudit.create({
-      data: {
-        who: `teacher:${session.user.email}`,
-        action: 'note_deleted',
-        studentId: existingNote.studentId,
-        metadata: {
-          noteId: id,
-          studentName: existingNote.student.displayName,
-          subject: existingNote.subject,
-          level: existingNote.level,
-          topic: existingNote.topic,
-        },
-      },
-    });
-
-    // Delete note (cascade will handle related records)
+    // Delete the note
     await prisma.note.delete({
-      where: { id: id },
+      where: { id: params.id }
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Note deleted successfully',
-    });
+    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error('Error deleting note:', error);
