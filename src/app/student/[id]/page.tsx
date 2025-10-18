@@ -149,9 +149,22 @@ export default function StudentPage() {
             setCacheLoading(false);
           }
         } else {
+          console.log('❌ No files found for student - this should not happen!');
+          setError('Er zijn geen bestanden gevonden voor deze student. Dit kan een technisch probleem zijn. Probeer het opnieuw of neem contact op met de beheerder.');
           setCacheLoading(false);
         }
       } else {
+        console.log('❌ Files loading failed:', recentFilesData);
+        // More specific error handling for files
+        if (recentFilesData.error === 'Configuration error') {
+          setError('De app is momenteel niet beschikbaar. Probeer het later opnieuw.');
+        } else if (recentFilesData.isTemporaryError) {
+          setError('Er is een tijdelijk probleem met Google Drive. Probeer het over een paar minuten opnieuw.');
+        } else if (recentFilesData.message) {
+          setError(recentFilesData.message);
+        } else {
+          setError('Er is een fout opgetreden bij het laden van bestanden. Probeer het opnieuw.');
+        }
         setCacheLoading(false);
       }
 
@@ -631,18 +644,29 @@ export default function StudentPage() {
                         <div className="flex-shrink-0">
                           <div className="w-20 h-16 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-600 dark:to-slate-700 rounded-xl flex items-center justify-center overflow-hidden relative group cursor-pointer shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105" onClick={() => handleFileClick(file)}>
                             {file.thumbnailUrl ? (
-                              <img 
-                                src={file.thumbnailUrl} 
-                                alt={file.title}
-                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                                  e.currentTarget.style.display = 'none';
-                                  const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                            <img 
+                              src={file.thumbnailUrl} 
+                              alt={file.title}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                                console.log('❌ Thumbnail failed to load for:', file.title);
+                                // Try placeholder as fallback
+                                const img = e.currentTarget as HTMLImageElement;
+                                if (!img.src.includes('/api/placeholder/')) {
+                                  img.src = `/api/placeholder/${file.id}`;
+                                } else {
+                                  // If placeholder also fails, show the icon
+                                  img.style.display = 'none';
+                                  const nextElement = img.nextElementSibling as HTMLElement;
                                   if (nextElement) {
                                     nextElement.style.display = 'flex';
                                   }
-                                }}
-                              />
+                                }
+                              }}
+                              onLoad={() => {
+                                console.log('✅ Thumbnail loaded for:', file.title);
+                              }}
+                            />
                             ) : null}
                             <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
                               <FileText className="h-6 w-6 text-gray-400" />

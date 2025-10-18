@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getLoginAudits } from '@/lib/firestore';
 import { googleDriveService } from '@/lib/google-drive-simple';
 
 export async function GET(

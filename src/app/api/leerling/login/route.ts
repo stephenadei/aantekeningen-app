@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getStudentByName, createLoginAudit } from '@/lib/firestore';
 import { validatePinFormat, verifyPin, getClientIP, getUserAgent } from '@/lib/security';
 import { z } from 'zod';
 
@@ -22,29 +22,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Find student by display name
-    const student = await prisma.student.findUnique({
-      where: { displayName },
-      include: {
-        notes: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-      },
-    });
+    const student = await getStudentByName(displayName);
 
     if (!student) {
       // Log failed attempt
-      await prisma.loginAudit.create({
-        data: {
-          who: `student:${displayName}`,
-          action: 'login_fail',
-          ip: getClientIP(request),
-          userAgent: getUserAgent(request),
-          metadata: {
-            reason: 'student_not_found',
-            displayName,
-          },
+      await createLoginAudit({
+        who: `student:${displayName}`,
+        action: 'login_fail',
+        ip: getClientIP(request),
+        userAgent: getUserAgent(request),
+        metadata: {
+          reason: 'student_not_found',
+          displayName,
         },
       });
 
@@ -59,17 +48,15 @@ export async function POST(request: NextRequest) {
 
     if (!isValidPin) {
       // Log failed attempt
-      await prisma.loginAudit.create({
-        data: {
-          who: `student:${student.id}`,
-          action: 'pin_attempt',
+      await createLoginAudit({
+        who: `student:${student.displayName}`,
+        action: 'login_fail',
+        ip: getClientIP(request),
+        userAgent: getUserAgent(request),
+        metadata: {
+          reason: 'invalid_pin',
           studentId: student.id,
-          ip: getClientIP(request),
-          userAgent: getUserAgent(request),
-          metadata: {
-            reason: 'invalid_pin',
-            studentName: student.displayName,
-          },
+          displayName: student.displayName,
         },
       });
 
@@ -80,16 +67,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Log successful login
-    await prisma.loginAudit.create({
-      data: {
-        who: `student:${student.id}`,
-        action: 'login_ok',
+    await createLoginAudit({
+      who: `student:${student.displayName}`,
+      action: 'login_ok',
+      ip: getClientIP(request),
+      userAgent: getUserAgent(request),
+      studentId: student.id,
+      metadata: {
         studentId: student.id,
-        ip: getClientIP(request),
-        userAgent: getUserAgent(request),
-        metadata: {
-          studentName: student.displayName,
-        },
+        displayName: student.displayName,
       },
     });
 

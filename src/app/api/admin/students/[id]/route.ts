@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getLoginAudits } from '@/lib/firestore';
 import { validateTeacherEmail, sanitizeInput } from '@/lib/security';
 import { z } from 'zod';
 
@@ -13,9 +13,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession();
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
-    if (!session?.user?.email || !validateTeacherEmail(session.user.email)) {
+    if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -66,9 +66,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession();
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
-    if (!session?.user?.email || !validateTeacherEmail(session.user.email)) {
+    if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -154,9 +154,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession();
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
-    if (!session?.user?.email || !validateTeacherEmail(session.user.email)) {
+    if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

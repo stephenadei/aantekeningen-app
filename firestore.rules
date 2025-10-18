@@ -1,0 +1,83 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.email != null &&
+             request.auth.token.email.matches('.*@stephensprivelessen\\.nl$');
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidStudentId(studentId) {
+      return studentId is string && studentId.size() > 0;
+    }
+    
+    // Teachers collection - admin only
+    match /teachers/{teacherId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Students collection
+    match /students/{studentId} {
+      // Admin can read/write all students
+      allow read, write: if isAdmin();
+      
+      // Public read access for student portal (no auth required)
+      // This allows the student portal to work without authentication
+      allow read: if true;
+    }
+    
+    // Notes collection
+    match /notes/{noteId} {
+      // Admin can read/write all notes
+      allow read, write: if isAdmin();
+      
+      // Public read access for student portal
+      allow read: if true;
+    }
+    
+    // Key concepts collection
+    match /keyConcepts/{conceptId} {
+      // Admin can read/write all concepts
+      allow read, write: if isAdmin();
+      
+      // Public read access for student portal
+      allow read: if true;
+    }
+    
+    // Student tags collection
+    match /studentTags/{tagId} {
+      // Admin can read/write all tags
+      allow read, write: if isAdmin();
+      
+      // Public read access for student portal
+      allow read: if true;
+    }
+    
+    // Unlinked folders collection - admin only
+    match /unlinkedFolders/{folderId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Login audits collection - admin only (sensitive data)
+    match /loginAudits/{auditId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

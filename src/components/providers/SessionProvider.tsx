@@ -1,6 +1,5 @@
 'use client';
 
-import { SessionProvider as NextAuthSessionProvider } from 'next-auth/react';
 import { ReactNode } from 'react';
 
 interface SessionProviderProps {
@@ -8,9 +7,7 @@ interface SessionProviderProps {
 }
 
 export default function SessionProvider({ children }: SessionProviderProps) {
-  return (
-    <NextAuthSessionProvider>
-      {children}
-    </NextAuthSessionProvider>
-  );
+  // Firebase Auth doesn't need a provider wrapper like NextAuth
+  // Authentication is handled via Firebase client SDK directly
+  return <>{children}</>;
 }

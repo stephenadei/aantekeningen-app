@@ -1,11 +1,12 @@
 'use client';
 
-import { signIn, getSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Shield, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
+import { authClient } from '@/lib/firebase-client';
+import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
@@ -15,19 +16,19 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     // Check if user is already logged in
-    const checkSession = async () => {
-      const session = await getSession();
-      if (session) {
+    const unsubscribe = onAuthStateChanged(authClient, (user: User | null) => {
+      if (user && user.email?.endsWith('@stephensprivelessen.nl')) {
         router.push('/admin');
       }
-    };
-    checkSession();
+    });
 
     // Check for error in URL params
     const errorParam = searchParams.get('error');
     if (errorParam === 'AccessDenied') {
       setError('Toegang geweigerd. Alleen docenten van stephensprivelessen.nl kunnen inloggen.');
     }
+
+    return () => unsubscribe();
   }, [router, searchParams]);
 
   const handleGoogleSignIn = async () => {
@@ -35,17 +36,33 @@ export default function AdminLoginPage() {
     setError(null);
     
     try {
-      const result = await signIn('google', {
-        callbackUrl: '/admin',
-        redirect: false,
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(authClient, provider);
+      
+      // Check if user email is from allowed domain
+      if (!result.user.email?.endsWith('@stephensprivelessen.nl')) {
+        setError('Toegang geweigerd. Alleen docenten van stephensprivelessen.nl kunnen inloggen.');
+        await authClient.signOut();
+        return;
+      }
+      
+      // Send the ID token to our backend to create a session
+      const idToken = await result.user.getIdToken();
+      const response = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ idToken }),
       });
       
-      if (result?.error) {
-        setError('Inloggen mislukt. Controleer je Google Workspace account.');
-      } else if (result?.ok) {
+      if (response.ok) {
         router.push('/admin');
+      } else {
+        setError('Inloggen mislukt. Controleer je Google Workspace account.');
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('Er is een fout opgetreden bij het inloggen.');
     } finally {
       setLoading(false);

@@ -321,7 +321,7 @@ class GoogleDriveService {
           url: `https://drive.google.com/file/d/${file.id}/view`,
           downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
           viewUrl: `https://drive.google.com/file/d/${file.id}/preview`,
-          thumbnailUrl: file.thumbnailLink || `https://drive.google.com/file/d/${file.id}/preview`,
+          thumbnailUrl: file.thumbnailLink || `/api/thumbnail/${file.id}`,
           modifiedTime: file.modifiedTime,
           size: parseInt(file.size || '0'),
           // AI-generated metadata
@@ -372,8 +372,16 @@ class GoogleDriveService {
       
       return sortedFiles;
     } catch (error) {
-      console.error('Error listing files: ' + error);
-      return [];
+      console.error('❌ Error listing files for folder:', folderId, 'Error:', error);
+      
+      // If this is a Google Drive API error, it might be a temporary issue
+      // We should throw the error instead of returning empty array
+      // so the frontend can handle it properly
+      if (error instanceof Error) {
+        throw new Error(`Failed to load files from Google Drive: ${error.message}`);
+      } else {
+        throw new Error('Failed to load files from Google Drive: Unknown error');
+      }
     }
   }
 
@@ -568,24 +576,32 @@ class GoogleDriveService {
       const autoSchoolYear = extractedDate ? this.getSchoolYearFromDate(extractedDate) : null;
 
       // Prepare prompt for OpenAI with bilingual support
-      const prompt = `Analyze this document and extract metadata. Return a JSON object with:
-      - subject: The main subject/vak from this list: Wiskunde A, Wiskunde B, Wiskunde C, Wiskunde D, Natuurkunde, Scheikunde, Informatica, Programmeren, Python, Rekenen, Statistiek, Data-analyse
-      - topic: The specific topic/onderwerp (e.g., "Algebra", "Functies", "Differentiëren", "Integreren", "Mechanica", "Elektriciteit", "Organische chemie", "Python basics", "Statistiek")
-      - level: Educational level (e.g., "VO", "WO", "HBO")
-      - keywords: Array of 3-5 relevant keywords
-      - summary: Brief 1-sentence summary
-      - summaryEn: Brief 1-sentence summary in English
-      - topicEn: The specific topic in English
-      - keywordsEn: Array of 3-5 relevant keywords in English
-      - keyConcepts: Array of 3-5 important concepts/terms from the document, each with:
-        - term: The concept name
-        - explanation: Brief explanation in Dutch
-        - example: Optional example or application
+      // Clean filename to avoid JSON parsing issues
+      const cleanFileName = fileName.replace(/"/g, '\\"').replace(/\n/g, ' ').replace(/\r/g, ' ');
       
-      Document name: "${fileName}"
-      ${autoSchoolYear ? `Auto-detected school year: ${autoSchoolYear}` : ''}
-      
-      Return only valid JSON, no other text.`;
+      const prompt = `Analyze this document and extract metadata. Return ONLY a valid JSON object with these exact fields:
+{
+  "subject": "Wiskunde A",
+  "topic": "Algebra", 
+  "level": "VO",
+  "keywords": ["vergelijkingen", "variabelen"],
+  "summary": "Basis algebra les",
+  "summaryEn": "Basic algebra lesson",
+  "topicEn": "Algebra",
+  "keywordsEn": ["equations", "variables"],
+  "keyConcepts": [
+    {
+      "term": "Vergelijkingen",
+      "explanation": "Wiskundige uitdrukkingen met variabelen",
+      "example": "2x + 5 = 11"
+    }
+  ]
+}
+
+Document name: ${cleanFileName}
+${autoSchoolYear ? `Auto-detected school year: ${autoSchoolYear}` : ''}
+
+IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markdown formatting.`;
       
       // Call OpenAI API
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -606,13 +622,32 @@ class GoogleDriveService {
               content: prompt
             }
           ],
-          max_tokens: 300,
-          temperature: 0.3
+          max_tokens: 500,
+          temperature: 0.1
         })
       });
       
       const responseData = await response.json();
-      const analysis = JSON.parse(responseData.choices[0].message.content);
+      
+      if (!responseData.choices || !responseData.choices[0] || !responseData.choices[0].message) {
+        throw new Error('Invalid OpenAI API response structure');
+      }
+      
+      const content = responseData.choices[0].message.content;
+      if (!content) {
+        throw new Error('Empty content from OpenAI API');
+      }
+      
+      // Try to parse JSON, with better error handling
+      let analysis;
+      try {
+        analysis = JSON.parse(content);
+      } catch (parseError) {
+        console.log('❌ JSON parse error for file:', fileName);
+        console.log('Raw content:', content);
+        console.log('Parse error:', parseError);
+        throw new Error(`Invalid JSON from OpenAI: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
+      }
       
       // Override schoolYear with auto-detected value if available
       if (autoSchoolYear) {

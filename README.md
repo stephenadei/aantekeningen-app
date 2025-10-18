@@ -21,7 +21,8 @@ Een standalone Next.js applicatie voor het beheren van student aantekeningen voo
 - **Framework**: Next.js 15
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Authentication**: Google OAuth2
+- **Database**: Firebase Firestore
+- **Authentication**: Firebase Auth + Google OAuth2
 - **Storage**: Google Drive API
 - **AI**: OpenAI API (optioneel)
 - **Deployment**: Vercel
@@ -60,14 +61,26 @@ src/
    npm install
    ```
 
-3. **Configureer environment variables**:
+3. **Configureer Firebase**:
+   
+   Volg de [Firebase Setup Guide](FIREBASE_SETUP.md) voor het opzetten van Firebase/Firestore.
+
+4. **Configureer environment variables**:
    
    Maak een `.env.local` bestand met de volgende variabelen:
    ```env
+   # Firebase Configuration (Server-side - Application Default Credentials)
+   FIREBASE_PROJECT_ID=your-project-id
+   
+   # Firebase Client Configuration (voor frontend)
+   NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+   
    # Google OAuth2 Configuration (verplicht)
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
-   GOOGLE_REDIRECT_URI=http://localhost:8080
+   GOOGLE_REDIRECT_URI=http://localhost:3000
    GOOGLE_REFRESH_TOKEN=your_refresh_token
    
    # OpenAI API Key (optioneel, voor AI analyse)
@@ -77,7 +90,7 @@ src/
    CACHE_DURATION_HOURS=12
    ```
 
-4. **Setup Google OAuth2**:
+5. **Setup Google OAuth2**:
    ```bash
    # Run OAuth2 setup script
    npm run setup-oauth
@@ -85,7 +98,13 @@ src/
    
    Dit script helpt je met het genereren van de refresh token.
 
-5. **Start development server**:
+6. **Test de database connectie**:
+   ```bash
+   # Test Firestore connectie
+   npm run test-database
+   ```
+
+7. **Start development server**:
    ```bash
    npm run dev
    ```
@@ -104,11 +123,13 @@ src/
 
 ## 🔐 Authentication
 
-De app gebruikt Google OAuth2 voor toegang tot Google Drive. Zorg ervoor dat:
+De app gebruikt Firebase Authentication met Google OAuth2 voor admin toegang en custom PIN verificatie voor studenten. Zorg ervoor dat:
 
-1. Google Drive API is geactiveerd
-2. OAuth2 credentials zijn geconfigureerd
-3. Refresh token is gegenereerd
+1. Firebase project is geconfigureerd (zie [Firebase Setup Guide](FIREBASE_SETUP.md))
+2. Google OAuth2 provider is geactiveerd in Firebase Console
+3. Google Drive API is geactiveerd
+4. OAuth2 credentials zijn geconfigureerd
+5. Refresh token is gegenereerd
 
 ## 🚀 Deployment
 

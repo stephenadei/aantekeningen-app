@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
 import { validateTeacherEmail } from '@/lib/security';
 import { googleDriveService } from '@/lib/google-drive-simple';
 
 export async function POST() {
   try {
-    const session = await getServerSession();
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
-    if (!session?.user?.email || !validateTeacherEmail(session.user.email)) {
+    if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

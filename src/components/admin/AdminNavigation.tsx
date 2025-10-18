@@ -1,6 +1,7 @@
 'use client';
 
-import { signOut } from 'next-auth/react';
+import { authClient } from '@/lib/firebase-client';
+import { signOut } from 'firebase/auth';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
@@ -43,7 +44,20 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
   ];
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/admin/login' });
+    try {
+      // Sign out from Firebase
+      await signOut(authClient);
+      
+      // Call our logout API to clear the session cookie
+      await fetch('/api/auth/logout', { method: 'POST' });
+      
+      // Redirect to login page
+      router.push('/admin/login');
+    } catch (error) {
+      console.error('Sign out error:', error);
+      // Still redirect even if there's an error
+      router.push('/admin/login');
+    }
   };
 
   const isActive = (href: string) => {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getLoginAudits } from '@/lib/firestore';
 import { getDriveDataStats } from '@/lib/folder-sync';
 
 export async function GET() {

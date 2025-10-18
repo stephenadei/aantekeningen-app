@@ -1,17 +1,19 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import AdminNavigation from '@/components/admin/AdminNavigation';
+import { authClient } from '@/lib/firebase-client';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session, status } = useSession();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
@@ -21,25 +23,35 @@ export default function AdminLayout({
     setIsClient(true);
   }, []);
 
+  // Firebase Auth state listener
   useEffect(() => {
-    if (status === 'loading') return; // Still loading
+    const unsubscribe = onAuthStateChanged(authClient, (user) => {
+      setUser(user);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (loading) return; // Still loading
 
     // Don't redirect if we're already on the login page
     if (pathname === '/admin/login') {
       return;
     }
 
-    if (!session) {
+    if (!user) {
       router.push('/admin/login');
       return;
     }
 
-    // Temporarily disable domain check for testing
-    // if (!session.user?.email?.endsWith('@stephensprivelessen.nl')) {
-    //   router.push('/admin/login?error=AccessDenied');
-    //   return;
-    // }
-  }, [session, status, router, pathname, isClient]);
+    // Check if user email is from allowed domain
+    if (!user.email?.endsWith('@stephensprivelessen.nl')) {
+      router.push('/admin/login?error=AccessDenied');
+      return;
+    }
+  }, [user, loading, router, pathname, isClient]);
 
   // If we're on the login page, always show the children (login form)
   // Only check this on client side to prevent hydration mismatch
@@ -47,7 +59,7 @@ export default function AdminLayout({
     return <>{children}</>;
   }
 
-  if (status === 'loading') {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -58,13 +70,17 @@ export default function AdminLayout({
     );
   }
 
-  if (!session) {
+  if (!user) {
     return null; // Will redirect to login
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminNavigation user={session.user!} />
+      <AdminNavigation user={{
+        name: user.displayName,
+        email: user.email,
+        image: user.photoURL,
+      }} />
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {children}
       </main>

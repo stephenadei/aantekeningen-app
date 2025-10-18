@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getStudent, getStudentNotes } from '@/lib/firestore';
 
 export async function GET(
   request: NextRequest,
@@ -7,16 +7,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const student = await prisma.student.findUnique({
-      where: { id },
-      include: {
-        notes: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-      },
-    });
+    const student = await getStudent(id);
+    const notes = student ? await getStudentNotes(id) : [];
 
     if (!student) {
       return NextResponse.json(
@@ -30,7 +22,10 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      student: studentData,
+      student: {
+        ...studentData,
+        notes: notes,
+      },
     });
 
   } catch (error) {

@@ -167,7 +167,8 @@ export default function AantekeningenPage() {
             setCacheLoading(false);
           }
         } else {
-          console.log('📭 No files found for student');
+          console.log('❌ No files found for student - this should not happen!');
+          setError('Er zijn geen bestanden gevonden voor deze student. Dit kan een technisch probleem zijn. Probeer het opnieuw of neem contact op met de beheerder.');
           setCacheLoading(false);
         }
       } else {
@@ -175,6 +176,8 @@ export default function AantekeningenPage() {
         // More specific error handling for files
         if (filesData.error === 'Configuration error') {
           setError('De app is momenteel niet beschikbaar. Probeer het later opnieuw.');
+        } else if (filesData.isTemporaryError) {
+          setError('Er is een tijdelijk probleem met Google Drive. Probeer het over een paar minuten opnieuw.');
         } else if (filesData.message) {
           setError(filesData.message);
         } else {
@@ -710,11 +713,22 @@ export default function AantekeningenPage() {
                               alt={file.title}
                               className="w-full h-full object-cover transition-transform group-hover:scale-105"
                               onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                                e.currentTarget.style.display = 'none';
-                                const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
-                                if (nextElement) {
-                                  nextElement.style.display = 'flex';
+                                console.log('❌ Thumbnail failed to load for:', file.title);
+                                // Try placeholder as fallback
+                                const img = e.currentTarget as HTMLImageElement;
+                                if (!img.src.includes('/api/placeholder/')) {
+                                  img.src = `/api/placeholder/${file.id}`;
+                                } else {
+                                  // If placeholder also fails, show the icon
+                                  img.style.display = 'none';
+                                  const nextElement = img.nextElementSibling as HTMLElement;
+                                  if (nextElement) {
+                                    nextElement.style.display = 'flex';
+                                  }
                                 }
+                              }}
+                              onLoad={() => {
+                                console.log('✅ Thumbnail loaded for:', file.title);
                               }}
                             />
                           ) : null}
@@ -773,18 +787,29 @@ export default function AantekeningenPage() {
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
                             {file.thumbnailUrl ? (
-                              <img 
-                                src={file.thumbnailUrl} 
-                                alt={file.title}
-                                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                                onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                                  e.currentTarget.style.display = 'none';
-                                  const nextElement = e.currentTarget.nextElementSibling as HTMLElement;
+                            <img 
+                              src={file.thumbnailUrl} 
+                              alt={file.title}
+                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                              onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+                                console.log('❌ Thumbnail failed to load for:', file.title);
+                                // Try placeholder as fallback
+                                const img = e.currentTarget as HTMLImageElement;
+                                if (!img.src.includes('/api/placeholder/')) {
+                                  img.src = `/api/placeholder/${file.id}`;
+                                } else {
+                                  // If placeholder also fails, show the icon
+                                  img.style.display = 'none';
+                                  const nextElement = img.nextElementSibling as HTMLElement;
                                   if (nextElement) {
                                     nextElement.style.display = 'flex';
                                   }
-                                }}
-                              />
+                                }
+                              }}
+                              onLoad={() => {
+                                console.log('✅ Thumbnail loaded for:', file.title);
+                              }}
+                            />
                             ) : null}
                             <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
                               <FileText className="w-6 h-6 text-gray-400" />

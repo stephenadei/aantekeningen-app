@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { validatePinFormat } from '@/lib/security';
 import { verifyPin } from '@/lib/security';
-import { prisma } from '@/lib/prisma';
+import { getLoginAudits } from '@/lib/firestore';
 
 interface Student {
   id: string;

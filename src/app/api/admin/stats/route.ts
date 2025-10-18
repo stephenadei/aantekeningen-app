@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getLoginAudits } from '@/lib/firestore';
 import { validateTeacherEmail } from '@/lib/security';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
-    if (!session?.user?.email || !validateTeacherEmail(session.user.email)) {
+    if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

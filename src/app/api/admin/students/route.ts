@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getAllStudents, createStudent, createLoginAudit } from '@/lib/firestore';
 import { validateTeacherEmail, sanitizeInput } from '@/lib/security';
 import { generatePin, hashPin } from '@/lib/security';
 import { z } from 'zod';
@@ -18,9 +18,9 @@ const getStudentsSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
-    if (!session?.user?.email || !validateTeacherEmail(session.user.email)) {
+    if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -30,53 +30,33 @@ export async function GET(request: NextRequest) {
     const { search, page, limit } = getStudentsSchema.parse(query);
     const offset = (page - 1) * limit;
 
-    // Build where clause
-    const where = search ? {
-      displayName: {
-        contains: sanitizeInput(search),
-        mode: 'insensitive' as const,
-      },
-    } : {};
+    // Get all students (Firestore doesn't have complex filtering like Prisma)
+    const allStudents = await getAllStudents();
+    
+    // Apply search filter
+    let filteredStudents = allStudents;
+    if (search) {
+      const searchTerm = sanitizeInput(search).toLowerCase();
+      filteredStudents = allStudents.filter(student => 
+        student.displayName.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    // Apply pagination
+    const totalCount = filteredStudents.length;
+    const students = filteredStudents
+      .sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis())
+      .slice(offset, offset + limit);
 
-    // Get students with pagination
-    const [students, totalCount] = await Promise.all([
-      prisma.student.findMany({
-        where,
-        include: {
-          notes: {
-            select: {
-              id: true,
-              createdAt: true,
-            },
-            orderBy: {
-              createdAt: 'desc',
-            },
-            take: 1,
-          },
-          _count: {
-            select: {
-              notes: true,
-            },
-          },
-        },
-        orderBy: {
-          updatedAt: 'desc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      prisma.student.count({ where }),
-    ]);
-
-    // Transform data for response
+    // Transform data for response (Firestore doesn't have include/relations)
     const studentsWithStats = students.map(student => ({
       id: student.id,
       displayName: student.displayName,
       createdAt: student.createdAt,
       updatedAt: student.updatedAt,
       pinUpdatedAt: student.pinUpdatedAt,
-      notesCount: student._count.notes,
-      lastNoteDate: student.notes[0]?.createdAt || null,
+      notesCount: 0, // Will be populated separately if needed
+      lastNoteDate: null, // Will be populated separately if needed
     }));
 
     return NextResponse.json({
@@ -101,9 +81,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession();
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
-    if (!session?.user?.email || !validateTeacherEmail(session.user.email)) {
+    if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -111,9 +91,8 @@ export async function POST(request: NextRequest) {
     const { displayName } = createStudentSchema.parse(body);
 
     // Check if student already exists
-    const existingStudent = await prisma.student.findUnique({
-      where: { displayName },
-    });
+    const allStudents = await getAllStudents();
+    const existingStudent = allStudents.find(s => s.displayName === displayName);
 
     if (existingStudent) {
       return NextResponse.json(
@@ -127,31 +106,33 @@ export async function POST(request: NextRequest) {
     const pinHash = await hashPin(pin);
 
     // Create student
-    const student = await prisma.student.create({
-      data: {
-        displayName: sanitizeInput(displayName),
-        pinHash,
-      },
+    const studentId = await createStudent({
+      displayName: sanitizeInput(displayName),
+      pinHash,
+      driveFolderId: null,
+      driveFolderName: null,
+      subject: null,
+      folderConfirmed: false,
+      folderLinkedAt: null,
+      folderConfirmedAt: null,
     });
 
     // Log the creation
-    await prisma.loginAudit.create({
-      data: {
-        who: `teacher:${session.user.email}`,
-        action: 'student_created',
-        metadata: {
-          studentId: student.id,
-          studentName: student.displayName,
-        },
+    await createLoginAudit({
+      who: `teacher:${user.email}`,
+      action: 'student_created',
+      metadata: {
+        studentId: studentId,
+        studentName: sanitizeInput(displayName),
       },
     });
 
     return NextResponse.json({
       success: true,
       student: {
-        id: student.id,
-        displayName: student.displayName,
-        createdAt: student.createdAt,
+        id: studentId,
+        displayName: sanitizeInput(displayName),
+        createdAt: new Date(),
       },
       pin, // Return PIN only once during creation
     });

@@ -44,11 +44,17 @@ export async function GET(
 
   } catch (error) {
     console.error('❌ Error listing files:', error);
+    
+    // If this is a Google Drive error, it's likely a temporary issue
+    // Return a more specific error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
     return NextResponse.json(
       { 
         success: false, 
         error: 'Failed to list files',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: errorMessage,
+        isTemporaryError: errorMessage.includes('Google Drive') || errorMessage.includes('Failed to load files')
       },
       { status: 500 }
     );
