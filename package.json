@@ -20,7 +20,9 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
-    "test:ci": "npm run test:unit && npm run test:integration && npm run test:e2e"
+    "test:performance": "vitest run tests/performance",
+    "test:ci": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:performance",
+    "test:summary": "node scripts/test-summary.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

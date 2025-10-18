@@ -25,6 +25,7 @@ Een standalone Next.js applicatie voor het beheren van student aantekeningen voo
 - **Authentication**: Firebase Auth + Google OAuth2
 - **Storage**: Google Drive API
 - **AI**: OpenAI API (optioneel)
+- **Testing**: Vitest + Playwright + c8
 - **Deployment**: Vercel
 
 ## 📁 Project Structuur
@@ -44,8 +45,14 @@ src/
 │   │       └── status/route.ts
 │   ├── student/[id]/page.tsx
 │   └── page.tsx
-└── lib/
-    └── google-drive-simple.ts
+├── lib/
+│   └── google-drive-simple.ts
+└── tests/
+    ├── unit/           # Unit tests (60%)
+    ├── integration/    # Integration tests (30%)
+    ├── e2e/           # E2E tests (10%)
+    ├── security/      # Security tests
+    └── performance/   # Performance tests
 ```
 
 ## 🔧 Setup
@@ -108,6 +115,38 @@ src/
    ```bash
    npm run dev
    ```
+
+## 🧪 Testing
+
+De app heeft een uitgebreide test suite met unit, integration, E2E, security en performance tests:
+
+### Test Commands
+```bash
+# Run all tests
+npm run test:ci
+
+# Individual test types
+npm run test:unit          # Unit tests
+npm run test:integration   # Integration tests
+npm run test:e2e          # E2E tests
+npm run test:security     # Security tests
+npm run test:performance  # Performance tests
+npm run test:smoke        # Smoke tests
+
+# Development
+npm run test:watch        # Watch mode
+npm run test:ui           # Interactive UI
+npm run test:coverage     # Coverage report
+npm run test:summary      # Test summary
+```
+
+### Test Coverage
+- **Unit tests**: 80%+ coverage target
+- **Integration tests**: 70%+ coverage target
+- **Overall**: 75%+ coverage target
+
+### CI/CD
+Tests run automatically on every push and pull request via GitHub Actions. See [TESTING.md](TESTING.md) for detailed documentation.
 
 ## 📚 API Endpoints
 
