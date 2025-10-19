@@ -24,6 +24,7 @@ Een standalone Next.js applicatie voor het beheren van student aantekeningen voo
 - **Database**: Firebase Firestore
 - **Authentication**: Firebase Auth + Google OAuth2
 - **Storage**: Google Drive API
+- **Caching**: Firestore Cache + React Query
 - **AI**: OpenAI API (optioneel)
 - **Testing**: Vitest + Playwright + c8
 - **Deployment**: Vercel
@@ -147,6 +148,32 @@ npm run test:summary      # Test summary
 
 ### CI/CD
 Tests run automatically on every push and pull request via GitHub Actions. See [TESTING.md](TESTING.md) for detailed documentation.
+
+## 🚀 Performance Optimalisatie
+
+De app gebruikt een geavanceerde 3-layer caching strategie voor optimale prestaties:
+
+### Cache Layers
+1. **Firestore Cache** - Persistente cache tussen servers (uren/dagen)
+2. **React Query** - Client-side cache met automatic refetching (minuten)
+3. **Browser Cache** - Local storage en HTTP cache (seconden)
+
+### Performance Targets
+- **First Load**: ~200-500ms (Firestore)
+- **Cache Hit**: ~50-100ms (Firestore + indexes)
+- **Subsequent Loads**: ~10-50ms (browser cache)
+- **Google Drive API calls**: Alleen bij sync (6u interval)
+
+### Cache Management
+- **Admin Dashboard**: `/admin/cache` voor monitoring
+- **Background Sync**: Automatische sync elke 6 uur
+- **Manual Sync**: Via admin dashboard of API
+- **Migration**: `npm run migrate-cache` voor initial setup
+
+### Student Management
+- **Initial Setup**: `npm run init-students` om studenten te migreren van Google Drive naar Firestore
+- **Hybrid Search**: Firestore eerst, Google Drive als fallback
+- **Auto-migration**: Studenten worden automatisch gemigreerd bij eerste zoekopdracht
 
 ## 📚 API Endpoints
 

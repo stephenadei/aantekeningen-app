@@ -1,14 +1,27 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download, Filter } from 'lucide-react';
 import Link from 'next/link';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useNativeShare } from '@/hooks/useNativeShare';
+import FilterModal from '@/components/ui/FilterModal';
+import FilterSection from '@/components/ui/FilterSection';
+import DateRangeFilter from '@/components/ui/DateRangeFilter';
+import FilterPills from '@/components/ui/FilterPill';
+import { 
+  applyFilters, 
+  extractUniqueValues, 
+  getFilterCounts, 
+  getActiveFilterCount,
+  serializeFilters,
+  deserializeFilters,
+  type FilterState 
+} from '@/lib/filterUtils';
 
 interface Student {
   id: string;
-  name: string;
+  displayName: string;
   subject: string;
   url: string;
 }
@@ -17,6 +30,15 @@ interface StudentOverview {
   fileCount: number;
   lastActivity: string | null;
   lastActivityDate: string;
+  lastFile?: {
+    id: string;
+    name: string;
+    title: string;
+    subject?: string;
+    topic?: string;
+    summary?: string;
+    modifiedTime: string;
+  };
 }
 
 interface FileInfo {
@@ -54,13 +76,16 @@ export default function AantekeningenPage() {
   // Native share functionality
   const { isSupported: isNativeShareSupported, share: nativeShare, isSharing } = useNativeShare();
   
-  // Filter states
-  const [filters, setFilters] = useState({
-    subject: '',
-    topic: '',
-    level: '',
-    schoolYear: '',
-    keyword: ''
+  // New advanced filter states
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    subjects: [],
+    topics: [],
+    levels: [],
+    schoolYears: [],
+    keywords: [],
+    dateRange: { type: 'all' },
+    searchText: ''
   });
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'subject' | 'topic'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -72,6 +97,46 @@ export default function AantekeningenPage() {
     if (studentParam) {
       setSearchQuery(studentParam);
       handleSearch(studentParam);
+    }
+    
+    // Load filters from URL params
+    const filtersParam = urlParams.get('filters');
+    if (filtersParam) {
+      try {
+        // Check if we have any filter params in the URL
+        const hasFilterParams = 
+          urlParams.get('subjects') ||
+          urlParams.get('topics') ||
+          urlParams.get('levels') ||
+          urlParams.get('schoolYears') ||
+          urlParams.get('keywords') ||
+          urlParams.get('dateRangeType') ||
+          urlParams.get('searchText');
+        
+        if (hasFilterParams) {
+          // Filters are already in the URL as individual params
+          const loadedFilters = deserializeFilters(urlParams);
+          setFilters(loadedFilters);
+        }
+      } catch (e) {
+        console.log('Could not parse filters from URL', e);
+      }
+    } else {
+      // Check for individual filter params
+      try {
+        const loadedFilters = deserializeFilters(urlParams);
+        if (loadedFilters.subjects.length > 0 || 
+            loadedFilters.topics.length > 0 ||
+            loadedFilters.levels.length > 0 ||
+            loadedFilters.schoolYears.length > 0 ||
+            loadedFilters.keywords.length > 0 ||
+            loadedFilters.dateRange.type !== 'all' ||
+            loadedFilters.searchText) {
+          setFilters(loadedFilters);
+        }
+      } catch (e) {
+        console.log('Could not parse filter params from URL', e);
+      }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -97,6 +162,9 @@ export default function AantekeningenPage() {
         if (data.students.length === 1) {
           // Auto-select if only one student found
           handleStudentSelect(data.students[0]);
+        } else if (data.students.length === 0 && data.message) {
+          // Show helpful message when no students found
+          setError(data.message);
         }
       } else {
         // More specific error handling
@@ -117,7 +185,7 @@ export default function AantekeningenPage() {
   };
 
   const handleStudentSelect = async (student: Student) => {
-    console.log('🔄 Loading student:', student.name, 'ID:', student.id);
+    console.log('🔄 Loading student:', student.displayName, 'ID:', student.id);
     setSelectedStudent(student);
     setLoading(true);
     setCacheLoading(false);
@@ -135,9 +203,19 @@ export default function AantekeningenPage() {
         setStudentOverview(overviewData.overview);
       } else {
         console.log('❌ Overview failed:', overviewData);
+        // Set a default overview so hero section still shows
+        setStudentOverview({
+          fileCount: 0,
+          lastActivity: null,
+          lastActivityDate: 'Onbekend',
+          lastFile: undefined
+        });
       }
+      
+      // Hide main loading and show hero section immediately after overview attempt
+      setLoading(false);
 
-      // Show cache loading immediately when starting to fetch files
+      // Show cache loading for files while hero is already visible
       setCacheLoading(true);
       
       console.log('📁 Fetching files for student:', student.id);
@@ -167,8 +245,8 @@ export default function AantekeningenPage() {
             setCacheLoading(false);
           }
         } else {
-          console.log('❌ No files found for student - this should not happen!');
-          setError('Er zijn geen bestanden gevonden voor deze student. Dit kan een technisch probleem zijn. Probeer het opnieuw of neem contact op met de beheerder.');
+          console.log('📁 Student has no files yet (empty folder)');
+          // Don't set an error - empty folders are a valid state
           setCacheLoading(false);
         }
       } else {
@@ -188,9 +266,8 @@ export default function AantekeningenPage() {
     } catch (err) {
       console.error('❌ Student select error:', err);
       setError('Er is een fout opgetreden bij het laden van studentgegevens');
-      setCacheLoading(false);
-    } finally {
       setLoading(false);
+      setCacheLoading(false);
     }
   };
 
@@ -212,8 +289,8 @@ export default function AantekeningenPage() {
         // Try native share first (iOS/Android)
         if (isNativeShareSupported) {
           const success = await nativeShare({
-            title: `Aantekeningen van ${student.name}`,
-            text: `Bekijk de aantekeningen van ${student.name} op Stephen's Privelessen`,
+            title: `Aantekeningen van ${student.displayName}`,
+            text: `Bekijk de aantekeningen van ${student.displayName} op Stephen's Privelessen`,
             url: data.shareableUrl
           });
           
@@ -226,11 +303,11 @@ export default function AantekeningenPage() {
         try {
           if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(data.shareableUrl);
-            alert(`Shareable link voor ${student.name} gekopieerd naar klembord!`);
+            alert(`Shareable link voor ${student.displayName} gekopieerd naar klembord!`);
           } else {
             // Fallback: show the link in a prompt
             const userConfirmed = confirm(
-              `Shareable link voor ${student.name}:\n\n${data.shareableUrl}\n\nKlik OK om de link te kopiëren, of Annuleren om te sluiten.`
+              `Shareable link voor ${student.displayName}:\n\n${data.shareableUrl}\n\nKlik OK om de link te kopiëren, of Annuleren om te sluiten.`
             );
             if (userConfirmed) {
               // Try alternative clipboard method
@@ -245,7 +322,7 @@ export default function AantekeningenPage() {
           }
         } catch {
           // Final fallback: just show the link
-          alert(`Shareable link voor ${student.name}:\n\n${data.shareableUrl}\n\nKopieer deze link handmatig.`);
+          alert(`Shareable link voor ${student.displayName}:\n\n${data.shareableUrl}\n\nKopieer deze link handmatig.`);
         }
       } else {
         throw new Error(data.message || 'Failed to generate shareable link');
@@ -257,31 +334,79 @@ export default function AantekeningenPage() {
   };
 
   // Filter and sort functions
-  const getUniqueValues = (files: FileInfo[], key: keyof FileInfo) => {
-    const values = files
-      .map(file => file[key])
-      .filter((value): value is string => typeof value === 'string' && value.length > 0)
-      .filter((value, index, self) => self.indexOf(value) === index)
-      .sort();
-    return values;
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
+  const formatDate = (dateString: string): string => {
+    try {
+      return new Date(dateString).toLocaleDateString('nl-NL', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch {
+      return dateString;
+    }
+  };
 
-  const filteredAndSortedFiles = () => {
-    // Remove duplicates by file.id first
-    const uniqueFiles = files.filter((file, index, self) => 
-      index === self.findIndex(f => f.id === file.id)
-    );
+  // Compute filter items with counts
+  const subjectItems = useMemo(() => {
+    const items = extractUniqueValues(files, 'subject');
+    const counts = getFilterCounts(files, 'subject', filters);
+    return items.map(item => ({
+      value: item.value,
+      label: item.label,
+      count: counts.get(item.value) || 0
+    }));
+  }, [files, filters]);
+
+  const topicItems = useMemo(() => {
+    const items = extractUniqueValues(files, 'topic');
+    const counts = getFilterCounts(files, 'topic', filters);
+    return items.map(item => ({
+      value: item.value,
+      label: item.label,
+      count: counts.get(item.value) || 0
+    }));
+  }, [files, filters]);
+
+  const levelItems = useMemo(() => {
+    const items = extractUniqueValues(files, 'level');
+    const counts = getFilterCounts(files, 'level', filters);
+    return items.map(item => ({
+      value: item.value,
+      label: item.label,
+      count: counts.get(item.value) || 0
+    }));
+  }, [files, filters]);
+
+  const schoolYearItems = useMemo(() => {
+    const items = extractUniqueValues(files, 'schoolYear');
+    const counts = getFilterCounts(files, 'schoolYear', filters);
+    return items.map(item => ({
+      value: item.value,
+      label: item.label,
+      count: counts.get(item.value) || 0
+    }));
+  }, [files, filters]);
+
+  const keywordItems = useMemo(() => {
+    const items = extractUniqueValues(files, 'keywords');
+    const counts = getFilterCounts(files, 'keywords', filters);
+    return items.map(item => ({
+      value: item.value,
+      label: item.label,
+      count: counts.get(item.value) || 0
+    }));
+  }, [files, filters]);
+
+  // Apply filters and sort
+  const filteredAndSortedFiles = useMemo(() => {
+    const filtered = applyFilters(files, filters);
     
-    const filtered = uniqueFiles.filter(file => {
-      if (filters.subject && file.subject !== filters.subject) return false;
-      if (filters.topic && file.topic !== filters.topic) return false;
-      if (filters.level && file.level !== filters.level) return false;
-      if (filters.schoolYear && file.schoolYear !== filters.schoolYear) return false;
-      if (filters.keyword && !file.keywords?.some(k => k.toLowerCase().includes(filters.keyword.toLowerCase()))) return false;
-      return true;
-    });
-
     // Sort files
     filtered.sort((a, b) => {
       let aValue: string | number;
@@ -316,35 +441,149 @@ export default function AantekeningenPage() {
     });
 
     return filtered;
-  };
+  }, [files, filters, sortBy, sortOrder]);
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
-  const formatDate = (dateString: string): string => {
+  const handleApplyFilters = (newFilters: FilterState) => {
+    setFilters(newFilters);
+    // Update URL with filters - we need to merge the serialized filters into the current URL
     try {
-      return new Date(dateString).toLocaleDateString('nl-NL', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
+      const baseParams = new URLSearchParams(window.location.search);
+      const filterParams = serializeFilters(newFilters);
+      
+      // Clear old filter params
+      baseParams.delete('subjects');
+      baseParams.delete('topics');
+      baseParams.delete('levels');
+      baseParams.delete('schoolYears');
+      baseParams.delete('keywords');
+      baseParams.delete('dateRangeType');
+      baseParams.delete('dateRangeValue');
+      baseParams.delete('searchText');
+      
+      // Add new filter params
+      filterParams.forEach((value, key) => {
+        baseParams.set(key, value);
       });
-    } catch {
-      return dateString;
+      
+      window.history.replaceState({}, '', `?${baseParams.toString()}`);
+    } catch (e) {
+      console.error('Error updating URL with filters', e);
     }
   };
 
+  const handleClearFilters = () => {
+    setFilters({
+      subjects: [],
+      topics: [],
+      levels: [],
+      schoolYears: [],
+      keywords: [],
+      dateRange: { type: 'all' },
+      searchText: ''
+    });
+  };
+
+  const handleRemovePill = (pillId: string) => {
+    const [filterType, value] = pillId.split(':');
+    
+    switch (filterType) {
+      case 'subject':
+        setFilters(prev => ({
+          ...prev,
+          subjects: prev.subjects.filter(s => s !== value)
+        }));
+        break;
+      case 'topic':
+        setFilters(prev => ({
+          ...prev,
+          topics: prev.topics.filter(t => t !== value)
+        }));
+        break;
+      case 'level':
+        setFilters(prev => ({
+          ...prev,
+          levels: prev.levels.filter(l => l !== value)
+        }));
+        break;
+      case 'schoolYear':
+        setFilters(prev => ({
+          ...prev,
+          schoolYears: prev.schoolYears.filter(sy => sy !== value)
+        }));
+        break;
+      case 'keyword':
+        setFilters(prev => ({
+          ...prev,
+          keywords: prev.keywords.filter(k => k !== value)
+        }));
+        break;
+      case 'dateRange':
+        setFilters(prev => ({
+          ...prev,
+          dateRange: { type: 'all' }
+        }));
+        break;
+    }
+  };
+
+  // Build filter pills
+  const filterPills = useMemo(() => {
+    const pills = [];
+    
+    filters.subjects.forEach(subject => {
+      pills.push({ id: `subject:${subject}`, label: `Vak: ${subject}` });
+    });
+    
+    filters.topics.forEach(topic => {
+      pills.push({ id: `topic:${topic}`, label: `Onderwerp: ${topic}` });
+    });
+    
+    filters.levels.forEach(level => {
+      pills.push({ id: `level:${level}`, label: `Niveau: ${level}` });
+    });
+    
+    filters.schoolYears.forEach(year => {
+      pills.push({ id: `schoolYear:${year}`, label: `Schooljaar: ${year}` });
+    });
+    
+    filters.keywords.forEach(keyword => {
+      pills.push({ id: `keyword:${keyword}`, label: `Trefwoord: ${keyword}` });
+    });
+    
+    if (filters.dateRange.type !== 'all') {
+      let dateLabel = 'Datum: ';
+      switch (filters.dateRange.type) {
+        case 'days':
+          dateLabel += `Laatste ${filters.dateRange.value} dagen`;
+          break;
+        case 'weeks':
+          dateLabel += `Laatste ${filters.dateRange.value} weken`;
+          break;
+        case 'months':
+          dateLabel += `Laatste ${filters.dateRange.value} maanden`;
+          break;
+        case 'years':
+          dateLabel += `Laatste ${filters.dateRange.value} jaar`;
+          break;
+        case 'custom':
+          dateLabel += 'Aangepast bereik';
+          break;
+      }
+      pills.push({ id: 'dateRange:all', label: dateLabel });
+    }
+    
+    return pills;
+  }, [filters]);
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="min-h-screen bg-yellow-300 dark:bg-slate-900">
       <div className="container mx-auto px-4 py-8">
         {!selectedStudent ? (
           /* Search Interface */
           <div className="max-w-2xl mx-auto">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6">
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border-4 border-blue-900 dark:border-yellow-300">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Zoek je aantekeningen</h2>
+                <h2 className="text-2xl font-bold text-blue-900 dark:text-yellow-300">Zoek je aantekeningen</h2>
                 <DarkModeToggle />
               </div>
               
@@ -363,7 +602,7 @@ export default function AantekeningenPage() {
                 <button
                   onClick={() => handleSearch()}
                   disabled={loading || !searchQuery.trim()}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-6 py-3 bg-blue-900 text-yellow-300 font-bold rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
                 >
                   {loading ? (
                     <>
@@ -382,7 +621,7 @@ export default function AantekeningenPage() {
               {!hasSearched && searchQuery && (
                 <div className="mb-4 text-center">
                   <p className="text-sm text-gray-500">
-                    Druk op Enter of klik op "Zoeken" om te zoeken
+                    Druk op Enter of klik op &quot;Zoeken&quot; om te zoeken
                   </p>
                 </div>
               )}
@@ -401,15 +640,15 @@ export default function AantekeningenPage() {
                   {students.map((student) => (
                     <div
                       key={student.id}
-                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="p-4 border-2 border-blue-900 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 dark:hover:bg-opacity-10 transition-colors bg-white dark:bg-slate-800"
                     >
                       <div className="flex items-center justify-between">
                         <div 
                           onClick={() => handleStudentSelect(student)}
                           className="flex-1 cursor-pointer"
                         >
-                          <h4 className="font-medium text-lg">{student.name}</h4>
-                          <p className="text-gray-600">{student.subject}</p>
+                          <h4 className="font-bold text-lg text-blue-900 dark:text-yellow-300">{student.displayName}</h4>
+                          <p className="text-blue-700 dark:text-yellow-200">{student.subject}</p>
                         </div>
                         <div className="flex items-center space-x-2">
                           <button
@@ -417,7 +656,7 @@ export default function AantekeningenPage() {
                               e.stopPropagation();
                               handleShareStudent(student);
                             }}
-                            className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                            className="p-2 text-blue-900 hover:text-yellow-500 transition-colors hover:bg-yellow-100 dark:hover:bg-blue-900 rounded-full"
                             title="Deel link"
                           >
                             <Share2 className="w-4 h-4" />
@@ -510,18 +749,49 @@ export default function AantekeningenPage() {
                     <User className="w-8 h-8 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold">{selectedStudent.name}</h2>
+                    <h2 className="text-2xl font-bold">{selectedStudent.displayName}</h2>
                     <p className="text-gray-600">{selectedStudent.subject}</p>
                     {studentOverview && (
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                        <span className="flex items-center gap-1">
-                          <FileText className="w-4 h-4" />
-                          {studentOverview.fileCount} bestanden
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          Laatste activiteit: {studentOverview.lastActivityDate}
-                        </span>
+                      <div className="mt-2">
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-4 h-4" />
+                            {studentOverview.fileCount} bestanden
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            Laatste activiteit: {studentOverview.lastActivityDate}
+                          </span>
+                        </div>
+                        
+                        {/* Laatste aantekening details */}
+                        {studentOverview.lastFile && (
+                          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-medium text-blue-900 text-sm">
+                                  Laatste aantekening
+                                </h3>
+                                <p className="text-blue-800 font-medium text-sm mt-1">
+                                  {studentOverview.lastFile.title}
+                                </p>
+                                {studentOverview.lastFile.subject && studentOverview.lastFile.topic && (
+                                  <p className="text-blue-700 text-xs mt-1">
+                                    {studentOverview.lastFile.subject} • {studentOverview.lastFile.topic}
+                                  </p>
+                                )}
+                                {studentOverview.lastFile.summary && (
+                                  <p className="text-blue-600 text-xs mt-2 line-clamp-2">
+                                    {studentOverview.lastFile.summary}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="ml-3">
+                                <FileText className="w-5 h-5 text-blue-600" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -569,125 +839,134 @@ export default function AantekeningenPage() {
 
             {/* Filters and Sort */}
             {files.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                  {/* Subject Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Vak</label>
-                    <select
-                      value={filters.subject}
-                      onChange={(e) => setFilters(prev => ({ ...prev, subject: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Alle vakken</option>
-                      {getUniqueValues(files, 'subject').map(subject => (
-                        <option key={subject} value={subject}>{subject}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Topic Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Onderwerp</label>
-                    <select
-                      value={filters.topic}
-                      onChange={(e) => setFilters(prev => ({ ...prev, topic: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Alle onderwerpen</option>
-                      {getUniqueValues(files, 'topic').map(topic => (
-                        <option key={topic} value={topic}>{topic}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Level Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Niveau</label>
-                    <select
-                      value={filters.level}
-                      onChange={(e) => setFilters(prev => ({ ...prev, level: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Alle niveaus</option>
-                      {getUniqueValues(files, 'level').map(level => (
-                        <option key={level} value={level}>{level}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* School Year Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Schooljaar</label>
-                    <select
-                      value={filters.schoolYear}
-                      onChange={(e) => setFilters(prev => ({ ...prev, schoolYear: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Alle schooljaren</option>
-                      {getUniqueValues(files, 'schoolYear').map(year => (
-                        <option key={year} value={year}>{year}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Keyword Search */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Zoek in trefwoorden</label>
-                    <input
-                      type="text"
-                      value={filters.keyword}
-                      onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-                      placeholder="Typ trefwoord..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Sort By */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Sorteer op</label>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="date">Datum</option>
-                      <option value="name">Naam</option>
-                      <option value="subject">Vak</option>
-                      <option value="topic">Onderwerp</option>
-                    </select>
-                  </div>
-
-                  {/* Sort Order */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Volgorde</label>
-                    <select
-                      value={sortOrder}
-                      onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="desc">Nieuwste eerst</option>
-                      <option value="asc">Oudste eerst</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Clear Filters */}
-                <div className="mt-4 flex justify-between items-center">
-                  <span className="text-sm text-gray-600">
-                    {filteredAndSortedFiles().length} van {files.length} bestanden
-                  </span>
+              <div className="space-y-4 mb-6">
+                {/* Filter Button and Pills */}
+                <div className="flex flex-wrap items-center gap-3">
                   <button
-                    onClick={() => setFilters({ subject: '', topic: '', level: '', schoolYear: '', keyword: '' })}
-                    className="text-sm text-blue-600 hover:text-blue-800"
+                    onClick={() => setIsFilterModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-navy-900 text-white rounded-lg hover:bg-navy-800 transition-colors font-medium"
                   >
-                    Filters wissen
+                    <Filter className="w-4 h-4" />
+                    Filters
+                    {getActiveFilterCount(filters) > 0 && (
+                      <span className="ml-1 inline-flex items-center justify-center w-6 h-6 bg-yellow-300 text-navy-900 rounded-full text-xs font-bold">
+                        {getActiveFilterCount(filters)}
+                      </span>
+                    )}
                   </button>
+
+                  {/* Filter Pills */}
+                  {filterPills.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      <FilterPills
+                        pills={filterPills}
+                        onRemovePill={handleRemovePill}
+                        onClearAll={handleClearFilters}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Sort Options */}
+                <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-4 rounded-lg">
+                  <label className="text-sm font-medium text-gray-700">Sorteer:</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-900"
+                  >
+                    <option value="date">Datum</option>
+                    <option value="name">Naam</option>
+                    <option value="subject">Vak</option>
+                    <option value="topic">Onderwerp</option>
+                  </select>
+
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-900"
+                  >
+                    <option value="desc">Nieuwste eerst</option>
+                    <option value="asc">Oudste eerst</option>
+                  </select>
+
+                  <span className="text-sm text-gray-600 ml-auto">
+                    {filteredAndSortedFiles.length} van {files.length} bestanden
+                  </span>
                 </div>
               </div>
             )}
+
+            {/* Filter Modal */}
+            <FilterModal
+              isOpen={isFilterModalOpen}
+              onClose={() => setIsFilterModalOpen(false)}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
+              currentFilters={filters}
+            >
+              {/* Subject Filter Section */}
+              <FilterSection
+                title="Vakken"
+                items={subjectItems}
+                selectedValues={filters.subjects}
+                onSelectionChange={(values) => setFilters(prev => ({ ...prev, subjects: values }))}
+                defaultExpanded={true}
+              />
+
+              {/* Topic Filter Section */}
+              <FilterSection
+                title="Onderwerpen"
+                items={topicItems}
+                selectedValues={filters.topics}
+                onSelectionChange={(values) => setFilters(prev => ({ ...prev, topics: values }))}
+              />
+
+              {/* Level Filter Section */}
+              <FilterSection
+                title="Niveaus"
+                items={levelItems}
+                selectedValues={filters.levels}
+                onSelectionChange={(values) => setFilters(prev => ({ ...prev, levels: values }))}
+              />
+
+              {/* School Year Filter Section */}
+              <FilterSection
+                title="Schooljaren"
+                items={schoolYearItems}
+                selectedValues={filters.schoolYears}
+                onSelectionChange={(values) => setFilters(prev => ({ ...prev, schoolYears: values }))}
+              />
+
+              {/* Keywords Filter Section */}
+              <FilterSection
+                title="Trefwoorden"
+                items={keywordItems}
+                selectedValues={filters.keywords}
+                onSelectionChange={(values) => setFilters(prev => ({ ...prev, keywords: values }))}
+              />
+
+              {/* Date Range Filter */}
+              <div className="border-b border-gray-200 pb-4">
+                <h3 className="font-semibold text-gray-900 mb-3">Datumbereik</h3>
+                <DateRangeFilter
+                  value={filters.dateRange}
+                  onChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
+                />
+              </div>
+
+              {/* Search Text */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Zoeken</label>
+                <input
+                  type="text"
+                  placeholder="Zoek op naam, titel, onderwerp..."
+                  value={filters.searchText}
+                  onChange={(e) => setFilters(prev => ({ ...prev, searchText: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </FilterModal>
 
             {loading ? (
               <div className="flex items-center justify-center py-12">
@@ -697,7 +976,7 @@ export default function AantekeningenPage() {
             ) : files.length > 0 ? (
               /* Files Display */
               <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
-                {filteredAndSortedFiles().map((file) => (
+                {filteredAndSortedFiles.map((file) => (
                   <div
                     key={file.id}
                     className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${
@@ -870,7 +1149,7 @@ export default function AantekeningenPage() {
                 <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600 text-lg">Geen bestanden gevonden</p>
                 <p className="text-gray-500 text-sm mt-2 mb-4">
-                  Er zijn momenteel geen aantekeningen beschikbaar voor {selectedStudent.name}.
+                  Er zijn momenteel geen aantekeningen beschikbaar voor {selectedStudent.displayName}.
                 </p>
                 <button
                   onClick={() => {

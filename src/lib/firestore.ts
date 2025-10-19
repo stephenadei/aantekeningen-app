@@ -77,7 +77,7 @@ export interface LoginAudit {
   action: string;
   ip: string | null;
   userAgent: string | null;
-  metadata: any | null;
+  metadata: Record<string, unknown> | null;
   teacherId: string | null;
   studentId: string | null;
   createdAt: Timestamp;
@@ -156,8 +156,18 @@ export const getStudentByDriveFolderId = async (driveFolderId: string): Promise<
 };
 
 export const getAllStudents = async (): Promise<Student[]> => {
-  const snapshot = await db.collection('students').get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+  if (!db) {
+    console.error('❌ Firestore database not initialized');
+    return [];
+  }
+  
+  try {
+    const snapshot = await db.collection('students').get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Student));
+  } catch (error) {
+    console.error('Error getting all students:', error);
+    return [];
+  }
 };
 
 export const createStudent = async (data: Omit<Student, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
@@ -328,12 +338,21 @@ export const getLoginAuditsByWho = async (who: string, limit: number = 50): Prom
 };
 
 // TRANSACTION HELPERS
-export const runTransaction = async <T>(updateFunction: (transaction: any) => Promise<T>): Promise<T> => {
+export const runTransaction = async <T>(
+  updateFunction: (transaction: FirebaseFirestore.Transaction) => Promise<T>
+): Promise<T> => {
   return await db.runTransaction(updateFunction);
 };
 
 // BATCH OPERATIONS
-export const batchWrite = async (operations: Array<{ type: 'create' | 'update' | 'delete', collection: string, docId?: string, data?: any }>): Promise<void> => {
+interface BatchOperation {
+  type: 'create' | 'update' | 'delete';
+  collection: string;
+  docId?: string;
+  data?: Record<string, unknown>;
+}
+
+export const batchWrite = async (operations: BatchOperation[]): Promise<void> => {
   const batch = db.batch();
   
   for (const op of operations) {
@@ -344,7 +363,7 @@ export const batchWrite = async (operations: Array<{ type: 'create' | 'update' |
         batch.set(docRef, op.data);
         break;
       case 'update':
-        batch.update(docRef, op.data);
+        batch.update(docRef, op.data || {});
         break;
       case 'delete':
         batch.delete(docRef);

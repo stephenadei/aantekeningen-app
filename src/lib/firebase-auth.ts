@@ -6,12 +6,13 @@ const isEdgeRuntime = typeof EdgeRuntime !== 'undefined' ||
   (typeof process !== 'undefined' && process.env.NEXT_RUNTIME === 'edge');
 
 // Only import Firebase Admin SDK in Node.js runtime
-let auth: any = null;
+let auth: { verifyIdToken?: (token: string) => Promise<Record<string, unknown>>; verifySessionCookie?: (cookie: string, checkRevoked: boolean) => Promise<Record<string, unknown>>; currentUser?: unknown } | null = null;
 if (!isEdgeRuntime) {
   try {
-    const { auth: firebaseAuth } = require('./firebase-admin');
-    auth = firebaseAuth;
-  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const firebaseAdminModule = require('./firebase-admin') as { auth: typeof auth };
+    auth = firebaseAdminModule.auth;
+  } catch {
     console.warn('Firebase Admin SDK not available in this runtime');
   }
 }
@@ -22,9 +23,7 @@ export interface FirebaseUser {
   name: string | null;
   picture: string | null;
   emailVerified: boolean;
-  customClaims?: {
-    role?: string;
-  };
+  customClaims?: Record<string, unknown>;
 }
 
 export interface AuthResult {
@@ -48,15 +47,15 @@ export async function verifyFirebaseToken(request: NextRequest): Promise<AuthRes
     }
 
     const token = authHeader.substring(7);
-    const decodedToken = await auth.verifyIdToken(token);
+    const decodedToken = await auth.verifyIdToken!(token);
     
     const user: FirebaseUser = {
-      uid: decodedToken.uid,
-      email: decodedToken.email || null,
-      name: decodedToken.name || null,
-      picture: decodedToken.picture || null,
-      emailVerified: decodedToken.email_verified || false,
-      customClaims: decodedToken.customClaims as any,
+      uid: decodedToken.uid as string,
+      email: (decodedToken.email as string) || null,
+      name: (decodedToken.name as string) || null,
+      picture: (decodedToken.picture as string) || null,
+      emailVerified: (decodedToken.email_verified as boolean) || false,
+      customClaims: decodedToken.customClaims as Record<string, unknown>,
     };
 
     return { user, error: null };
@@ -81,15 +80,15 @@ export async function verifyFirebaseTokenFromCookie(request: NextRequest): Promi
       return { user: null, error: 'No session cookie' };
     }
 
-    const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
+    const decodedClaims = await auth.verifySessionCookie!(sessionCookie, true);
     
     const user: FirebaseUser = {
-      uid: decodedClaims.uid,
-      email: decodedClaims.email || null,
-      name: decodedClaims.name || null,
-      picture: decodedClaims.picture || null,
-      emailVerified: decodedClaims.email_verified || false,
-      customClaims: decodedClaims.customClaims as any,
+      uid: decodedClaims.uid as string,
+      email: (decodedClaims.email as string) || null,
+      name: (decodedClaims.name as string) || null,
+      picture: (decodedClaims.picture as string) || null,
+      emailVerified: (decodedClaims.email_verified as boolean) || false,
+      customClaims: decodedClaims.customClaims as Record<string, unknown>,
     };
 
     return { user, error: null };
@@ -109,7 +108,7 @@ export function isAuthorizedAdmin(user: FirebaseUser | null): boolean {
   if (!validateTeacherEmail(user.email)) return false;
   
   // Check custom claims for role
-  if (user.customClaims?.role && !['admin', 'staff'].includes(user.customClaims.role)) {
+  if (user.customClaims?.role && !['admin', 'staff'].includes(user.customClaims.role as string)) {
     return false;
   }
   
@@ -144,7 +143,7 @@ export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
       name: userRecord.displayName || null,
       picture: userRecord.photoURL || null,
       emailVerified: userRecord.emailVerified,
-      customClaims: userRecord.customClaims as any,
+      customClaims: userRecord.customClaims as Record<string, unknown>,
     };
   } catch (error) {
     console.error('Failed to get user:', error);
@@ -156,7 +155,7 @@ export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
  * Create custom token for student sessions (if needed)
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
-export async function createCustomToken(uid: string, additionalClaims?: any): Promise<string> {
+export async function createCustomToken(uid: string, additionalClaims?: Record<string, unknown>): Promise<string> {
   if (isEdgeRuntime || !auth) {
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import AdminNavigation from '@/components/admin/AdminNavigation';
 import { authClient } from '@/lib/firebase-client';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, type Auth } from 'firebase/auth';
 
 export default function AdminLayout({
   children,
@@ -25,7 +25,12 @@ export default function AdminLayout({
 
   // Firebase Auth state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(authClient, (user) => {
+    if (!authClient) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(authClient as Auth, (user) => {
       setUser(user);
       setLoading(false);
     });

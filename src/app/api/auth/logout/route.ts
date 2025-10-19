@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createLoginAudit, verifyFirebaseTokenFromCookie } from '@/lib/firebase-auth';
+import { verifyFirebaseTokenFromCookie } from '@/lib/firebase-auth';
+import { createLoginAudit } from '@/lib/firestore';
 import { getClientIP, getUserAgent } from '@/lib/security';
 
 export async function POST(request: NextRequest) {

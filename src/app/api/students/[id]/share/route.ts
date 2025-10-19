@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { getStudent } from '@/lib/firestore';
 import { config, ensureConfigValidated } from '@/lib/config';
 
 export async function GET(
@@ -16,9 +16,8 @@ export async function GET(
       }, { status: 400 });
     }
 
-    // Get student info - we need to search all students to find by ID
-    const allStudents = await googleDriveService.getAllStudents();
-    const student = allStudents.find(s => s.id === id);
+    // Get student info from Firestore
+    const student = await getStudent(id);
     
     if (!student) {
       return NextResponse.json({
@@ -36,11 +35,12 @@ export async function GET(
       success: true,
       student: {
         id: student.id,
-        name: student.name,
-        subject: student.subject
+        displayName: student.displayName,
+        subject: student.subject,
+        driveFolderId: student.driveFolderId
       },
       shareableUrl: shareableUrl,
-      directDriveUrl: student.url,
+      directDriveUrl: student.driveFolderId ? `https://drive.google.com/drive/folders/${student.driveFolderId}` : null,
       message: 'Shareable link generated successfully'
     });
 

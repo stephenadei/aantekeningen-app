@@ -1,54 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
-import { getLoginAudits } from '@/lib/firestore';
-import { validateTeacherEmail } from '@/lib/security';
 
-export async function DELETE(
+export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; conceptId: string } }
+  { params }: { params: Promise<{ id: string; conceptId: string }> }
 ) {
   try {
+    const { id, conceptId } = await params;
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify the concept belongs to the note
-    const note = await prisma.note.findUnique({
-      where: { id: params.id },
-      select: { driveFileId: true }
+    // TODO: Implement Firestore update concept
+    return NextResponse.json({ 
+      id: conceptId,
+      success: true, 
+      message: 'Concept update coming soon via Firestore'
     });
-
-    if (!note || !note.driveFileId) {
-      return NextResponse.json({ 
-        error: 'Note not found or has no Drive file ID' 
-      }, { status: 404 });
-    }
-
-    const concept = await prisma.keyConcept.findFirst({
-      where: { 
-        id: params.conceptId,
-        driveFileId: note.driveFileId
-      }
-    });
-
-    if (!concept) {
-      return NextResponse.json({ 
-        error: 'Key concept not found' 
-      }, { status: 404 });
-    }
-
-    await prisma.keyConcept.delete({
-      where: { id: params.conceptId }
-    });
-
-    return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('Error deleting key concept:', error);
+    console.error('Error updating concept:', error);
     return NextResponse.json(
-      { error: 'Failed to delete key concept' },
+      { error: 'Failed to update concept' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; conceptId: string }> }
+) {
+  try {
+    const { id, conceptId } = await params;
+    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    
+    if (error || !user || !isAuthorizedAdmin(user)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // TODO: Implement Firestore delete concept
+    return NextResponse.json({ 
+      id: conceptId,
+      success: true, 
+      message: 'Concept deletion coming soon via Firestore'
+    });
+
+  } catch (error) {
+    console.error('Error deleting concept:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete concept' },
       { status: 500 }
     );
   }

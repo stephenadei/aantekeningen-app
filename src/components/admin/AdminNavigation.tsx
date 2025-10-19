@@ -16,6 +16,8 @@ import {
   BarChart3,
   Folder,
   Link as LinkIcon,
+  Database,
+  BookOpen,
 } from 'lucide-react';
 
 interface User {
@@ -37,8 +39,10 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
     { name: 'Dashboard', href: '/admin', icon: Home },
     { name: 'Studenten', href: '/admin/students', icon: Users },
     { name: 'Notities', href: '/admin/notes', icon: FileText },
+    { name: 'Subjects', href: '/admin/subjects', icon: BookOpen },
     { name: 'Drive Data', href: '/admin/drive-data', icon: Folder },
     { name: 'Folders', href: '/admin/folders', icon: LinkIcon },
+    { name: 'Cache', href: '/admin/cache', icon: Database },
     { name: 'Audit Logs', href: '/admin/audit', icon: Shield },
     { name: 'Statistieken', href: '/admin/stats', icon: BarChart3 },
   ];

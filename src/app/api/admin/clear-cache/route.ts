@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
-import { validateTeacherEmail } from '@/lib/security';
 import { googleDriveService } from '@/lib/google-drive-simple';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     

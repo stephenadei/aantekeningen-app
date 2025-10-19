@@ -17,12 +17,9 @@ export const config = {
     return process.env.NEXTAUTH_URL || 'http://localhost:3000';
   },
   
-  // Database
+  // Database (Firestore - no longer using PostgreSQL/SQLite)
   get databaseUrl() {
-    if (this.isVercel) {
-      return process.env.DATABASE_URL; // PostgreSQL from Vercel
-    }
-    return process.env.DATABASE_URL || 'file:./dev.db'; // SQLite for local
+    return 'firestore'; // Using Firestore as primary database
   },
   
   // OAuth Configuration
@@ -67,7 +64,7 @@ export const config = {
       environment: process.env.NODE_ENV,
       isVercel: this.isVercel,
       baseUrl: this.baseUrl,
-      databaseType: this.databaseUrl.startsWith('file:') ? 'SQLite' : 'PostgreSQL',
+      databaseType: 'Firestore',
       oauthRedirectUri: this.oauth.google.redirectUri,
     };
   },
@@ -91,8 +88,8 @@ export function validateConfig() {
   }
   
   // Production-specific requirements
-  if (config.isProduction && !process.env.DATABASE_URL) {
-    errors.push('DATABASE_URL is required in production');
+  if (config.isProduction && !process.env.FIREBASE_PROJECT_ID) {
+    errors.push('FIREBASE_PROJECT_ID is required in production');
   }
   
   if (errors.length > 0) {

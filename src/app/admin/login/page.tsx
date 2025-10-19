@@ -5,21 +5,30 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Shield, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
+import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, type User, type Auth } from 'firebase/auth';
 import { authClient } from '@/lib/firebase-client';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Check if Firebase auth is available
+    if (!authClient) {
+      setError('Firebase is niet correct geconfigureerd. Controleer je omgevingsvariabelen.');
+      setIsInitialized(true);
+      return;
+    }
+
     // Check if user is already logged in
-    const unsubscribe = onAuthStateChanged(authClient, (user: User | null) => {
+    const unsubscribe = onAuthStateChanged(authClient as Auth, (user: User | null) => {
       if (user && user.email?.endsWith('@stephensprivelessen.nl')) {
         router.push('/admin');
       }
+      setIsInitialized(true);
     });
 
     // Check for error in URL params
@@ -32,6 +41,11 @@ export default function AdminLoginPage() {
   }, [router, searchParams]);
 
   const handleGoogleSignIn = async () => {
+    if (!authClient) {
+      setError('Firebase is niet correct geconfigureerd.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -59,15 +73,40 @@ export default function AdminLoginPage() {
       if (response.ok) {
         router.push('/admin');
       } else {
-        setError('Inloggen mislukt. Controleer je Google Workspace account.');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || 'Inloggen mislukt. Controleer je Google Workspace account.';
+        setError(errorMessage);
+        console.error('Backend error:', errorData);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Login error:', err);
-      setError('Er is een fout opgetreden bij het inloggen.');
+      
+      // Handle specific Firebase errors
+      if (err instanceof Error) {
+        if (err.message.includes('auth/configuration-not-found')) {
+          setError('Firebase is niet correct geconfigureerd. Controleer de omgevingsvariabelen.');
+        } else if (err.message.includes('auth/popup-blocked')) {
+          setError('Pop-up werd geblokkeerd. Sta pop-ups toe en probeer opnieuw.');
+        } else if (err.message.includes('auth/cancelled-popup-request')) {
+          setError('Login geannuleerd. Probeer opnieuw.');
+        } else {
+          setError('Er is een fout opgetreden bij het inloggen.');
+        }
+      } else {
+        setError('Er is een fout opgetreden bij het inloggen.');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -115,7 +154,7 @@ export default function AdminLoginPage() {
 
             <button
               onClick={handleGoogleSignIn}
-              disabled={loading}
+              disabled={loading || !authClient}
               className="w-full flex justify-center items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
             >
               {loading ? (

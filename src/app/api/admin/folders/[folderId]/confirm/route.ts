@@ -1,43 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
-import { getLoginAudits } from '@/lib/firestore';
-import { validateTeacherEmail } from '@/lib/security';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { folderId: string } }
+  { params }: { params: Promise<{ folderId: string }> }
 ) {
   try {
+    const { folderId } = await params;
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find student with this folder
-    const student = await prisma.student.findFirst({
-      where: { driveFolderId: params.folderId }
+    // TODO: Implement Firestore folder confirmation
+    return NextResponse.json({ 
+      folderId,
+      success: true, 
+      message: 'Folder confirmation coming soon via Firestore'
     });
-
-    if (!student) {
-      return NextResponse.json({ error: 'Student with this folder not found' }, { status: 404 });
-    }
-
-    // Confirm the link
-    await prisma.student.update({
-      where: { id: student.id },
-      data: {
-        folderConfirmed: true,
-        folderConfirmedAt: new Date()
-      }
-    });
-
-    return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('Error confirming folder link:', error);
+    console.error('Error confirming folder:', error);
     return NextResponse.json(
-      { error: 'Failed to confirm folder link' },
+      { error: 'Failed to confirm folder' },
       { status: 500 }
     );
   }

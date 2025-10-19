@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAllStudents } from '@/lib/firestore';
 import { googleDriveService } from '@/lib/google-drive-simple';
+import { sanitizeInput } from '@/lib/security';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,45 +20,81 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 Searching for:', query);
 
-    // Check environment variables first
-    const envCheck = {
-      GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET: !!process.env.GOOGLE_CLIENT_SECRET,
-      GOOGLE_REDIRECT_URI: !!process.env.GOOGLE_REDIRECT_URI,
-      GOOGLE_REFRESH_TOKEN: !!process.env.GOOGLE_REFRESH_TOKEN,
-    };
+    // Get all students from Firestore
+    const allStudents = await getAllStudents();
+    console.log(`📚 Found ${allStudents.length} total students in database`);
 
-    console.log('📋 Environment variables status:', envCheck);
+    // If no students found in Firestore, try Google Drive as fallback
+    if (allStudents.length === 0) {
+      console.log('⚠️ No students found in Firestore, trying Google Drive fallback...');
+      
+      try {
+        // Check if we have Google Drive OAuth credentials
+        const hasGoogleCredentials = !!(
+          process.env.GOOGLE_CLIENT_ID && 
+          process.env.GOOGLE_CLIENT_SECRET && 
+          process.env.GOOGLE_REFRESH_TOKEN
+        );
 
-    // Check if all required env vars are present
-    const missingEnvVars = Object.entries(envCheck)
-      .filter(([, value]) => !value)
-      .map(([key]) => key);
-
-    if (missingEnvVars.length > 0) {
-      console.error('❌ Missing environment variables:', missingEnvVars);
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Configuration error',
-          message: `Missing environment variables: ${missingEnvVars.join(', ')}`,
-          debug: {
-            missingEnvVars,
-            nodeEnv: process.env.NODE_ENV
+        if (hasGoogleCredentials) {
+          console.log('🔄 Falling back to Google Drive search...');
+          try {
+            const driveStudents = await googleDriveService.findStudentFolders(query);
+            
+            if (driveStudents.length > 0) {
+              console.log(`✅ Found ${driveStudents.length} students in Google Drive`);
+              return NextResponse.json({
+                success: true,
+                students: driveStudents,
+                count: driveStudents.length,
+                fromDrive: true,
+                message: 'Students found in Google Drive. Consider running "npm run init-students" to migrate to Firestore for better performance.'
+              });
+            }
+          } catch (driveError) {
+            console.error('❌ Google Drive search failed:', driveError);
+            // Continue to show the helpful message below
           }
-        },
-        { status: 500 }
-      );
+        }
+
+        return NextResponse.json({
+          success: true,
+          students: [],
+          count: 0,
+          message: 'No students found. Run "npm run init-students" to initialize students from Google Drive structure.'
+        });
+      } catch (driveError) {
+        console.error('❌ Google Drive fallback failed:', driveError);
+        return NextResponse.json({
+          success: true,
+          students: [],
+          count: 0,
+          message: 'No students found in database. Google Drive fallback also failed. Check your configuration.'
+        });
+      }
     }
 
-    const students = await googleDriveService.findStudentFolders(query);
+    // Filter students by search query
+    const searchTerm = sanitizeInput(query).toLowerCase();
+    const filteredStudents = allStudents.filter(student =>
+      student.displayName.toLowerCase().includes(searchTerm)
+    );
 
-    console.log('✅ Search completed, found', students.length, 'students');
+    console.log(`✅ Found ${filteredStudents.length} matching students`);
+
+    // Convert Firestore objects to plain JavaScript objects for JSON serialization
+    const plainStudents = filteredStudents.map(student => ({
+      id: student.id,
+      displayName: student.displayName,
+      subject: student.subject,
+      driveFolderId: student.driveFolderId,
+      // Omit Firestore Timestamp objects to ensure proper serialization
+    }));
 
     return NextResponse.json({
       success: true,
-      students,
-      count: students.length
+      students: plainStudents,
+      count: plainStudents.length
     });
 
   } catch (error) {

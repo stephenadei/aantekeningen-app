@@ -1,27 +1,7 @@
 {
   "indexes": [
     {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "displayName",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "students",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "driveFolderId",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "notes",
+      "collectionGroup": "fileMetadata",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -29,27 +9,13 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
+          "fieldPath": "modifiedTime",
           "order": "DESCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "keyConcepts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "driveFileId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "orderIndex",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "studentTags",
+      "collectionGroup": "fileMetadata",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -57,30 +23,36 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "key",
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "driveCache",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "type",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "value",
+          "fieldPath": "expiresAt",
           "order": "ASCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "loginAudits",
+      "collectionGroup": "driveCache",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "who",
+          "fieldPath": "studentId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "action",
+          "fieldPath": "type",
           "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
         }
       ]
     }

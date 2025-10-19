@@ -338,7 +338,7 @@ export default function DriveDataPage() {
         <div className="text-center py-12">
           <Folder className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Drive Data Found</h3>
-          <p className="text-gray-600 mb-4">Click "Sync from Drive" to fetch folder data from Google Drive.</p>
+          <p className="text-gray-600 mb-4">Click &quot;Sync from Drive&quot; to fetch folder data from Google Drive.</p>
           <button
             onClick={handleSync}
             disabled={syncing}

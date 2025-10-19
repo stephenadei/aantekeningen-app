@@ -9,7 +9,7 @@ interface LoginAudit {
   action: string;
   ip: string | null;
   userAgent: string | null;
-  metadata: any;
+  metadata: Record<string, unknown> | null;
   createdAt: string;
   teacher?: {
     id: string;

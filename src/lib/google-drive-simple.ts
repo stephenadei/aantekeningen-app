@@ -1,7 +1,7 @@
 import { google } from 'googleapis';
-// import { getSchoolYearFromDate, getSchoolYearLabel } from './school-year-utils';
 
 // Google Drive API configuration
+// const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 
 // Constants from the original Google Apps Script
 const NOTABILITY_FOLDER_NAME = 'Notability';
@@ -18,22 +18,13 @@ const CACHE_KEY_AI_ANALYSIS = 'cached_ai_analysis_';
 const CACHE_KEY_METADATA = 'cached_metadata';
 
 // In-memory cache (in production, consider using Redis)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const memoryCache = new Map<string, { data: any; timestamp: number }>();
+const memoryCache = new Map<string, { data: Record<string, unknown>; timestamp: number }>();
 
 export interface Student {
   id: string;
   name: string;
   subject: string;
   url: string;
-}
-
-export interface KeyConcept {
-  id: string;
-  term: string;
-  explanation: string;
-  example?: string;
-  isAiGenerated: boolean;
 }
 
 export interface FileInfo {
@@ -56,7 +47,7 @@ export interface FileInfo {
   summaryEn?: string;
   topicEn?: string;
   keywordsEn?: string[];
-  keyConcepts?: KeyConcept[];
+  aiAnalyzedAt?: Date;
 }
 
 export interface StudentOverview {
@@ -66,8 +57,7 @@ export interface StudentOverview {
 }
 
 class GoogleDriveService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private drive: any;
+  private drive: ReturnType<typeof google.drive>;
   private isInitialized = false;
 
   constructor() {
@@ -92,8 +82,18 @@ class GoogleDriveService {
         auth.setCredentials({
           refresh_token: process.env.GOOGLE_REFRESH_TOKEN
         });
+        
+        // Try to refresh the access token
+        try {
+          await auth.refreshAccessToken();
+          console.log('✅ Google Drive access token refreshed successfully');
+        } catch (refreshError) {
+          console.error('❌ Failed to refresh Google Drive access token:', refreshError);
+          // Continue anyway, the token might still be valid
+        }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.drive = google.drive({ version: 'v3', auth });
       this.isInitialized = true;
     } catch (error) {
@@ -133,6 +133,35 @@ class GoogleDriveService {
       data,
       timestamp: new Date().getTime()
     });
+  }
+
+  /**
+   * Check if a .note file should be excluded because a matching PDF exists
+   * Returns true if the file is a .note file AND a matching PDF file exists in the list
+   */
+  private shouldExcludeNotabilityNote(fileName: string, allFileNames: string[]): boolean {
+    // Check if this file is a .note file
+    if (!fileName.endsWith('.note')) {
+      return false;
+    }
+
+    // Get the base name without extension
+    const baseNameWithoutExtension = fileName.slice(0, -5); // Remove '.note'
+
+    // Check if a matching PDF exists
+    const matchingPdfExists = allFileNames.some(name => 
+      name === `${baseNameWithoutExtension}.pdf`
+    );
+
+    return matchingPdfExists;
+  }
+
+  /**
+   * Filter files to exclude Notability .note files when matching PDFs exist
+   */
+  private filterNotabilityNotes(files: Array<{ name: string; id: string }>): Array<{ name: string; id: string }> {
+    const fileNames = files.map(f => f.name);
+    return files.filter(file => !this.shouldExcludeNotabilityNote(file.name, fileNames));
   }
 
   /**
@@ -179,71 +208,58 @@ class GoogleDriveService {
   }
 
   /**
-   * Get all students without filtering
-   */
-  async getAllStudents(): Promise<Student[]> {
-    try {
-      // Try to get cached data first
-      const cachedData = this.getCache(CACHE_KEY_STUDENTS);
-      
-      if (cachedData) {
-        console.log('Using cached student data (' + cachedData.students.length + ' students)');
-        return cachedData.students;
-      }
-      
-      console.log('Cache miss, fetching all students...');
-      // Fetch fresh data from Drive
-      const privelesFolderId = await this.getPrivelesFolder();
-      const subjectFolders = await this.drive.files.list({
-        q: `'${privelesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-        fields: 'files(id, name)',
-      });
-
-      const allStudents: Student[] = [];
-
-      // Search through each subject folder
-      for (const subjectFolder of subjectFolders.data.files || []) {
-        const subjectName = subjectFolder.name;
-        
-        // Look for student folders within this subject
-        const studentFolders = await this.drive.files.list({
-          q: `'${subjectFolder.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-          fields: 'files(id, name)',
-        });
-
-        for (const studentFolder of studentFolders.data.files || []) {
-          allStudents.push({
-            id: studentFolder.id,
-            name: studentFolder.name,
-            subject: subjectName,
-            url: `https://drive.google.com/drive/folders/${studentFolder.id}`
-          });
-        }
-      }
-      
-      // Cache the fresh data
-      this.setCache(CACHE_KEY_STUDENTS, {
-        timestamp: new Date().getTime(),
-        students: allStudents
-      });
-      
-      console.log('✅ Cached ' + allStudents.length + ' students');
-      return allStudents;
-      
-    } catch (error) {
-      console.error('❌ Error getting all students: ' + error);
-      return [];
-    }
-  }
-
-  /**
    * Find student folders by name (case-insensitive, partial match)
    * Searches through all subject folders (WO, Rekenen, VO) for student names
    */
   async findStudentFolders(needle: string): Promise<Student[]> {
     try {
-      // Get all students first
-      const allStudents = await this.getAllStudents();
+      // Try to get cached data first
+      const cachedData = this.getCache(CACHE_KEY_STUDENTS);
+      
+      let allStudents: Student[] = [];
+      
+      if (cachedData) {
+        console.log('Using cached student data (' + cachedData.students.length + ' students)');
+        allStudents = cachedData.students;
+      } else {
+        console.log('Cache miss or expired, fetching fresh data...');
+        // Fetch fresh data from Drive
+        const privelesFolderId = await this.getPrivelesFolder();
+        const subjectFolders = await this.drive.files.list({
+          q: `'${privelesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)',
+        });
+
+        allStudents = [];
+
+        // Search through each subject folder
+        for (const subjectFolder of subjectFolders.data.files || []) {
+          const subjectName = subjectFolder.name;
+          
+          // Look for student folders within this subject
+          const studentFolders = await this.drive.files.list({
+            q: `'${subjectFolder.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+            fields: 'files(id, name)',
+          });
+
+          for (const studentFolder of studentFolders.data.files || []) {
+            allStudents.push({
+              id: studentFolder.id,
+              name: studentFolder.name,
+              subject: subjectName,
+              url: `https://drive.google.com/drive/folders/${studentFolder.id}`
+            });
+          }
+        }
+        
+        // Cache the fresh data
+        this.setCache(CACHE_KEY_STUDENTS, {
+          timestamp: new Date().getTime(),
+          students: allStudents
+        });
+        
+        console.log('✅ Cached ' + allStudents.length + ' students');
+      }
       
       // Filter students based on search term
       if (!needle || typeof needle !== 'string') {
@@ -251,14 +267,10 @@ class GoogleDriveService {
         return [];
       }
       
-      const searchTerm = needle.toLowerCase().trim();
+      const searchTerm = needle.toLowerCase();
       const matches = allStudents.filter(student => {
-        const studentName = student.name.toLowerCase().trim();
-        // More flexible matching: exact match, contains, or starts with
-        return studentName === searchTerm || 
-               studentName.includes(searchTerm) || 
-               studentName.startsWith(searchTerm) ||
-               searchTerm.startsWith(studentName);
+        const studentName = student.name.toLowerCase();
+        return studentName === searchTerm || studentName.includes(searchTerm);
       });
       
       console.log('Found ' + matches.length + ' matches for "' + needle + '"');
@@ -298,54 +310,63 @@ class GoogleDriveService {
       
       await this.ensureInitialized();
       
-      // Fetch metadata including thumbnail links from Drive
-      const files = await this.drive.files.list({
-        q: `'${folderId}' in parents and trashed=false`,
-        fields: 'files(id, name, modifiedTime, size, thumbnailLink)',
-        orderBy: 'modifiedTime desc',
-      });
-
       const fileList: FileInfo[] = [];
-      
-      for (const file of files.data.files || []) {
-        const fileName = file.name;
-        const cleanTitle = this.cleanFileName(fileName);
-        
-        // Get AI analysis (cached or basic)
-        const aiAnalysis = await this.analyzeDocumentWithAI(fileName);
-        
-        fileList.push({
-          id: file.id,
-          name: fileName,
-          title: cleanTitle,
-          url: `https://drive.google.com/file/d/${file.id}/view`,
-          downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
-          viewUrl: `https://drive.google.com/file/d/${file.id}/preview`,
-          thumbnailUrl: file.thumbnailLink || `/api/thumbnail/${file.id}`,
-          modifiedTime: file.modifiedTime,
-          size: parseInt(file.size || '0'),
-          // AI-generated metadata
-          subject: aiAnalysis.subject,
-          topic: aiAnalysis.topic,
-          level: aiAnalysis.level,
-          schoolYear: aiAnalysis.schoolYear,
-          keywords: aiAnalysis.keywords,
-          summary: aiAnalysis.summary,
-          summaryEn: aiAnalysis.summaryEn,
-          topicEn: aiAnalysis.topicEn,
-          keywordsEn: aiAnalysis.keywordsEn,
-          keyConcepts: aiAnalysis.keyConcepts?.map((concept: any, index: number) => ({
-            id: `ai-${file.id}-${index}`,
-            term: concept.term,
-            explanation: concept.explanation,
-            example: concept.example,
-            isAiGenerated: true
-          }))
+      let pageToken: string | undefined;
+      const pageSize = 1000; // Fetch up to 1000 files per page
+
+      // Fetch all pages of files
+      do {
+        const files = await this.drive.files.list({
+          q: `'${folderId}' in parents and trashed=false`,
+          fields: 'files(id, name, modifiedTime, size),nextPageToken',
+          orderBy: 'modifiedTime desc',
+          pageSize: pageSize,
+          pageToken: pageToken,
         });
-      }
+
+        // Process files from this page
+        for (const file of files.data.files || []) {
+          const fileName = file.name;
+          const cleanTitle = this.cleanFileName(fileName);
+          
+          // Get AI analysis (cached or basic)
+          const aiAnalysis = await this.analyzeDocumentWithAI(fileName);
+          
+          fileList.push({
+            id: file.id,
+            name: fileName,
+            title: cleanTitle,
+            url: `https://drive.google.com/file/d/${file.id}/view`,
+            downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
+            viewUrl: `https://drive.google.com/file/d/${file.id}/view?usp=sharing`,
+            thumbnailUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h400`,
+            modifiedTime: file.modifiedTime,
+            size: parseInt(file.size || '0'),
+            // AI-generated metadata
+            subject: aiAnalysis.subject,
+            topic: aiAnalysis.topic,
+            level: aiAnalysis.level,
+            schoolYear: aiAnalysis.schoolYear,
+            keywords: aiAnalysis.keywords,
+            summary: aiAnalysis.summary,
+            summaryEn: aiAnalysis.summaryEn,
+            topicEn: aiAnalysis.topicEn,
+            keywordsEn: aiAnalysis.keywordsEn,
+            aiAnalyzedAt: new Date() // Set timestamp when AI analysis is performed
+          });
+        }
+
+        // Get next page token if available
+        pageToken = files.data.nextPageToken;
+      } while (pageToken);
+      
+      // Filter out Notability .note files when matching PDFs exist
+      const filteredFiles = this.filterNotabilityNotes(fileList.map(f => ({ name: f.name, id: f.id })))
+        .map(filteredFile => fileList.find(f => f.id === filteredFile.id))
+        .filter((f): f is FileInfo => f !== undefined);
       
       // Sort by lesson date (newest first) - extract date from filename
-      const sortedFiles = fileList.sort((a, b) => {
+      const sortedFiles = filteredFiles.sort((a, b) => {
         const dateA = this.extractDateFromFilename(a.name);
         const dateB = this.extractDateFromFilename(b.name);
         
@@ -372,16 +393,8 @@ class GoogleDriveService {
       
       return sortedFiles;
     } catch (error) {
-      console.error('❌ Error listing files for folder:', folderId, 'Error:', error);
-      
-      // If this is a Google Drive API error, it might be a temporary issue
-      // We should throw the error instead of returning empty array
-      // so the frontend can handle it properly
-      if (error instanceof Error) {
-        throw new Error(`Failed to load files from Google Drive: ${error.message}`);
-      } else {
-        throw new Error('Failed to load files from Google Drive: Unknown error');
-      }
+      console.error('Error listing files: ' + error);
+      return [];
     }
   }
 
@@ -398,50 +411,134 @@ class GoogleDriveService {
         return {
           fileCount: 0,
           lastActivity: null,
-          lastActivityDate: 'Fout bij laden'
+          lastActivityDate: 'Fout bij laden',
+          lastFile: undefined
         };
       }
       
-      // Always get fresh file count by calling listFilesInFolder
-      console.log('🔄 Fetching fresh file data for overview...');
-      const files = await this.listFilesInFolder(folderId);
+      // Try to get from cache first
+      const cacheKey = CACHE_KEY_FILES + folderId;
+      const cachedData = this.getCache(cacheKey);
       
-      if (!files || files.length === 0) {
+      console.log('📊 Cache check for folderId:', folderId, 'cachedData:', !!cachedData);
+      
+      if (cachedData) {
+        const files = cachedData.files;
+        console.log('📁 Using cached data for folderId:', folderId, 'files count:', files ? files.length : 'null');
+        
+        // Validate cached files data
+        if (!files || !Array.isArray(files)) {
+          console.log('⚠️ Warning: Cached files data is invalid for folder:', folderId, 'files type:', typeof files);
+          // Fall through to direct Drive access
+        } else {
+          if (files.length === 0) {
+            return {
+              fileCount: 0,
+              lastActivity: null,
+              lastActivityDate: 'Geen bestanden',
+              lastFile: undefined
+            };
+          }
+        
+          const lastFile = files[0]; // Files are sorted by date, newest first
+          
+          // Try to get lesson date from filename, fallback to modified time
+          const lessonDate = this.extractDateFromFilename(lastFile.name);
+          const lastActivityDate = lessonDate ? 
+            lessonDate.toLocaleDateString('nl-NL', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            }) :
+            new Date(lastFile.modifiedTime).toLocaleDateString('nl-NL', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            });
+          
+          return {
+            fileCount: files.length,
+            lastActivity: lessonDate ? lessonDate.toISOString() : lastFile.modifiedTime,
+            lastActivityDate: lastActivityDate,
+            lastFile: {
+              id: lastFile.id,
+              name: lastFile.name,
+              title: this.cleanFileName(lastFile.name),
+              subject: lastFile.subject,
+              topic: lastFile.topic,
+              summary: lastFile.summary,
+              modifiedTime: lastFile.modifiedTime
+            }
+          };
+        }
+      }
+      
+      // If not cached, get minimal info directly from Drive
+      console.log('🔄 Fetching data directly from Drive for folderId:', folderId);
+      
+      await this.ensureInitialized();
+      
+      // Get all files to count them properly
+      const allFiles = await this.drive.files.list({
+        q: `'${folderId}' in parents and trashed=false`,
+        fields: 'files(id, name, modifiedTime)',
+        orderBy: 'modifiedTime desc',
+      });
+
+      const fileCount = allFiles.data.files?.length || 0;
+      
+      // Get the last file for details
+      const files = {
+        data: {
+          files: allFiles.data.files?.slice(0, 1) || []
+        }
+      };
+      
+      if (fileCount === 0) {
         return {
           fileCount: 0,
           lastActivity: null,
-          lastActivityDate: 'Geen bestanden'
+          lastActivityDate: 'Geen bestanden',
+          lastFile: undefined
         };
       }
       
-      const lastFile = files[0]; // Files are sorted by date, newest first
+      const lastFile = files.data.files[0];
+      const lastActivityDate = new Date(lastFile.modifiedTime).toLocaleDateString('nl-NL', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
       
-      // Try to get lesson date from filename, fallback to modified time
-      const lessonDate = this.extractDateFromFilename(lastFile.name);
-      const lastActivityDate = lessonDate ? 
-        lessonDate.toLocaleDateString('nl-NL', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        }) :
-        new Date(lastFile.modifiedTime).toLocaleDateString('nl-NL', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        });
+      // Get AI analysis for the last file to show details in hero
+      const fileName = lastFile.name;
+      const aiAnalysis = await this.analyzeDocumentWithAI(fileName);
       
-      return {
-        fileCount: files.length,
-        lastActivity: lessonDate ? lessonDate.toISOString() : lastFile.modifiedTime,
-        lastActivityDate: lastActivityDate
+      const result = {
+        fileCount: fileCount,
+        lastActivity: lastFile.modifiedTime,
+        lastActivityDate: lastActivityDate,
+        lastFile: {
+          id: lastFile.id,
+          name: fileName,
+          title: this.cleanFileName(fileName),
+          subject: aiAnalysis.subject,
+          topic: aiAnalysis.topic,
+          summary: aiAnalysis.summary,
+          modifiedTime: lastFile.modifiedTime
+        }
       };
+      
+      console.log('✅ getStudentOverview returning for folderId:', folderId, 'result:', JSON.stringify(result));
+      return result;
       
     } catch (error) {
       console.error('❌ Error getting student overview for folderId:', folderId, 'error:', error);
       const errorResult = {
         fileCount: 0,
         lastActivity: null,
-        lastActivityDate: 'Fout bij laden'
+        lastActivityDate: 'Fout bij laden',
+        lastFile: undefined
       };
       console.log('🔄 getStudentOverview returning error result:', JSON.stringify(errorResult));
       return errorResult;
@@ -488,25 +585,6 @@ class GoogleDriveService {
   }
 
   /**
-   * Get school year from date
-   */
-  private getSchoolYearFromDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = date.getMonth(); // 0-11
-    
-    // School year starts in August/September
-    // If lesson is before August, it belongs to previous school year
-    let schoolYearStart = year;
-    if (month < 7) { // Before August (month 7)
-      schoolYearStart = year - 1;
-    }
-    
-    const shortYear = schoolYearStart.toString().slice(-2);
-    const nextShortYear = (schoolYearStart + 1).toString().slice(-2);
-    return `${shortYear}/${nextShortYear}`;
-  }
-
-  /**
    * Extract date from filename
    */
   private extractDateFromFilename(filename: string): Date | null {
@@ -515,24 +593,6 @@ class GoogleDriveService {
       const dateMatch = filename.match(/^(\d{4}-\d{2}-\d{2})/);
       if (dateMatch) {
         return new Date(dateMatch[1]);
-      }
-      
-      // Try to extract date from "Priveles 27 Jan 2025 15_42_04.pdf" format
-      const privelesDateMatch = filename.match(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{4})/i);
-      if (privelesDateMatch) {
-        const day = parseInt(privelesDateMatch[1]);
-        const monthName = privelesDateMatch[2].toLowerCase();
-        const year = parseInt(privelesDateMatch[3]);
-        
-        const monthMap: { [key: string]: number } = {
-          'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
-          'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
-        };
-        
-        const month = monthMap[monthName];
-        if (month !== undefined) {
-          return new Date(year, month, day);
-        }
       }
       
       // Fallback: try other common date formats
@@ -571,37 +631,21 @@ class GoogleDriveService {
       
       console.log('Analyzing document with AI: ' + fileName);
       
-      // Extract date from filename to determine school year
-      const extractedDate = this.extractDateFromFilename(fileName);
-      const autoSchoolYear = extractedDate ? this.getSchoolYearFromDate(extractedDate) : null;
-
       // Prepare prompt for OpenAI with bilingual support
-      // Clean filename to avoid JSON parsing issues
-      const cleanFileName = fileName.replace(/"/g, '\\"').replace(/\n/g, ' ').replace(/\r/g, ' ');
+      const prompt = `Analyze this document and extract metadata. Return a JSON object with:
+      - subject: The main subject/vak from this list: Wiskunde A, Wiskunde B, Wiskunde C, Wiskunde D, Natuurkunde, Scheikunde, Informatica, Programmeren, Python, Rekenen, Statistiek, Data-analyse
+      - topic: The specific topic/onderwerp (e.g., "Algebra", "Functies", "Differentiëren", "Integreren", "Mechanica", "Elektriciteit", "Organische chemie", "Python basics", "Statistiek")
+      - level: Educational level (e.g., "VO", "WO", "HBO")
+      - schoolYear: School year in format "YY/YY" (e.g., "24/25", "23/24", "22/23")
+      - keywords: Array of 3-5 relevant keywords
+      - summary: Brief 1-sentence summary
+      - summaryEn: Brief 1-sentence summary in English
+      - topicEn: The specific topic in English
+      - keywordsEn: Array of 3-5 relevant keywords in English
       
-      const prompt = `Analyze this document and extract metadata. Return ONLY a valid JSON object with these exact fields:
-{
-  "subject": "Wiskunde A",
-  "topic": "Algebra", 
-  "level": "VO",
-  "keywords": ["vergelijkingen", "variabelen"],
-  "summary": "Basis algebra les",
-  "summaryEn": "Basic algebra lesson",
-  "topicEn": "Algebra",
-  "keywordsEn": ["equations", "variables"],
-  "keyConcepts": [
-    {
-      "term": "Vergelijkingen",
-      "explanation": "Wiskundige uitdrukkingen met variabelen",
-      "example": "2x + 5 = 11"
-    }
-  ]
-}
-
-Document name: ${cleanFileName}
-${autoSchoolYear ? `Auto-detected school year: ${autoSchoolYear}` : ''}
-
-IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markdown formatting.`;
+      Document name: "${fileName}"
+      
+      Return only valid JSON, no other text.`;
       
       // Call OpenAI API
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -622,37 +666,13 @@ IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markd
               content: prompt
             }
           ],
-          max_tokens: 500,
-          temperature: 0.1
+          max_tokens: 300,
+          temperature: 0.3
         })
       });
       
       const responseData = await response.json();
-      
-      if (!responseData.choices || !responseData.choices[0] || !responseData.choices[0].message) {
-        throw new Error('Invalid OpenAI API response structure');
-      }
-      
-      const content = responseData.choices[0].message.content;
-      if (!content) {
-        throw new Error('Empty content from OpenAI API');
-      }
-      
-      // Try to parse JSON, with better error handling
-      let analysis;
-      try {
-        analysis = JSON.parse(content);
-      } catch (parseError) {
-        console.log('❌ JSON parse error for file:', fileName);
-        console.log('Raw content:', content);
-        console.log('Parse error:', parseError);
-        throw new Error(`Invalid JSON from OpenAI: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}`);
-      }
-      
-      // Override schoolYear with auto-detected value if available
-      if (autoSchoolYear) {
-        analysis.schoolYear = autoSchoolYear;
-      }
+      const analysis = JSON.parse(responseData.choices[0].message.content);
       
       // Cache the result
       this.setCache(cacheKey, {
@@ -674,27 +694,16 @@ IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markd
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private basicAnalysis(fileName: string): any {
-    // Extract date from filename to determine school year
-    const extractedDate = this.extractDateFromFilename(fileName);
-    const autoSchoolYear = extractedDate ? this.getSchoolYearFromDate(extractedDate) : '24/25';
-
     const analysis = {
       subject: 'Onbekend',
       topic: 'Algemeen',
       level: 'VO',
-      schoolYear: autoSchoolYear,
+      schoolYear: '24/25',
       keywords: ['lesmateriaal'],
       summary: 'Lesmateriaal document',
       topicEn: 'General',
       keywordsEn: ['study material'],
-      summaryEn: 'Study material document',
-      keyConcepts: [
-        {
-          term: 'Algemeen begrip',
-          explanation: 'Basis concept uit het lesmateriaal',
-          example: 'Voorbeeld toepassing'
-        }
-      ]
+      summaryEn: 'Study material document'
     };
     
     // Try to extract subject from filename
@@ -705,18 +714,6 @@ IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markd
       analysis.topicEn = 'Mathematics';
       analysis.keywords = ['wiskunde', 'rekenen', 'algebra'];
       analysis.keywordsEn = ['mathematics', 'calculations', 'algebra'];
-      analysis.keyConcepts = [
-        {
-          term: 'Algebra',
-          explanation: 'Wiskundige bewerkingen met variabelen',
-          example: 'x + 5 = 10'
-        },
-        {
-          term: 'Functies',
-          explanation: 'Relatie tussen input en output',
-          example: 'f(x) = 2x + 3'
-        }
-      ];
     } else if (lowerName.includes('nederlands') || lowerName.includes('dutch')) {
       analysis.subject = 'Nederlands';
       analysis.topic = 'Taal';
@@ -743,55 +740,24 @@ IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markd
       analysis.keywordsEn = ['physics', 'mechanics', 'forces'];
     }
     
-    // First, try to extract explicit school year in filename (e.g., "2024-10-15__wiskunde_24-25__v001.pdf")
-    // Only match patterns that look like school years (20-25, 24-25, etc.) and not times (12_39_30)
-    // Use a more specific pattern that avoids matching times like "16_22_26"
-    const explicitYearMatch = fileName.match(/(\d{2})[_-](\d{2})(?![_-]\d{2})(?![_-]\d{2})/);
-    if (explicitYearMatch) {
-      const year1 = parseInt(explicitYearMatch[1]);
-      const year2 = parseInt(explicitYearMatch[2]);
-      
-      // Only accept if it looks like a school year (year2 should be year1 + 1, or close to it)
-      // And make sure it's not a time pattern (hours should be 0-23, minutes 0-59)
-      if (year2 === year1 + 1 || (year1 >= 20 && year1 <= 30 && year2 >= 20 && year2 <= 30)) {
-        // Additional check: if year1 looks like hours (0-23) and year2 looks like minutes (0-59), skip it
-        if (year1 <= 23 && year2 <= 59) {
-          // This looks like a time, not a school year
-        } else {
-          analysis.schoolYear = `${year1}/${year2}`;
-        }
+    // Extract school year from filename if present
+    const yearMatch = fileName.match(/(\d{4})/);
+    if (yearMatch) {
+      const year = parseInt(yearMatch[1]);
+      if (year >= 2020 && year <= 2030) {
+        // Convert to school year format (e.g., 2024 -> 24/25)
+        const shortYear = year.toString().slice(-2);
+        const nextShortYear = (year + 1).toString().slice(-2);
+        analysis.schoolYear = `${shortYear}/${nextShortYear}`;
       }
     }
     
-    // If no explicit school year found, extract school year from date in filename - this is the primary method
-    if (!analysis.schoolYear) {
-      const lessonDate = this.extractDateFromFilename(fileName);
-      if (lessonDate) {
-        const year = lessonDate.getFullYear();
-        const month = lessonDate.getMonth(); // 0-11
-        
-        // School year starts in August/September
-        // If lesson is before August, it belongs to previous school year
-        let schoolYearStart = year;
-        if (month < 7) { // Before August (month 7)
-          schoolYearStart = year - 1;
-        }
-        
-        const shortYear = schoolYearStart.toString().slice(-2);
-        const nextShortYear = (schoolYearStart + 1).toString().slice(-2);
-        analysis.schoolYear = `${shortYear}/${nextShortYear}`;
-      } else {
-        // Fallback: try to extract year from filename
-        const yearMatch = fileName.match(/(\d{4})/);
-        if (yearMatch) {
-          const year = parseInt(yearMatch[1]);
-          if (year >= 2020 && year <= 2030) {
-            const shortYear = year.toString().slice(-2);
-            const nextShortYear = (year + 1).toString().slice(-2);
-            analysis.schoolYear = `${shortYear}/${nextShortYear}`;
-          }
-        }
-      }
+    // Also check for explicit school year in filename (e.g., "2024-10-15__wiskunde_24-25__v001.pdf")
+    const explicitYearMatch = fileName.match(/(\d{2})[_-](\d{2})/);
+    if (explicitYearMatch) {
+      const year1 = explicitYearMatch[1];
+      const year2 = explicitYearMatch[2];
+      analysis.schoolYear = `${year1}/${year2}`;
     }
     
     // Try to extract level
@@ -869,6 +835,49 @@ IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markd
   }
 
 
+  /**
+   * Get all students without search filter
+   */
+  private async getAllStudents(): Promise<Student[]> {
+    try {
+      await this.ensureInitialized();
+      
+      const privelesFolderId = await this.getPrivelesFolder();
+      console.log('✅ Found Priveles folder ID: ' + privelesFolderId);
+      
+      const subjectFolders = await this.drive.files.list({
+        q: `'${privelesFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id, name)',
+      });
+
+      const allStudents: Student[] = [];
+      
+      for (const subjectFolder of subjectFolders.data.files || []) {
+        const subjectName = subjectFolder.name;
+        
+        // Look for student folders within this subject
+        const studentFolders = await this.drive.files.list({
+          q: `'${subjectFolder.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name)',
+        });
+
+        for (const studentFolder of studentFolders.data.files || []) {
+          allStudents.push({
+            id: studentFolder.id,
+            name: studentFolder.name,
+            subject: subjectName,
+            url: `https://drive.google.com/drive/folders/${studentFolder.id}`
+          });
+        }
+      }
+      
+      console.log('✅ Found ' + allStudents.length + ' students total');
+      return allStudents;
+    } catch (error) {
+      console.error('❌ Error getting all students: ' + error);
+      return [];
+    }
+  }
 
   /**
    * Preload and cache all metadata for better performance
@@ -911,7 +920,11 @@ IMPORTANT: Return ONLY the JSON object, no other text, no explanations, no markd
                 const analysis = await this.analyzeDocumentWithAI(file.name);
                 this.setCache(cacheKey, analysis);
                 
-                return { ...file, ...analysis };
+                return { 
+                  ...file, 
+                  ...analysis,
+                  aiAnalyzedAt: new Date() // Set timestamp when AI analysis is performed
+                };
               })
             );
             

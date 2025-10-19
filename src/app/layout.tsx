@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import SessionProvider from '@/components/providers/SessionProvider'
+import QueryProvider from '@/components/providers/QueryProvider'
 import { DarkModeProvider } from '@/contexts/DarkModeContext'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -91,11 +92,13 @@ export default function RootLayout({
         />
       </head>
       <body className={inter.className}>
-        <DarkModeProvider>
-          <SessionProvider>
-            {children}
-          </SessionProvider>
-        </DarkModeProvider>
+        <QueryProvider>
+          <DarkModeProvider>
+            <SessionProvider>
+              {children}
+            </SessionProvider>
+          </DarkModeProvider>
+        </QueryProvider>
       </body>
     </html>
   )

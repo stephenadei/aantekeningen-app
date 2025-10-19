@@ -1,36 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
-import { getLoginAudits } from '@/lib/firestore';
-import { validateTeacherEmail } from '@/lib/security';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const note = await prisma.note.findUnique({
-      where: { id: params.id },
-      include: {
-        student: {
-          select: {
-            id: true,
-            displayName: true
-          }
-        }
-      }
+    // TODO: Implement Firestore query to get note metadata
+    return NextResponse.json({ 
+      id, 
+      success: true, 
+      message: 'Note fetching coming soon via Firestore' 
     });
-
-    if (!note) {
-      return NextResponse.json({ error: 'Note not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(note);
 
   } catch (error) {
     console.error('Error fetching note:', error);
@@ -43,32 +31,22 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { subject, level, topic, contentMd, manuallyEdited, aiConfirmed } = body;
-
-    const note = await prisma.note.update({
-      where: { id: params.id },
-      data: {
-        subject,
-        level,
-        topic,
-        contentMd,
-        manuallyEdited: manuallyEdited ?? false,
-        aiConfirmed: aiConfirmed ?? false,
-        updatedAt: new Date()
-      }
+    // TODO: Implement Firestore update
+    return NextResponse.json({ 
+      id, 
+      success: true, 
+      message: 'Note update coming soon via Firestore' 
     });
-
-    return NextResponse.json(note);
 
   } catch (error) {
     console.error('Error updating note:', error);
@@ -81,30 +59,22 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if note exists
-    const note = await prisma.note.findUnique({
-      where: { id: params.id }
+    // TODO: Implement Firestore delete
+    return NextResponse.json({ 
+      id, 
+      success: true, 
+      message: 'Note deletion coming soon via Firestore' 
     });
-
-    if (!note) {
-      return NextResponse.json({ error: 'Note not found' }, { status: 404 });
-    }
-
-    // Delete the note
-    await prisma.note.delete({
-      where: { id: params.id }
-    });
-
-    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error('Error deleting note:', error);
