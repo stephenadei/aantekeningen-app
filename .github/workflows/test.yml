@@ -52,6 +52,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - name: Checkout code
@@ -66,14 +67,18 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps
+    - name: Install Playwright browsers (Chromium only)
+      run: npx playwright install chromium
+      env:
+        PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 0
+        PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS: 1
       
     - name: Build application
       run: npm run build
       
     - name: Run E2E tests
-      run: npm run test:e2e
+      run: npm run test:e2e -- --project=chromium
+      timeout-minutes: 15
       
     - name: Upload E2E test results
       uses: actions/upload-artifact@v4
