@@ -12,7 +12,6 @@ console.log('🚀 Setting up environment configuration for Aantekeningen App...\
 
 // Check current environment
 const isVercel = !!process.env.VERCEL;
-const isDevelopment = process.env.NODE_ENV === 'development';
 
 console.log(`📍 Current environment: ${isVercel ? 'Vercel Production' : 'Local Development'}`);
 

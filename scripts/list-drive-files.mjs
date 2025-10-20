@@ -4,7 +4,6 @@ import { google } from 'googleapis';
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 
 // Constants
-const NOTABILITY_FOLDER_NAME = 'Notability';
 const PRIVELES_FOLDER_NAME = 'Priveles';
 
 // Cache configuration

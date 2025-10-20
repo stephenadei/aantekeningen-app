@@ -13,7 +13,6 @@ import { google } from 'googleapis';
 // Load environment variables
 config({ path: '.env.local' });
 
-const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 const NOTABILITY_FOLDER_NAME = 'Notability';
 const PRIVELES_FOLDER_NAME = 'Priveles';
 

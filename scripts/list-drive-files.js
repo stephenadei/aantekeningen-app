@@ -1,4 +1,4 @@
-const { GoogleDriveService } = require('../src/lib/google-drive-simple.ts');
+import { GoogleDriveService } from '../src/lib/google-drive-simple.ts';
 
 async function listDriveFiles() {
   try {

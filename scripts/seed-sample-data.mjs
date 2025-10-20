@@ -245,7 +245,7 @@ Fz = 70 × 9,81 = 686,7 N`,
     ];
 
     for (const noteData of sampleNotes) {
-      const note = await prisma.note.create({
+      await prisma.note.create({
         data: noteData,
       });
       console.log(`   ✅ Created note: ${noteData.subject} - ${noteData.topic} for ${createdStudents.find(s => s.id === noteData.studentId)?.displayName}`);
@@ -290,7 +290,7 @@ Fz = 70 × 9,81 = 686,7 N`,
     ];
 
     for (const conceptData of keyConcepts) {
-      const concept = await prisma.keyConcept.create({
+      await prisma.keyConcept.create({
         data: conceptData,
       });
       console.log(`   ✅ Created key concept: ${conceptData.term}`);

@@ -1,5 +1,5 @@
-const { google } = require('googleapis');
-const readline = require('readline');
+import { google } from 'googleapis';
+import readline from 'readline';
 
 // OAuth2 setup script
 async function setupOAuth() {

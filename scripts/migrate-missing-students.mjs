@@ -26,7 +26,6 @@ const app = getApps().length === 0 ? initializeApp(firebaseAdminConfig) : getApp
 const db = getFirestore(app);
 
 // Google Drive API setup
-const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 const NOTABILITY_FOLDER_NAME = 'Notability';
 const PRIVELES_FOLDER_NAME = 'Priveles';
 

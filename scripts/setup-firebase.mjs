@@ -19,7 +19,7 @@ function checkFirebaseCLI() {
     execSync('firebase --version', { stdio: 'ignore' });
     console.log('✅ Firebase CLI is geïnstalleerd');
     return true;
-  } catch (error) {
+  } catch {
     console.log('❌ Firebase CLI is niet geïnstalleerd');
     console.log('📦 Installeer het met: npm install -g firebase-tools');
     return false;

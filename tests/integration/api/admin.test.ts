@@ -88,7 +88,7 @@ describe('Admin Management API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         get: vi.fn().mockResolvedValue(mockSnapshot)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       try {
         const { GET } = await import('@/app/api/admin/drive-data/route');
@@ -119,7 +119,7 @@ describe('Admin Management API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         get: vi.fn().mockResolvedValue(mockSnapshot)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', {
         method: 'POST',
@@ -153,7 +153,7 @@ describe('Admin Management API Integration', () => {
       vi.mocked(db.collection).mockReturnValue({
         get: vi.fn().mockResolvedValue(mockSnapshot),
         where: vi.fn().mockReturnValue(mockQueryRef)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/clear-cache?type=fileMetadata', {
         method: 'POST',

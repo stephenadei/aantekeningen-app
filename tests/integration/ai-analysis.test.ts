@@ -61,7 +61,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as any);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       const response = await openai.chat.completions.create({
@@ -108,7 +108,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as any);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -133,7 +133,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as any);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -385,7 +385,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as any);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -410,7 +410,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as any);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
 
       const openai = new OpenAI({ apiKey: 'invalid-key' });
       
