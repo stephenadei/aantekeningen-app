@@ -1,7 +1,11 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
 import path from 'path';
 
 export default defineConfig({
+  esbuild: {
+    target: 'node14'
+  },
   test: {
     globals: true,
     environment: 'node',
@@ -43,5 +47,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src')
     }
+  },
+  define: {
+    'process.env.NODE_ENV': '"test"'
   }
 });
