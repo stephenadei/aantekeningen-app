@@ -61,7 +61,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       const response = await openai.chat.completions.create({
@@ -108,7 +108,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -133,7 +133,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -359,7 +359,7 @@ describe('AI Analysis Integration', () => {
 
     it('should calculate analysis cost', () => {
       const calculateCost = (tokens: number, model: string = 'gpt-3.5-turbo'): number => {
-        const costs = {
+        const costs: Record<string, number> = {
           'gpt-3.5-turbo': 0.002, // $0.002 per 1K tokens
           'gpt-4': 0.03, // $0.03 per 1K tokens
         };
@@ -385,7 +385,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -410,7 +410,7 @@ describe('AI Analysis Integration', () => {
         },
       };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as OpenAI);
+      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
 
       const openai = new OpenAI({ apiKey: 'invalid-key' });
       
