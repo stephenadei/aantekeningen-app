@@ -1,5 +1,5 @@
 import { db } from './firebase-admin';
-import { Timestamp, DocumentSnapshot } from 'firebase-admin/firestore';
+import { Timestamp, DocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
 
 // Cache configuration
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
@@ -120,7 +120,7 @@ export async function setCachedData(
 export async function getCachedFiles(folderId: string): Promise<Record<string, unknown>[] | null> {
   const cacheKey = `files_${folderId}`;
   const data = await getCachedData(cacheKey, 'files');
-  return data ? (data as Record<string, unknown>[]) : null;
+  return data ? (data as unknown as Record<string, unknown>[]) : null;
 }
 
 /**
@@ -150,7 +150,7 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
     }
     
     // Try the full query first, fall back to simple query if index is still building
-    let snapshot: DocumentSnapshot[] | { docs: DocumentSnapshot[]; size: number; empty: boolean };
+    let snapshot: DocumentSnapshot<DocumentData>[];
     try {
       const querySnapshot = await db.collection('fileMetadata')
         .where('studentId', '==', studentId)
@@ -179,7 +179,7 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
       }
     }
 
-    const docs = Array.isArray(snapshot) ? snapshot : snapshot.docs;
+    const docs = snapshot;
     return docs.map(doc => ({
       id: doc.id,
       ...doc.data()

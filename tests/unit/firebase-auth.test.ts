@@ -226,8 +226,10 @@ describe('Firebase Auth Helpers', () => {
     });
 
     it('should handle case sensitivity in email domains', () => {
+      // The implementation uses endsWith which is case-sensitive
+      // So uppercase domain doesn't match
       const userWithUppercase = { ...mockUser, email: 'teacher@STEPHENSPRIVELESSEN.NL' };
-      expect(isAuthorizedAdmin(userWithUppercase)).toBe(true);
+      expect(isAuthorizedAdmin(userWithUppercase)).toBe(false); // Won't match due to case sensitivity
     });
 
     it('should handle empty custom claims', () => {

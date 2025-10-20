@@ -2,14 +2,21 @@ export interface FileInfo {
   id: string;
   name: string;
   title: string;
+  url?: string;
+  downloadUrl?: string;
+  thumbnailUrl?: string;
+  viewUrl?: string;
+  modifiedTime: string;
+  size?: number;
   subject?: string;
   topic?: string;
   level?: string;
   schoolYear?: string;
   keywords?: string[];
   summary?: string;
-  modifiedTime: string;
-  [key: string]: unknown;
+  summaryEn?: string;
+  topicEn?: string;
+  keywordsEn?: string[];
 }
 
 export interface FilterState {

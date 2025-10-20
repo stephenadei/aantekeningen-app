@@ -2,11 +2,19 @@ import { NextRequest } from 'next/server';
 import { validateTeacherEmail } from './security';
 
 // Runtime detection to prevent Edge Runtime usage
-const isEdgeRuntime = typeof EdgeRuntime !== 'undefined' || 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const isEdgeRuntime = typeof (globalThis as any).EdgeRuntime !== 'undefined' || 
   (typeof process !== 'undefined' && process.env.NEXT_RUNTIME === 'edge');
 
 // Only import Firebase Admin SDK in Node.js runtime
-let auth: { verifyIdToken?: (token: string) => Promise<Record<string, unknown>>; verifySessionCookie?: (cookie: string, checkRevoked: boolean) => Promise<Record<string, unknown>>; currentUser?: unknown } | null = null;
+let auth: { 
+  verifyIdToken?: (token: string) => Promise<Record<string, unknown>>; 
+  verifySessionCookie?: (cookie: string, checkRevoked: boolean) => Promise<Record<string, unknown>>; 
+  setCustomUserClaims?: (uid: string, customClaims: Record<string, unknown>) => Promise<void>;
+  getUser?: (uid: string) => Promise<{ uid: string; email?: string; displayName?: string; photoURL?: string; emailVerified: boolean; customClaims?: Record<string, unknown> }>;
+  createCustomToken?: (uid: string, additionalClaims?: Record<string, unknown>) => Promise<string>;
+  currentUser?: unknown 
+} | null = null;
 if (!isEdgeRuntime) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -120,7 +128,7 @@ export function isAuthorizedAdmin(user: FirebaseUser | null): boolean {
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function setUserRole(uid: string, role: 'admin' | 'staff'): Promise<void> {
-  if (isEdgeRuntime || !auth) {
+  if (isEdgeRuntime || !auth || !auth.setCustomUserClaims) {
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
   await auth.setCustomUserClaims(uid, { role });
@@ -131,7 +139,7 @@ export async function setUserRole(uid: string, role: 'admin' | 'staff'): Promise
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
-  if (isEdgeRuntime || !auth) {
+  if (isEdgeRuntime || !auth || !auth.getUser) {
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
 
@@ -156,7 +164,7 @@ export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function createCustomToken(uid: string, additionalClaims?: Record<string, unknown>): Promise<string> {
-  if (isEdgeRuntime || !auth) {
+  if (isEdgeRuntime || !auth || !auth.createCustomToken) {
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
   return await auth.createCustomToken(uid, additionalClaims);

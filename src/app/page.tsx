@@ -48,6 +48,7 @@ interface FileInfo {
   url: string;
   downloadUrl: string;
   thumbnailUrl: string;
+  viewUrl: string;
   modifiedTime: string;
   size: number;
   subject?: string;
@@ -985,7 +986,7 @@ export default function AantekeningenPage() {
                   >
                     {viewMode === 'grid' ? (
                       <div>
-                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
+                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl as string, '_blank')}>
                           {file.thumbnailUrl ? (
                             <img 
                               src={file.thumbnailUrl} 
@@ -1031,7 +1032,7 @@ export default function AantekeningenPage() {
                         <p className="text-sm text-gray-500 mb-2">{file.name}</p>
                         <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                           <span>{formatDate(file.modifiedTime)}</span>
-                          <span>{formatFileSize(file.size)}</span>
+                          <span>{formatFileSize(file.size ?? 0)}</span>
                         </div>
                         <div className="flex flex-wrap gap-1 mb-3">
                           {file.subject && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
@@ -1108,7 +1109,7 @@ export default function AantekeningenPage() {
                             <p className="text-sm text-gray-500">{file.name}</p>
                             <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
                               <span>{formatDate(file.modifiedTime)}</span>
-                              <span>{formatFileSize(file.size)}</span>
+                              <span>{formatFileSize(file.size ?? 0)}</span>
                             </div>
                             <div className="flex flex-wrap gap-1 mt-2">
                               {file.subject && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{file.subject}</span>}

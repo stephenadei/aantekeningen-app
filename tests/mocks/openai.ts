@@ -1,58 +1,65 @@
 import { vi } from 'vitest';
 
-// Mock OpenAI API responses
-export const mockOpenAIResponse = {
-  choices: [
-    {
-      message: {
-        content: JSON.stringify({
-          subject: 'Wiskunde',
-          topics: ['Algebra', 'Geometrie', 'Functies'],
-          keyConcepts: ['Kwadratische vergelijkingen', 'Pythagoras', 'Lineaire functies'],
-          difficulty: 'Gemiddeld',
-          summary: 'Les over algebraïsche vergelijkingen en geometrische vormen.',
-        }),
-      },
-    },
-  ],
-};
-
-export const mockOpenAIService = {
+export const mockOpenAIClient = {
   chat: {
     completions: {
-      create: vi.fn(),
+      create: vi.fn().mockResolvedValue({
+        id: 'chatcmpl-test',
+        object: 'chat.completion',
+        created: Math.floor(Date.now() / 1000),
+        model: 'gpt-4',
+        usage: {
+          prompt_tokens: 10,
+          completion_tokens: 20,
+          total_tokens: 30,
+        },
+        choices: [
+          {
+            message: {
+              role: 'assistant',
+              content: 'This is a test response from the OpenAI mock.',
+            },
+            finish_reason: 'stop',
+            index: 0,
+          },
+        ],
+      }),
     },
   },
 };
 
-// Mock OpenAI module
-vi.mock('openai', () => ({
-  OpenAI: vi.fn(() => mockOpenAIService),
-}));
+export const mockOpenAI = {
+  OpenAI: vi.fn(() => mockOpenAIClient),
+};
 
-// Setup default mock implementation
-mockOpenAIService.chat.completions.create.mockResolvedValue(mockOpenAIResponse);
-
-// Mock AI analysis helper functions
-export const mockAnalyzeDocument = vi.fn();
-export const mockExtractKeyConcepts = vi.fn();
-
-mockAnalyzeDocument.mockImplementation((filename: string) => {
-  return Promise.resolve({
-    subject: 'Wiskunde',
-    topics: ['Algebra', 'Geometrie'],
-    keyConcepts: ['Kwadratische vergelijkingen', 'Pythagoras'],
-    difficulty: 'Gemiddeld',
-    summary: `AI analyse van ${filename}`,
-    confidence: 0.85,
-  });
+export const openaiAnalyzeFile = vi.fn().mockResolvedValue({
+  subject: 'Wiskunde',
+  topic: 'Algebra',
+  level: 'Grade 10',
+  schoolYear: '2024',
+  keywords: ['algebra', 'equations', 'variables'],
+  summary: 'This document covers basic algebra concepts',
+  summaryEn: 'This document covers basic algebra concepts',
+  topicEn: 'Algebra',
+  keywordsEn: ['algebra', 'equations', 'variables'],
 });
 
-mockExtractKeyConcepts.mockImplementation((content: string) => {
-  return Promise.resolve([
-    { term: 'Kwadratische vergelijking', explanation: 'Een vergelijking van de vorm ax² + bx + c = 0' },
-    { term: 'Pythagoras', explanation: 'a² + b² = c² voor rechthoekige driehoeken' },
-  ]);
-});
+export const openaiExtractConcepts = vi.fn().mockResolvedValue([
+  {
+    term: 'Algebra',
+    explanation: 'A branch of mathematics dealing with equations and variables',
+    example: 'x + 5 = 10',
+  },
+  {
+    term: 'Variable',
+    explanation: 'A symbol that represents an unknown value',
+    example: 'x in the equation x + 5 = 10',
+  },
+]);
 
-export { mockOpenAIResponse, mockOpenAIService };
+export default {
+  openaiAnalyzeFile,
+  openaiExtractConcepts,
+  mockOpenAI,
+  mockOpenAIClient,
+};

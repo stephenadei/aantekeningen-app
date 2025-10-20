@@ -46,13 +46,13 @@ export class BackgroundSyncService {
         const batch = students.slice(i, i + batchSize);
         
         const batchPromises = batch.map(async (student) => {
-          if (!student.driveFolderId) {
-            console.log(`⚠️ Student ${student.displayName} has no Drive folder ID`);
+          if (!student.driveFolderId || !student.id) {
+            console.log(`⚠️ Student ${student.displayName} has no Drive folder ID or ID`);
             return { files: 0, updated: 0 };
           }
 
           try {
-            const result = await this.syncStudentFiles(student);
+            const result = await this.syncStudentFiles(student as { id: string; displayName: string; driveFolderId: string | null });
             console.log(`✅ Synced ${student.displayName}: ${result.updated} files updated`);
             return result;
           } catch (error) {
@@ -229,12 +229,12 @@ export class BackgroundSyncService {
       const students = await getAllStudents();
       const student = students.find(s => s.id === studentId);
       
-      if (!student) {
-        throw new Error(`Student ${studentId} not found`);
+      if (!student || !student.id) {
+        throw new Error(`Student ${studentId} not found or has no ID`);
       }
 
       console.log(`🔄 Force syncing student: ${student.displayName}`);
-      await this.syncStudentFiles(student);
+      await this.syncStudentFiles(student as { id: string; displayName: string; driveFolderId: string | null });
       console.log(`✅ Force sync completed for: ${student.displayName}`);
     } catch (error) {
       console.error(`Error force syncing student ${studentId}:`, error);

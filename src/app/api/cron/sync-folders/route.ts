@@ -17,12 +17,11 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('Starting scheduled folder sync...');
-    const result = await backgroundSyncService.syncAllStudents();
-    console.log(`✅ Scheduled sync completed. Processed ${result.processed} files.`);
+    await backgroundSyncService.runFullSync();
+    console.log('✅ Scheduled sync completed.');
 
     return NextResponse.json({
       success: true,
-      processed: result.processed,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

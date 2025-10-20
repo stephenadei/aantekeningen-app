@@ -36,7 +36,7 @@ if (!firebaseAdminConfig.projectId) {
 }
 
 // Initialize Firebase Admin (only if not already initialized)
-let app;
+let app: ReturnType<typeof initializeApp>;
 try {
   const adminConfig = firebaseAdminConfig as unknown as Record<string, unknown>;
   app = getApps().length === 0 ? initializeApp(adminConfig) : getApps()[0];

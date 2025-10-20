@@ -14,7 +14,7 @@ export default function QueryProvider({ children }: QueryProviderProps) {
         // Cache for 5 minutes
         staleTime: 5 * 60 * 1000,
         // Keep in cache for 30 minutes
-        cacheTime: 30 * 60 * 1000,
+        gcTime: 30 * 60 * 1000,
         // Retry failed requests 2 times
         retry: 2,
         // Refetch on window focus

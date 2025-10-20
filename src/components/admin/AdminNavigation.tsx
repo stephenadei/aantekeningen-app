@@ -50,7 +50,9 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
   const handleSignOut = async () => {
     try {
       // Sign out from Firebase
-      await signOut(authClient);
+      if (authClient) {
+        await signOut(authClient);
+      }
       
       // Call our logout API to clear the session cookie
       await fetch('/api/auth/logout', { method: 'POST' });

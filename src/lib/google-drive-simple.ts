@@ -54,10 +54,19 @@ export interface StudentOverview {
   fileCount: number;
   lastActivity: string | null;
   lastActivityDate: string;
+  lastFile?: {
+    id: string;
+    name: string;
+    title: string;
+    subject?: string;
+    topic?: string;
+    summary?: string;
+    modifiedTime: string;
+  };
 }
 
 class GoogleDriveService {
-  private drive: ReturnType<typeof google.drive>;
+  private drive!: ReturnType<typeof google.drive>;
   private isInitialized = false;
 
   constructor() {
@@ -93,7 +102,6 @@ class GoogleDriveService {
         }
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.drive = google.drive({ version: 'v3', auth });
       this.isInitialized = true;
     } catch (error) {
@@ -190,7 +198,7 @@ class GoogleDriveService {
         throw new Error('Notability folder not found');
       }
 
-      notabilityFolderId = response.data.files[0].id;
+      notabilityFolderId = response.data.files[0].id || undefined;
     }
 
     // Find Priveles folder within Notability
@@ -204,7 +212,11 @@ class GoogleDriveService {
       throw new Error('Priveles folder not found in Notability');
     }
 
-    return response.data.files[0].id;
+    const fileId = response.data.files[0].id;
+    if (!fileId) {
+      throw new Error('Priveles folder ID is missing');
+    }
+    return fileId;
   }
 
   /**
@@ -219,8 +231,10 @@ class GoogleDriveService {
       let allStudents: Student[] = [];
       
       if (cachedData) {
-        console.log('Using cached student data (' + cachedData.students.length + ' students)');
-        allStudents = cachedData.students;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const cachedStudents = ((cachedData as any).data?.students as Student[] | undefined) || [];
+        console.log('Using cached student data (' + cachedStudents.length + ' students)');
+        allStudents = cachedStudents;
       } else {
         console.log('Cache miss or expired, fetching fresh data...');
         // Fetch fresh data from Drive
@@ -235,6 +249,7 @@ class GoogleDriveService {
         // Search through each subject folder
         for (const subjectFolder of subjectFolders.data.files || []) {
           const subjectName = subjectFolder.name;
+          if (!subjectName) continue;
           
           // Look for student folders within this subject
           const studentFolders = await this.drive.files.list({
@@ -243,12 +258,14 @@ class GoogleDriveService {
           });
 
           for (const studentFolder of studentFolders.data.files || []) {
-            allStudents.push({
-              id: studentFolder.id,
-              name: studentFolder.name,
-              subject: subjectName,
-              url: `https://drive.google.com/drive/folders/${studentFolder.id}`
-            });
+            if (studentFolder.id && studentFolder.name) {
+              allStudents.push({
+                id: studentFolder.id,
+                name: studentFolder.name,
+                subject: subjectName,
+                url: `https://drive.google.com/drive/folders/${studentFolder.id}`
+              });
+            }
           }
         }
         
@@ -311,12 +328,13 @@ class GoogleDriveService {
       await this.ensureInitialized();
       
       const fileList: FileInfo[] = [];
-      let pageToken: string | undefined;
+      let pageToken: string | undefined = undefined;
       const pageSize = 1000; // Fetch up to 1000 files per page
 
       // Fetch all pages of files
       do {
-        const files = await this.drive.files.list({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const files: any = await this.drive.files.list({
           q: `'${folderId}' in parents and trashed=false`,
           fields: 'files(id, name, modifiedTime, size),nextPageToken',
           orderBy: 'modifiedTime desc',
@@ -326,22 +344,26 @@ class GoogleDriveService {
 
         // Process files from this page
         for (const file of files.data.files || []) {
-          const fileName = file.name;
+          if (!file.id || !file.name) continue;
+          
+          // Type assertion to ensure properties exist
+          const typedFile = file as { id: string; name: string; modifiedTime: string; size?: string };
+          const fileName = typedFile.name;
           const cleanTitle = this.cleanFileName(fileName);
           
           // Get AI analysis (cached or basic)
           const aiAnalysis = await this.analyzeDocumentWithAI(fileName);
           
           fileList.push({
-            id: file.id,
+            id: typedFile.id,
             name: fileName,
             title: cleanTitle,
-            url: `https://drive.google.com/file/d/${file.id}/view`,
-            downloadUrl: `https://drive.google.com/uc?export=download&id=${file.id}`,
-            viewUrl: `https://drive.google.com/file/d/${file.id}/view?usp=sharing`,
-            thumbnailUrl: `https://drive.google.com/thumbnail?id=${file.id}&sz=w400-h400`,
-            modifiedTime: file.modifiedTime,
-            size: parseInt(file.size || '0'),
+            url: `https://drive.google.com/file/d/${typedFile.id}/view`,
+            downloadUrl: `https://drive.google.com/uc?export=download&id=${typedFile.id}`,
+            viewUrl: `https://drive.google.com/file/d/${typedFile.id}/view?usp=sharing`,
+            thumbnailUrl: `https://drive.google.com/thumbnail?id=${typedFile.id}&sz=w400-h400`,
+            modifiedTime: typedFile.modifiedTime,
+            size: parseInt(typedFile.size || '0'),
             // AI-generated metadata
             subject: aiAnalysis.subject,
             topic: aiAnalysis.topic,
@@ -357,7 +379,7 @@ class GoogleDriveService {
         }
 
         // Get next page token if available
-        pageToken = files.data.nextPageToken;
+        pageToken = files.data.nextPageToken || undefined;
       } while (pageToken);
       
       // Filter out Notability .note files when matching PDFs exist
@@ -423,7 +445,8 @@ class GoogleDriveService {
       console.log('📊 Cache check for folderId:', folderId, 'cachedData:', !!cachedData);
       
       if (cachedData) {
-        const files = cachedData.files;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const files = (cachedData as any).files;
         console.log('📁 Using cached data for folderId:', folderId, 'files count:', files ? files.length : 'null');
         
         // Validate cached files data
@@ -504,6 +527,10 @@ class GoogleDriveService {
       }
       
       const lastFile = files.data.files[0];
+      if (!lastFile || !lastFile.modifiedTime || !lastFile.name || !lastFile.id) {
+        throw new Error('Last file missing required properties');
+      }
+      
       const lastActivityDate = new Date(lastFile.modifiedTime).toLocaleDateString('nl-NL', {
         year: 'numeric',
         month: 'short',
@@ -804,8 +831,9 @@ class GoogleDriveService {
       
       for (const subjectFolder of subjectFolders.data.files || []) {
         const subjectName = subjectFolder.name;
-        console.log('📚 Subject: ' + subjectName);
+        if (!subjectName || !subjectFolder.id) continue;
         
+        // Look for student folders within this subject
         const studentFolders = await this.drive.files.list({
           q: `'${subjectFolder.id}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
           fields: 'files(id, name)',
@@ -862,10 +890,12 @@ class GoogleDriveService {
         });
 
         for (const studentFolder of studentFolders.data.files || []) {
+          if (!studentFolder.id || !studentFolder.name) continue;
+          
           allStudents.push({
             id: studentFolder.id,
             name: studentFolder.name,
-            subject: subjectName,
+            subject: subjectName as string,
             url: `https://drive.google.com/drive/folders/${studentFolder.id}`
           });
         }

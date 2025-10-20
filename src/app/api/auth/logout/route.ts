@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
           email: user.email,
           uid: user.uid,
         },
+        teacherId: user.uid,
+        studentId: null,
       });
     }
 

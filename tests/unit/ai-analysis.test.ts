@@ -221,20 +221,20 @@ Format as valid JSON only.`;
 
   describe('Error Handling', () => {
     const handleAIError = (error: any): { success: boolean; error: string } => {
-      if (error.message?.includes('rate limit')) {
+      if (error.message?.toLowerCase().includes('rate limit')) {
         return { success: false, error: 'Rate limit exceeded' };
       }
-      if (error.message?.includes('quota')) {
+      if (error.message?.toLowerCase().includes('quota')) {
         return { success: false, error: 'Quota exceeded' };
       }
-      if (error.message?.includes('timeout')) {
+      if (error.message?.toLowerCase().includes('timeout')) {
         return { success: false, error: 'Request timeout' };
       }
       return { success: false, error: 'Unknown error' };
     };
 
     it('should handle rate limit errors', () => {
-      const error = { message: 'Rate limit exceeded' };
+      const error = { message: 'rate limit exceeded' }; // lowercase
       const result = handleAIError(error);
       
       expect(result.success).toBe(false);
@@ -242,7 +242,7 @@ Format as valid JSON only.`;
     });
 
     it('should handle quota errors', () => {
-      const error = { message: 'Quota exceeded' };
+      const error = { message: 'quota exceeded' }; // lowercase
       const result = handleAIError(error);
       
       expect(result.success).toBe(false);

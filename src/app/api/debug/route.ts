@@ -21,11 +21,17 @@ export async function GET() {
     let studentCount = 0;
 
     try {
-      // Test if we can get students (this will initialize the API)
-      const students = await googleDriveService.getAllStudents();
-      studentCount = students.length;
-      apiStatus = 'working';
-      console.log('✅ Google Drive API is working, found', studentCount, 'students');
+      // Test if we can access the Google Drive API
+      const testResult = await googleDriveService.testDriveAccess();
+      if (testResult.success) {
+        studentCount = testResult.folderCount || 0;
+        apiStatus = 'working';
+        console.log('✅ Google Drive API is working, found', studentCount, 'students');
+      } else {
+        apiStatus = 'error';
+        errorMessage = testResult.message;
+        console.error('❌ Google Drive API error:', errorMessage);
+      }
     } catch (error) {
       apiStatus = 'error';
       errorMessage = error instanceof Error ? error.message : 'Unknown error';

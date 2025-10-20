@@ -1,86 +1,141 @@
 import { vi } from 'vitest';
 
-// Mock Google Drive API responses
-export const mockDriveFiles = {
-  '1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD': [
+export interface MockStudent {
+  id: string;
+  name: string;
+  subject: string;
+  url: string;
+}
+
+export interface MockFileInfo {
+  id: string;
+  name: string;
+  title: string;
+  url: string;
+  downloadUrl: string;
+  viewUrl: string;
+  thumbnailUrl: string;
+  modifiedTime: string;
+  size: number;
+  subject?: string;
+  topic?: string;
+  level?: string;
+  schoolYear?: string;
+  keywords?: string[];
+  summary?: string;
+  aiAnalyzedAt?: Date;
+}
+
+export interface MockStudentOverview {
+  fileCount: number;
+  lastActivity: string | null;
+  lastActivityDate: string;
+  lastFile?: {
+    id: string;
+    name: string;
+    title: string;
+    subject?: string;
+    topic?: string;
+    summary?: string;
+    modifiedTime: string;
+  };
+}
+
+export const mockGoogleDriveService = {
+  getStudents: vi.fn().mockResolvedValue([
     {
-      id: '1O6UaU3MBWt_o0fq_qkGkK2IC0eWzR4Q-',
-      name: 'Priveles 8 Oct 2025 12_39_30.pdf',
-      mimeType: 'application/pdf',
-      modifiedTime: '2025-10-08T12:39:30.000Z',
-      size: '1024000',
-      webViewLink: 'https://drive.google.com/file/d/1O6UaU3MBWt_o0fq_qkGkK2IC0eWzR4Q-/view',
-    },
+      id: 'student-1',
+      name: 'Test Student 1',
+      subject: 'Wiskunde',
+      url: 'https://drive.google.com/drive/folders/folder-1',
+    } as MockStudent,
+  ]),
+
+  getFilesInFolder: vi.fn().mockResolvedValue([
     {
-      id: '1hvVkVwSBtlIB9BgT6sEWAIrwawBnUPYt',
-      name: 'Priveles 2 Oct 2025 18_04_59.pdf',
-      mimeType: 'application/pdf',
-      modifiedTime: '2025-10-02T18:04:59.000Z',
-      size: '2048000',
-      webViewLink: 'https://drive.google.com/file/d/1hvVkVwSBtlIB9BgT6sEWAIrwawBnUPYt/view',
+      id: 'file-1',
+      name: 'test-file-1',
+      title: 'Test File 1',
+      url: 'https://drive.google.com/file/d/file-1',
+      downloadUrl: 'https://drive.google.com/uc?id=file-1&export=download',
+      viewUrl: 'https://drive.google.com/file/d/file-1/view',
+      thumbnailUrl: 'https://drive-thirdparty.googleusercontent.com/16/type/application/pdf',
+      modifiedTime: new Date().toISOString(),
+      size: 1024,
+    } as MockFileInfo,
+  ]),
+
+  getFileMetadata: vi.fn().mockResolvedValue({
+    id: 'file-1',
+    name: 'test-file',
+    title: 'Test File',
+    url: 'https://drive.google.com/file/d/file-1',
+    downloadUrl: 'https://drive.google.com/uc?id=file-1&export=download',
+    viewUrl: 'https://drive.google.com/file/d/file-1/view',
+    thumbnailUrl: 'https://drive-thirdparty.googleusercontent.com/16/type/application/pdf',
+    modifiedTime: new Date().toISOString(),
+    size: 1024,
+  } as MockFileInfo),
+
+  getStudentOverview: vi.fn().mockResolvedValue({
+    fileCount: 5,
+    lastActivity: 'file uploaded',
+    lastActivityDate: new Date().toISOString(),
+    lastFile: {
+      id: 'file-1',
+      name: 'test-file',
+      title: 'Test File',
+      subject: 'Wiskunde',
+      topic: 'Algebra',
+      summary: 'Summary of algebra concepts',
+      modifiedTime: new Date().toISOString(),
     },
+  } as MockStudentOverview),
+
+  analyzeFileWithAI: vi.fn().mockResolvedValue({
+    subject: 'Wiskunde',
+    topic: 'Algebra',
+    level: 'Grade 10',
+    schoolYear: '2024',
+    keywords: ['algebra', 'equations', 'variables'],
+    summary: 'This document covers basic algebra concepts',
+    summaryEn: 'This document covers basic algebra concepts',
+    topicEn: 'Algebra',
+    keywordsEn: ['algebra', 'equations', 'variables'],
+  }),
+
+  searchFiles: vi.fn().mockResolvedValue([
     {
-      id: '1sROmOb4G22q3QwmNdwptpQTVje36ZdoO',
-      name: 'bijles toets.pdf',
-      mimeType: 'application/pdf',
-      modifiedTime: '2025-09-25T16:22:26.000Z',
-      size: '1536000',
-      webViewLink: 'https://drive.google.com/file/d/1sROmOb4G22q3QwmNdwptpQTVje36ZdoO/view',
-    },
-  ],
+      id: 'file-1',
+      name: 'test-file',
+      title: 'Test File',
+      url: 'https://drive.google.com/file/d/file-1',
+      downloadUrl: 'https://drive.google.com/uc?id=file-1&export=download',
+      viewUrl: 'https://drive.google.com/file/d/file-1/view',
+      thumbnailUrl: 'https://drive-thirdparty.googleusercontent.com/16/type/application/pdf',
+      modifiedTime: new Date().toISOString(),
+      size: 1024,
+    } as MockFileInfo,
+  ]),
+
+  syncStudentFiles: vi.fn().mockResolvedValue({
+    newFiles: 1,
+    updatedFiles: 0,
+    totalFiles: 5,
+  }),
+
+  getFolderStructure: vi.fn().mockResolvedValue({
+    id: 'folder-1',
+    name: 'Student Folder',
+    files: [],
+    subfolders: [],
+  }),
+
+  downloadFile: vi.fn().mockResolvedValue(Buffer.from('file content')),
 };
 
-export const mockDriveService = {
-  files: {
-    list: vi.fn(),
-    get: vi.fn(),
-  },
+export const googleDriveService = mockGoogleDriveService;
+
+export default {
+  googleDriveService: mockGoogleDriveService,
 };
-
-// Mock Google Drive API
-vi.mock('googleapis', () => ({
-  google: {
-    drive: vi.fn(() => mockDriveService),
-    auth: {
-      OAuth2: vi.fn(() => ({
-        setCredentials: vi.fn(),
-        getAccessToken: vi.fn(() => Promise.resolve({ token: 'mock-access-token' })),
-      })),
-    },
-  },
-}));
-
-// Mock Google Drive helper functions
-export const mockGetDriveFiles = vi.fn();
-export const mockGetFileMetadata = vi.fn();
-export const mockGetStudentOverview = vi.fn();
-
-// Setup default mock implementations
-mockGetDriveFiles.mockImplementation((folderId: string) => {
-  return Promise.resolve(mockDriveFiles[folderId] || []);
-});
-
-mockGetFileMetadata.mockImplementation((fileId: string) => {
-  const allFiles = Object.values(mockDriveFiles).flat();
-  const file = allFiles.find(f => f.id === fileId);
-  return Promise.resolve(file || null);
-});
-
-mockGetStudentOverview.mockImplementation((folderId: string) => {
-  const files = mockDriveFiles[folderId] || [];
-  return Promise.resolve({
-    fileCount: files.length,
-    lastActivity: files[0]?.modifiedTime || new Date().toISOString(),
-    lastActivityDate: '8 okt 2025',
-    files: files.map(f => ({
-      id: f.id,
-      name: f.name,
-      cleanedName: f.name.replace(/^Priveles\s+/, 'Les ').replace(/\s+\d{2}_\d{2}_\d{2}\.pdf$/, ''),
-      modifiedTime: f.modifiedTime,
-      size: f.size,
-      webViewLink: f.webViewLink,
-    })),
-  });
-});
-
-export { mockDriveFiles, mockDriveService };

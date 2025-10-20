@@ -11,12 +11,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Starting manual folder sync...');
-    const result = await backgroundSyncService.syncAllStudents();
+    await backgroundSyncService.runFullSync();
     console.log('✅ Folder sync completed');
 
     return NextResponse.json({
       success: true,
-      processed: result.processed,
       timestamp: new Date().toISOString()
     });
 

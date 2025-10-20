@@ -45,6 +45,8 @@ export async function POST(request: NextRequest) {
             error: 'Unauthorized domain',
             uid: decodedToken.uid,
           },
+          teacherId: decodedToken.uid,
+          studentId: null,
         });
       } catch (auditError) {
         console.error('Failed to log sign-in attempt:', auditError);
@@ -74,6 +76,8 @@ export async function POST(request: NextRequest) {
         email: email,
         uid: decodedToken.uid,
       },
+      teacherId: decodedToken.uid,
+      studentId: null,
     });
 
     // Set the token as a secure HTTP-only cookie
@@ -116,6 +120,8 @@ export async function POST(request: NextRequest) {
           provider: 'google',
           error: error instanceof Error ? error.message : 'Unknown error',
         },
+        teacherId: null,
+        studentId: null,
       });
     } catch (auditError) {
       console.error('Failed to log sign-in attempt:', auditError);
