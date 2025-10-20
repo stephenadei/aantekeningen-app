@@ -5,9 +5,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI ? 'github' : 'html',
   timeout: 30 * 1000, // 30 seconds per test
+  expect: {
+    timeout: 10 * 1000, // 10 seconds for assertions
+  },
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
@@ -28,7 +31,13 @@ export default defineConfig({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI',
+            '--disable-ipc-flooding-protection',
+            '--memory-pressure-off'
           ]
         }
       },
