@@ -21,7 +21,7 @@
     "test:watch": "vitest watch",
     "test:ui": "vitest --ui",
     "test:performance": "vitest run tests/performance",
-    "test:ci": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:performance",
+    "test:ci": "npm run test:unit && npm run test:integration && npm run test:security && npm run test:e2e && npm run test:performance",
     "test:summary": "node scripts/test-summary.mjs",
     "migrate-cache": "node scripts/migrate-to-firestore-cache.mjs",
     "init-students": "node scripts/init-students-from-drive.mjs",

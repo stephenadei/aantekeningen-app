@@ -74,7 +74,7 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200" data-testid="admin-nav">
+    <nav className="bg-white shadow-sm border-b border-gray-200" aria-label="Admin navigation">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex">
@@ -116,7 +116,7 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
                 <button
                   onClick={handleSignOut}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  data-testid="logout-button"
+                  aria-label="Logout from admin panel"
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Uitloggen
@@ -128,7 +128,8 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-              data-testid="mobile-menu-button"
+              aria-label="Toggle mobile menu"
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? (
                 <X className="h-6 w-6" />
@@ -195,7 +196,7 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
               <button
                 onClick={handleSignOut}
                 className="block w-full text-left px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-                data-testid="logout-button"
+                aria-label="Logout from admin panel"
               >
                 <div className="flex items-center">
                   <LogOut className="h-4 w-4 mr-3" />

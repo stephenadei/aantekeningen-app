@@ -57,7 +57,7 @@ test.describe('Admin Portal Real Authentication E2E', () => {
     await expect(page).toHaveURL(/\/admin/);
     
     // Check that admin navigation is visible
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
     
     // Verify we can access admin features
     await expect(page.locator('text=Studenten')).toBeVisible();
@@ -71,14 +71,14 @@ test.describe('Admin Portal Real Authentication E2E', () => {
     
     // Should be authenticated (not redirected to login)
     await expect(page).toHaveURL(/\/admin/);
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
     
     // Refresh the page
     await page.reload();
     
     // Should still be authenticated
     await expect(page).toHaveURL(/\/admin/);
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
   });
 
   test('should logout properly', async ({ page }) => {
@@ -89,7 +89,7 @@ test.describe('Admin Portal Real Authentication E2E', () => {
     await expect(page).toHaveURL(/\/admin/);
     
     // Click logout button
-    await page.click('[data-testid="logout-button"]');
+    await page.click('button[aria-label*="Logout"]');
     
     // Should be redirected to login page
     await expect(page).toHaveURL(/\/admin\/login/);

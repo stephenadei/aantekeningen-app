@@ -628,14 +628,14 @@ export default function AantekeningenPage() {
               )}
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6" data-testid="error-message">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6" role="alert" aria-live="assertive">
                   <p className="text-red-800">{error}</p>
                 </div>
               )}
 
               {students.length > 0 && (
-                <div className="space-y-3" data-testid="student-results">
-                  <h3 className="font-medium text-gray-700">
+                <section className="space-y-3" role="region" aria-labelledby="results-heading">
+                  <h3 id="results-heading" className="font-medium text-gray-700">
                     {students.length} {students.length === 1 ? 'student gevonden' : 'studenten gevonden'}
                   </h3>
                   {students.map((student) => (
@@ -669,11 +669,11 @@ export default function AantekeningenPage() {
                       </div>
                     </div>
                   ))}
-                </div>
+                </section>
               )}
 
               {students.length === 0 && !loading && hasSearched && searchQuery && (
-                <div className="text-center py-8" data-testid="no-results">
+                <div className="text-center py-8" role="status" aria-live="polite">
                   <p className="text-gray-600 mb-2">Geen studenten gevonden</p>
                   <p className="text-sm text-gray-500 mb-4">
                     Probeer een andere naam of controleer de spelling.
@@ -970,13 +970,13 @@ export default function AantekeningenPage() {
             </FilterModal>
 
             {loading ? (
-              <div className="flex items-center justify-center py-12" data-testid="loading">
+              <div className="flex items-center justify-center py-12" role="status" aria-live="polite" aria-label="Loading files">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
                 <span className="ml-2 text-gray-600">Bestanden laden...</span>
               </div>
             ) : files.length > 0 ? (
               /* Files Display */
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'} data-testid="files-list">
+              <section className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'} role="list" aria-label="Student files">
                 {filteredAndSortedFiles.map((file) => (
                   <div
                     key={file.id}
@@ -1056,7 +1056,7 @@ export default function AantekeningenPage() {
                           <a
                             href={file.downloadUrl}
                             className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors"
-                            data-testid="file-link"
+                            aria-label={`Download ${file.name}`}
                           >
                             <Download className="h-4 w-4 inline mr-1" />
                             Downloaden
@@ -1136,7 +1136,7 @@ export default function AantekeningenPage() {
                           <a
                             href={file.downloadUrl}
                             className="bg-blue-600 text-white py-2 px-4 rounded text-sm hover:bg-blue-700 transition-colors"
-                            data-testid="file-link"
+                            aria-label={`Download ${file.name}`}
                           >
                             <Download className="h-4 w-4 inline mr-2" />
                             Downloaden
@@ -1146,7 +1146,7 @@ export default function AantekeningenPage() {
                     )}
                   </div>
                 ))}
-              </div>
+              </section>
             ) : (
               <div className="text-center py-12">
                 <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />

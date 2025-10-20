@@ -307,7 +307,7 @@ export default function StudentPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" role="status" aria-live="polite" aria-label="Loading student data">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
           <p className="text-gray-600">Laden van studentgegevens...</p>
@@ -320,7 +320,7 @@ export default function StudentPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="bg-white p-8 rounded-lg shadow-md max-w-md">
+          <div className="bg-white p-8 rounded-lg shadow-md max-w-md" role="alert" aria-live="assertive">
             <h1 className="text-xl font-semibold text-gray-900 mb-4">Student niet gevonden</h1>
             <p className="text-gray-600 mb-6">{error || 'De gevraagde student kon niet worden gevonden.'}</p>
             <Link 
@@ -656,12 +656,14 @@ export default function StudentPage() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6" role="list" aria-label="Student files">
             {filteredAndSortedFiles().map((file: FileInfo) => (
               <div
                 key={file.id}
                 onClick={() => handleFileClick(file)}
                 className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer group"
+                role="listitem"
+                aria-label={`Open ${file.name}`}
               >
                 {/* Thumbnail */}
                 <div className="relative aspect-video bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 overflow-hidden">
@@ -753,7 +755,7 @@ export default function StudentPage() {
                 </div>
               </div>
             ))}
-          </div>
+          </section>
         )}
 
         {/* Load More Button */}

@@ -50,7 +50,7 @@ test.describe('Admin Portal E2E', () => {
     await expect(page).toHaveURL(/\/admin$/);
     
     // Check admin navigation is visible
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
   });
 
   test('should reject non-teacher email domains', async ({ page }) => {
@@ -93,7 +93,7 @@ test.describe('Admin Portal E2E', () => {
     await page.goto('/admin');
 
     // Check navigation is visible
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
     await expect(page.locator('text=Docentenportaal')).toBeVisible();
     await expect(page.locator('text=Studenten')).toBeVisible();
     await expect(page.locator('text=Notities')).toBeVisible();
@@ -124,7 +124,7 @@ test.describe('Admin Portal E2E', () => {
 
     // Check page content
     await expect(page.locator('h1')).toContainText('Google Drive Data');
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
   });
 
   test('should create new student', async ({ page }) => {
@@ -145,7 +145,7 @@ test.describe('Admin Portal E2E', () => {
     await page.goto('/admin');
 
     // Check that we can access admin features
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
   });
 
   test('should search students', async ({ page }) => {
@@ -168,7 +168,7 @@ test.describe('Admin Portal E2E', () => {
 
     // Check page loads
     await expect(page.locator('h1')).toContainText('Audit Logs');
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
   });
 
   test('should view audit logs', async ({ page }) => {
@@ -190,7 +190,7 @@ test.describe('Admin Portal E2E', () => {
 
     // Check page content
     await expect(page.locator('h1')).toContainText('Audit Logs');
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
   });
 
   test('should logout successfully', async ({ page }) => {
@@ -212,7 +212,7 @@ test.describe('Admin Portal E2E', () => {
     await page.goto('/admin');
 
     // Click logout button
-    await page.click('[data-testid="logout-button"]');
+    await page.click('button[aria-label*="Logout"]');
 
     // Should redirect to login page
     await expect(page).toHaveURL(/\/admin\/login/);
@@ -232,10 +232,10 @@ test.describe('Admin Portal E2E', () => {
     await page.setViewportSize({ width: 375, height: 667 });
 
     // Check mobile navigation
-    await expect(page.locator('[data-testid="mobile-menu-button"]')).toBeVisible();
+    await expect(page.locator('button[aria-label="Toggle mobile menu"]')).toBeVisible();
     
     // Click mobile menu
-    await page.click('[data-testid="mobile-menu-button"]');
+    await page.click('button[aria-label="Toggle mobile menu"]');
     
     // Check mobile menu items (using actual navigation items from AdminNavigation)
     await expect(page.locator('text=Studenten')).toBeVisible();
@@ -262,7 +262,7 @@ test.describe('Admin Portal E2E', () => {
     await page.goto('/admin');
 
     // Check that page loads (even with network errors, the page should still render)
-    await expect(page.locator('[data-testid="admin-nav"]')).toBeVisible();
+    await expect(page.locator('nav[aria-label="Admin navigation"]')).toBeVisible();
   });
 
   test('should maintain authentication state across page refreshes', async ({ page }) => {

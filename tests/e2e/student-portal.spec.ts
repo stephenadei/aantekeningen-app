@@ -2,6 +2,91 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Student Portal E2E', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock API responses for student portal
+    await page.route('**/api/students/search**', async (route) => {
+      const url = new URL(route.request().url());
+      const searchTerm = url.searchParams.get('q') || '';
+      
+      if (searchTerm.toLowerCase().includes('rachel')) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            students: [
+              {
+                id: 'test-student-1',
+                displayName: 'Rachel Johnson',
+                subject: 'Wiskunde',
+                driveFolderId: 'test-folder-1',
+                driveFolderName: 'Rachel Folder',
+                folderConfirmed: true
+              }
+            ]
+          })
+        });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ students: [] })
+        });
+      }
+    });
+
+    // Mock student files API
+    await page.route('**/api/students/*/files**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          files: [
+            {
+              id: 'file-1',
+              name: 'Les 1 - Algebra.pdf',
+              webViewLink: 'https://drive.google.com/file/d/file-1/view',
+              modifiedTime: '2025-01-15T10:00:00Z',
+              size: '1024000',
+              mimeType: 'application/pdf'
+            }
+          ]
+        })
+      });
+    });
+
+    // Mock student overview API
+    await page.route('**/api/students/*/overview**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          student: {
+            id: 'test-student-1',
+            displayName: 'Rachel Johnson',
+            subject: 'Wiskunde',
+            driveFolderId: 'test-folder-1',
+            driveFolderName: 'Rachel Folder',
+            folderConfirmed: true
+          },
+          stats: {
+            totalFiles: 5,
+            recentFiles: 2
+          }
+        })
+      });
+    });
+
+    // Mock share link API
+    await page.route('**/api/students/*/share**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          shareUrl: 'https://example.com/student/test-student-1',
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        })
+      });
+    });
+
     // Navigate to student portal
     await page.goto('/');
   });
@@ -24,12 +109,12 @@ test.describe('Student Portal E2E', () => {
     await page.click('button:has-text("Zoeken")');
 
     // Wait for results or no results
-    await page.waitForSelector('[data-testid="student-results"], [data-testid="no-results"], [data-testid="error-message"]', { timeout: 10000 });
+    await page.waitForSelector('[role="region"][aria-labelledby="results-heading"], [role="status"], [role="alert"]', { timeout: 10000 });
     
     // Check that we get some response (results, no results, or error)
-    const hasResults = await page.locator('[data-testid="student-results"]').isVisible();
-    const hasNoResults = await page.locator('[data-testid="no-results"]').isVisible();
-    const hasError = await page.locator('[data-testid="error-message"]').isVisible();
+    const hasResults = await page.locator('[role="region"][aria-labelledby="results-heading"]').isVisible();
+    const hasNoResults = await page.locator('[role="status"]:has-text("Geen studenten gevonden")').isVisible();
+    const hasError = await page.locator('[role="alert"]:not([id="__next-route-announcer__"])').isVisible();
     
     expect(hasResults || hasNoResults || hasError).toBe(true);
   });
@@ -40,10 +125,10 @@ test.describe('Student Portal E2E', () => {
     await page.click('button:has-text("Zoeken")');
 
     // Wait for no results message
-    await page.waitForSelector('[data-testid="no-results"]', { timeout: 10000 });
+    await page.waitForSelector('[role="status"]:has-text("Geen studenten gevonden")', { timeout: 10000 });
     
     // Check no results message
-    await expect(page.locator('[data-testid="no-results"]')).toBeVisible();
+    await expect(page.locator('[role="status"]:has-text("Geen studenten gevonden")')).toBeVisible();
     await expect(page.locator('text=Geen studenten gevonden')).toBeVisible();
   });
 
@@ -53,13 +138,13 @@ test.describe('Student Portal E2E', () => {
     await page.click('button:has-text("Zoeken")');
     
     // Wait for results
-    await page.waitForSelector('[data-testid="student-results"], [data-testid="no-results"]', { timeout: 10000 });
+    await page.waitForSelector('[role="region"][aria-labelledby="results-heading"], [role="status"]', { timeout: 10000 });
     
     // If we have results, click on the first student
-    const hasResults = await page.locator('[data-testid="student-results"]').isVisible();
+    const hasResults = await page.locator('[role="region"][aria-labelledby="results-heading"]').isVisible();
     if (hasResults) {
       // Click on the first student result
-      await page.locator('[data-testid="student-results"] div').first().click();
+      await page.locator('[role="region"][aria-labelledby="results-heading"] div').first().click();
       
       // Should navigate to student page
       await expect(page).toHaveURL(/\/student\/[^\/]+/);
@@ -77,39 +162,40 @@ test.describe('Student Portal E2E', () => {
     await page.goto('/student/test-student-id');
 
     // Wait for page to load (either files, loading, or error)
-    await page.waitForSelector('[data-testid="files-list"], [data-testid="loading"], [data-testid="error-message"]', { timeout: 10000 });
+    await page.waitForSelector('[role="list"][aria-label*="files"], [role="status"][aria-label*="Loading"], [role="alert"]', { timeout: 10000 });
     
     // Check that the page loaded with some content
-    const hasFiles = await page.locator('[data-testid="files-list"]').isVisible();
-    const hasLoading = await page.locator('[data-testid="loading"]').isVisible();
-    const hasError = await page.locator('[data-testid="error-message"]').isVisible();
+    const hasFiles = await page.locator('[role="list"][aria-label*="files"]').isVisible();
+    const hasLoading = await page.locator('[role="status"][aria-label*="Loading"]').isVisible();
+    const hasError = await page.locator('[role="alert"]:not([id="__next-route-announcer__"])').isVisible();
     
     expect(hasFiles || hasLoading || hasError).toBe(true);
   });
 
-  test('should handle file click and open in new tab', async ({ page, context }) => {
+  test('should handle file click and open modal', async ({ page }) => {
     // Navigate to student page
     await page.goto('/student/test-student-id');
 
     // Wait for files to load
-    await page.waitForSelector('[data-testid="files-list"], [data-testid="loading"], [data-testid="error-message"]', { timeout: 10000 });
+    await page.waitForSelector('[role="list"][aria-label*="files"], [role="status"][aria-label*="Loading"], [role="alert"]', { timeout: 10000 });
     
     // Check if files are available
-    const hasFiles = await page.locator('[data-testid="files-list"]').isVisible();
+    const hasFiles = await page.locator('[role="list"][aria-label*="files"]').isVisible();
     if (hasFiles) {
       // Click on first file link if available
-      const fileLink = page.locator('[data-testid="file-link"]').first();
+      const fileLink = page.locator('[role="listitem"]').first();
       const isVisible = await fileLink.isVisible();
       
       if (isVisible) {
-        const [newPage] = await Promise.all([
-          context.waitForEvent('page'),
-          fileLink.click()
-        ]);
-
-        // Check new tab opened (should be Google Drive or similar)
-        await expect(newPage).toHaveURL(/drive\.google\.com|googleapis\.com/);
-        await newPage.close();
+        // Click the file to open modal
+        await fileLink.click();
+        
+        // Wait for modal to open (look for modal content or iframe)
+        await page.waitForSelector('iframe, [role="dialog"], .modal', { timeout: 5000 });
+        
+        // Check that modal opened (iframe should be visible)
+        const iframe = page.locator('iframe');
+        await expect(iframe).toBeVisible();
       }
     } else {
       // Skip test if no files available
@@ -123,31 +209,36 @@ test.describe('Student Portal E2E', () => {
     await page.click('button:has-text("Zoeken")');
 
     // Check that we get some response (loading, results, no results, or error)
-    await page.waitForSelector('[data-testid="loading"], [data-testid="student-results"], [data-testid="no-results"], [data-testid="error-message"]', { timeout: 10000 });
+    await page.waitForSelector('[role="status"][aria-label*="Loading"], [role="region"][aria-labelledby="results-heading"], [role="status"]:has-text("Geen studenten"), [role="alert"]', { timeout: 10000 });
     
     // Verify that loading state is handled properly
-    const hasLoading = await page.locator('[data-testid="loading"]').isVisible();
-    const hasResults = await page.locator('[data-testid="student-results"]').isVisible();
-    const hasNoResults = await page.locator('[data-testid="no-results"]').isVisible();
-    const hasError = await page.locator('[data-testid="error-message"]').isVisible();
+    const hasLoading = await page.locator('[role="status"][aria-label*="Loading"]').isVisible();
+    const hasResults = await page.locator('[role="region"][aria-labelledby="results-heading"]').isVisible();
+    const hasNoResults = await page.locator('[role="status"]:has-text("Geen studenten")').isVisible();
+    const hasError = await page.locator('[role="alert"]:not([id="__next-route-announcer__"])').isVisible();
     
     expect(hasLoading || hasResults || hasNoResults || hasError).toBe(true);
   });
 
   test('should handle API errors gracefully', async ({ page }) => {
+    // Mock API error for this specific test
+    await page.route('**/api/students/search**', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Internal server error' })
+      });
+    });
+
     // Perform search
-    await page.fill('input[placeholder*="Typ je naam om je aantekeningen te vinden"]', 'test');
+    await page.fill('input[placeholder*="Typ je naam om je aantekeningen te vinden"]', 'error-test');
     await page.click('button:has-text("Zoeken")');
 
-    // Wait for response (could be results, no results, or error)
-    await page.waitForSelector('[data-testid="student-results"], [data-testid="no-results"], [data-testid="error-message"]', { timeout: 10000 });
+    // Wait for error message
+    await page.waitForSelector('[role="alert"]:not([id="__next-route-announcer__"])', { timeout: 10000 });
     
-    // Check that we get some response
-    const hasResults = await page.locator('[data-testid="student-results"]').isVisible();
-    const hasNoResults = await page.locator('[data-testid="no-results"]').isVisible();
-    const hasError = await page.locator('[data-testid="error-message"]').isVisible();
-    
-    expect(hasResults || hasNoResults || hasError).toBe(true);
+    // Check that error is displayed
+    await expect(page.locator('[role="alert"]:not([id="__next-route-announcer__"])')).toBeVisible();
   });
 
   test('should be responsive on mobile', async ({ page }) => {
@@ -171,7 +262,7 @@ test.describe('Student Portal E2E', () => {
     await page.click('button:has-text("Zoeken")');
     
     // Wait for response
-    await page.waitForSelector('[data-testid="student-results"], [data-testid="no-results"], [data-testid="error-message"]', { timeout: 10000 });
+    await page.waitForSelector('[role="region"][aria-labelledby="results-heading"], [role="status"], [role="alert"]:not([id="__next-route-announcer__"])', { timeout: 10000 });
     
     // Refresh page
     await page.reload();
