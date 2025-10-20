@@ -43,6 +43,12 @@ npm run test:performance
 
 # Smoke tests only
 npm run test:smoke
+
+# Smoke tests against production
+SMOKE_TEST_URL=https://stephensprive.app npm run test:smoke
+
+# Smoke tests against localhost (default)
+npm run test:smoke
 ```
 
 ### Development Mode
@@ -56,6 +62,36 @@ npm run test:ui
 # Coverage report
 npm run test:coverage
 ```
+
+## Smoke Tests
+
+Smoke tests verify critical functionality on a **running server** (not mocked). They are:
+
+- ✅ Designed for **local development** (against `http://localhost:3000`)
+- ✅ Designed for **post-deployment verification** (against `https://stephensprive.app`)
+- ❌ **NOT** run in GitHub Actions CI (no server available)
+
+### Usage
+
+**Local Development:**
+```bash
+# Start dev server
+npm run dev
+
+# In another terminal, run smoke tests
+npm run test:smoke
+```
+
+**Production Testing:**
+```bash
+# Test against deployed application
+SMOKE_TEST_URL=https://stephensprive.app npm run test:smoke
+```
+
+**Configuration:**
+- Set `SMOKE_TEST_URL` environment variable to test against different endpoints
+- Defaults to `http://localhost:3000` if not specified
+- Skipped automatically in GitHub Actions CI pipeline
 
 ## Test Structure
 

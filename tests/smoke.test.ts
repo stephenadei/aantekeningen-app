@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
+// Get base URL from environment variable or default to localhost
+const BASE_URL = process.env.SMOKE_TEST_URL || 'http://localhost:3000';
+
 describe('Critical Smoke Tests', () => {
   let server: any;
 
@@ -14,7 +17,7 @@ describe('Critical Smoke Tests', () => {
 
   describe('Student Portal API', () => {
     it('should return 200 for student search', async () => {
-      const response = await fetch('http://localhost:3000/api/students/search?q=rachel');
+      const response = await fetch(`${BASE_URL}/api/students/search?q=rachel`);
       expect(response.status).toBe(200);
       
       const data = await response.json();
@@ -24,7 +27,7 @@ describe('Critical Smoke Tests', () => {
     });
 
     it('should return student overview with files', async () => {
-      const response = await fetch('http://localhost:3000/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/overview');
+      const response = await fetch(`${BASE_URL}/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/overview`);
       expect(response.status).toBe(200);
       
       const data = await response.json();
@@ -35,7 +38,7 @@ describe('Critical Smoke Tests', () => {
     });
 
     it('should return student files list', async () => {
-      const response = await fetch('http://localhost:3000/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/files');
+      const response = await fetch(`${BASE_URL}/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/files`);
       expect(response.status).toBe(200);
       
       const data = await response.json();
@@ -47,7 +50,7 @@ describe('Critical Smoke Tests', () => {
 
   describe('Security & Authentication', () => {
     it('should block admin API without authentication', async () => {
-      const response = await fetch('http://localhost:3000/api/admin/students');
+      const response = await fetch(`${BASE_URL}/api/admin/students`);
       expect(response.status).toBe(401);
       
       const data = await response.json();
@@ -55,7 +58,7 @@ describe('Critical Smoke Tests', () => {
     });
 
     it('should redirect admin page without session', async () => {
-      const response = await fetch('http://localhost:3000/admin', {
+      const response = await fetch(`${BASE_URL}/admin`, {
         redirect: 'manual'
       });
       expect(response.status).toBe(307);
@@ -66,7 +69,7 @@ describe('Critical Smoke Tests', () => {
   describe('Performance & Caching', () => {
     it('should have reasonable response times', async () => {
       const start = Date.now();
-      const response = await fetch('http://localhost:3000/api/students/search?q=test');
+      const response = await fetch(`${BASE_URL}/api/students/search?q=test`);
       const duration = Date.now() - start;
       
       expect(response.status).toBe(200);
@@ -76,12 +79,12 @@ describe('Critical Smoke Tests', () => {
     it('should cache repeated requests', async () => {
       // First request
       const start1 = Date.now();
-      await fetch('http://localhost:3000/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/files');
+      await fetch(`${BASE_URL}/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/files`);
       const duration1 = Date.now() - start1;
       
       // Second request (should be faster due to caching)
       const start2 = Date.now();
-      await fetch('http://localhost:3000/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/files');
+      await fetch(`${BASE_URL}/api/students/1UcSaOYeR7rqZRLdfeotLbwAoAG7uU9DD/files`);
       const duration2 = Date.now() - start2;
       
       // Cached request should be faster (allowing some variance)
@@ -91,12 +94,12 @@ describe('Critical Smoke Tests', () => {
 
   describe('Error Handling', () => {
     it('should handle invalid student ID gracefully', async () => {
-      const response = await fetch('http://localhost:3000/api/students/invalid-id/overview');
+      const response = await fetch(`${BASE_URL}/api/students/invalid-id/overview`);
       expect(response.status).toBe(404);
     });
 
     it('should handle empty search queries', async () => {
-      const response = await fetch('http://localhost:3000/api/students/search?q=');
+      const response = await fetch(`${BASE_URL}/api/students/search?q=`);
       expect(response.status).toBe(200);
       
       const data = await response.json();
@@ -108,7 +111,7 @@ describe('Critical Smoke Tests', () => {
   describe('Middleware & Edge Runtime', () => {
     it('should not have Edge Runtime errors', async () => {
       // This test ensures our middleware fix worked
-      const response = await fetch('http://localhost:3000/admin/login');
+      const response = await fetch(`${BASE_URL}/admin/login`);
       expect(response.status).toBe(200);
       
       // If we get here without Edge Runtime errors, the fix worked
