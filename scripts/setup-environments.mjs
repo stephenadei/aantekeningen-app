@@ -15,21 +15,21 @@ const isVercel = !!process.env.VERCEL;
 
 console.log(`📍 Current environment: ${isVercel ? 'Vercel Production' : 'Local Development'}`);
 
-// Environment-specific configuration
-const configs = {
-  local: {
-    NEXTAUTH_URL: 'http://localhost:3000',
-    DATABASE_URL: 'file:./dev.db',
-    GOOGLE_REDIRECT_URI: 'http://localhost:3000/api/auth/callback/google',
-    NODE_ENV: 'development',
-  },
-  vercel: {
-    NEXTAUTH_URL: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://your-app.vercel.app',
-    DATABASE_URL: 'postgres://username:password@host:port/database', // Will be set by Vercel
-    GOOGLE_REDIRECT_URI: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/auth/callback/google` : 'https://your-app.vercel.app/api/auth/callback/google',
-    NODE_ENV: 'production',
-  }
-};
+// Environment-specific configuration (commented out as not used in current implementation)
+// const configs = {
+//   local: {
+//     NEXTAUTH_URL: 'http://localhost:3000',
+//     DATABASE_URL: 'file:./dev.db',
+//     GOOGLE_REDIRECT_URI: 'http://localhost:3000/api/auth/callback/google',
+//     NODE_ENV: 'development',
+//   },
+//   vercel: {
+//     NEXTAUTH_URL: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://your-app.vercel.app',
+//     DATABASE_URL: 'postgres://username:password@host:port/database', // Will be set by Vercel
+//     GOOGLE_REDIRECT_URI: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/auth/callback/google` : 'https://your-app.vercel.app/api/auth/callback/google',
+//     NODE_ENV: 'production',
+//   }
+// };
 
 // Create .env.local template
 const envLocalTemplate = `# ===========================================

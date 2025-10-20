@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { execSync } from 'child_process';
+// import { execSync } from 'child_process'; // Not used in current implementation
 import fs from 'fs';
 import path from 'path';
 
@@ -34,7 +34,6 @@ testDirs.forEach(dir => {
       const filePath = path.join(dir, file);
       const content = fs.readFileSync(filePath, 'utf8');
       const testMatches = content.match(/(it|test)\s*\(/g);
-      const describeMatches = content.match(/describe\s*\(/g);
       
       if (testMatches) {
         totalTests += testMatches.length;

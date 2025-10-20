@@ -59,7 +59,7 @@ Format as valid JSON only.`;
           difficulty: parsed.difficulty || 'Medium',
           summary: parsed.summary || 'No summary available'
         };
-      } catch (error) {
+      } catch {
         return {
           subject: 'Unknown',
           topics: [],
@@ -220,7 +220,7 @@ Format as valid JSON only.`;
   });
 
   describe('Error Handling', () => {
-    const handleAIError = (error: any): { success: boolean; error: string } => {
+    const handleAIError = (error: Error): { success: boolean; error: string } => {
       if (error.message?.toLowerCase().includes('rate limit')) {
         return { success: false, error: 'Rate limit exceeded' };
       }

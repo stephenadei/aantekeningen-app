@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Download, Filter, Calendar } from 'lucide-react';
 
 interface LoginAudit {
@@ -56,7 +56,7 @@ export default function AuditPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const fetchAudits = async (page = 1) => {
+  const fetchAudits = useCallback(async (page = 1) => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -81,12 +81,12 @@ export default function AuditPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, actionFilter, dateFrom, dateTo]);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     setCurrentPage(1);
     fetchAudits(1);
-  };
+  }, [fetchAudits]);
 
   const handleFilterChange = () => {
     setCurrentPage(1);
@@ -150,7 +150,7 @@ export default function AuditPage() {
 
   useEffect(() => {
     fetchAudits();
-  }, []);
+  }, [fetchAudits]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -162,7 +162,7 @@ export default function AuditPage() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, currentPage, fetchAudits, handleSearch]);
 
   return (
     <div className="space-y-6">

@@ -68,11 +68,11 @@ describe('Google Drive Helpers', () => {
   });
 
   describe('File Metadata Processing', () => {
-    const processFileMetadata = (file: any) => {
+    const processFileMetadata = (file: Record<string, unknown>) => {
       return {
         id: file.id,
         name: file.name,
-        cleanedName: file.name
+        cleanedName: (file.name as string)
           .replace(/^Priveles\s+/, 'Les ')
           .replace(/\s+\d{2}_\d{2}_\d{2}\.pdf$/, ''),
         modifiedTime: file.modifiedTime,

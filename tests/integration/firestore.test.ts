@@ -54,7 +54,7 @@ describe('Firestore Integration', () => {
     pinUpdatedAt: new Date(),
   };
 
-  const mockNote = {
+  const _mockNote = {
     id: 'note-id',
     studentId: 'test-student-id',
     subject: 'Wiskunde',
@@ -107,7 +107,7 @@ describe('Firestore Integration', () => {
         add: vi.fn(() => Promise.resolve({ id: 'new-student-id' })),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const studentData = {
         displayName: 'New Student',
@@ -143,7 +143,7 @@ describe('Firestore Integration', () => {
         doc: vi.fn(() => mockDoc),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const doc = mockCollection.doc('test-student-id');
       const snapshot = await doc.get();
@@ -163,7 +163,7 @@ describe('Firestore Integration', () => {
         doc: vi.fn(() => mockDocRef),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const doc = mockCollection.doc('test-student-id');
       await doc.update({ subject: 'Nederlands' });
@@ -181,7 +181,7 @@ describe('Firestore Integration', () => {
         doc: vi.fn(() => mockDocRef),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const doc = mockCollection.doc('test-student-id');
       await doc.delete();
@@ -201,7 +201,7 @@ describe('Firestore Integration', () => {
         doc: vi.fn(() => mockDocRef),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const doc = mockCollection.doc('file-1');
       await doc.set(mockFileMetadata);
@@ -223,7 +223,7 @@ describe('Firestore Integration', () => {
         get: vi.fn(() => Promise.resolve(mockSnapshot)),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const query = mockCollection.where('studentId', '==', 'test-student-id');
       const snapshot = await query.get();
@@ -240,7 +240,7 @@ describe('Firestore Integration', () => {
         add: vi.fn(() => Promise.resolve({ id: 'audit-1' })),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const result = await mockCollection.add(mockLoginAudit);
 
@@ -263,7 +263,7 @@ describe('Firestore Integration', () => {
         get: vi.fn(() => Promise.resolve(mockSnapshot)),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const query = mockCollection.where('action', '==', 'login_ok');
       const snapshot = await query.get();
@@ -283,7 +283,7 @@ describe('Firestore Integration', () => {
         return await callback({});
       });
 
-      await db.runTransaction(async (transaction) => {
+      await db.runTransaction(async (_transaction) => {
         // Transaction operations
       });
 
@@ -299,7 +299,7 @@ describe('Firestore Integration', () => {
         commit: vi.fn(() => Promise.resolve()),
       };
 
-      vi.mocked(db.batch).mockReturnValue(mockBatch as any);
+      vi.mocked(db.batch).mockReturnValue(mockBatch as unknown as ReturnType<typeof db.collection>);
 
       const batch = db.batch();
       batch.set({}, mockStudent);
@@ -330,7 +330,7 @@ describe('Firestore Integration', () => {
         get: vi.fn(() => Promise.resolve(mockSnapshot)),
       };
 
-      vi.mocked(db.collection).mockReturnValue(mockCollection as any);
+      vi.mocked(db.collection).mockReturnValue(mockCollection as unknown as ReturnType<typeof db.collection>);
 
       const query = mockCollection
         .where('subject', '==', 'Wiskunde')

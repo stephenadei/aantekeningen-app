@@ -6,7 +6,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; conceptId: string }> }
 ) {
   try {
-    const { id, conceptId } = await params;
+    const { conceptId } = await params;
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {
@@ -34,7 +34,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; conceptId: string }> }
 ) {
   try {
-    const { id, conceptId } = await params;
+    const { conceptId } = await params;
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {

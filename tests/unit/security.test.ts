@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { 
   validatePinFormat, 
   generatePin, 
@@ -121,7 +121,7 @@ describe('Security Helpers', () => {
           return headers[name] || null;
         }
       }
-    } as any;
+    } as unknown as { headers: { get: (name: string) => string | null } };
 
     it('should extract client IP correctly', () => {
       // getClientIP checks cf-connecting-ip first, then x-real-ip, then x-forwarded-for
@@ -138,7 +138,7 @@ describe('Security Helpers', () => {
             return null;
           }
         }
-      } as any;
+      } as unknown as { headers: { get: (name: string) => string | null } };
 
       const ip = getClientIP(requestWithoutForwarded);
       expect(ip).toBe('203.0.113.1');
@@ -155,7 +155,7 @@ describe('Security Helpers', () => {
         headers: {
           get: () => null
         }
-      } as any;
+      } as unknown as { headers: { get: () => null } };
 
       const ip = getClientIP(emptyRequest);
       const userAgent = getUserAgent(emptyRequest);
@@ -167,14 +167,14 @@ describe('Security Helpers', () => {
 
   describe('Edge Cases', () => {
     it('should handle null/undefined inputs', () => {
-      expect(validatePinFormat(null as any)).toBe(false);
-      expect(validatePinFormat(undefined as any)).toBe(false);
+      expect(validatePinFormat(null as unknown as string)).toBe(false);
+      expect(validatePinFormat(undefined as unknown as string)).toBe(false);
       // validateTeacherEmail throws on null/undefined due to .endsWith call
-      expect(() => validateTeacherEmail(null as any)).toThrow();
-      expect(() => validateTeacherEmail(undefined as any)).toThrow();
+      expect(() => validateTeacherEmail(null as unknown as string)).toThrow();
+      expect(() => validateTeacherEmail(undefined as unknown as string)).toThrow();
       // sanitizeInput throws on null/undefined due to .replace call
-      expect(() => sanitizeInput(null as any)).toThrow();
-      expect(() => sanitizeInput(undefined as any)).toThrow();
+      expect(() => sanitizeInput(null as unknown as string)).toThrow();
+      expect(() => sanitizeInput(undefined as unknown as string)).toThrow();
     });
 
     it('should handle very long inputs', () => {

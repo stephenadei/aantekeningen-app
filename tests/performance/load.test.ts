@@ -445,7 +445,7 @@ describe('Performance Tests', () => {
       const endTime = Date.now();
       const totalTime = endTime - startTime;
       
-      const avgResponseTime = results.reduce((sum, result: any) => sum + result.responseTime, 0) / results.length;
+      const avgResponseTime = results.reduce((sum, result: { responseTime: number }) => sum + result.responseTime, 0) / results.length;
       
       expect(totalTime).toBeLessThan(3000); // Should complete within 3 seconds
       expect(avgResponseTime).toBeLessThan(200); // Average response time under 200ms

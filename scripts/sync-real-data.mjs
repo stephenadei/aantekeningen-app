@@ -52,7 +52,7 @@ async function syncRealData() {
 
     // Test by listing files in root
     console.log('📁 Testing Drive API access...');
-    const testResponse = await drive.files.list({
+    await drive.files.list({
       pageSize: 1,
       fields: 'files(id, name)',
     });
@@ -164,7 +164,7 @@ async function syncRealData() {
     }
     
     for (const [uniqueName, student] of uniqueStudents) {
-      const dbStudent = await prisma.student.create({
+      await prisma.student.create({
         data: {
           displayName: uniqueName,
           pinHash: 'temp_hash', // Will be updated when PIN is set

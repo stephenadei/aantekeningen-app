@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { Timestamp } from 'firebase-admin/firestore';
 
 // Mock Firebase Admin
 vi.mock('@/lib/firebase-admin', () => {
@@ -57,12 +58,12 @@ describe('Share API Integration', () => {
     driveFolderName: 'Rachel Folder',
     subject: 'Wiskunde',
     pinHash: 'hashed-pin',
-    pinUpdatedAt: new Date() as any,
+    pinUpdatedAt: new Date() as unknown as Timestamp,
     folderConfirmed: true,
-    folderLinkedAt: new Date() as any,
-    folderConfirmedAt: new Date() as any,
-    createdAt: new Date() as any,
-    updatedAt: new Date() as any,
+    folderLinkedAt: new Date() as unknown as Timestamp,
+    folderConfirmedAt: new Date() as unknown as Timestamp,
+    createdAt: new Date() as unknown as Timestamp,
+    updatedAt: new Date() as unknown as Timestamp,
   };
 
   beforeEach(() => {

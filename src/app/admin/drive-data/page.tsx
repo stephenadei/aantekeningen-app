@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { RefreshCw, Folder, User, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { RefreshCw, Folder, User, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface Student {
   id: string;

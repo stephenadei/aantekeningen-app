@@ -25,7 +25,7 @@ export default function SubjectsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [, setDraggedId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',

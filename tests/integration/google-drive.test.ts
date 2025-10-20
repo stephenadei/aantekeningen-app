@@ -58,7 +58,7 @@ describe('Google Drive Integration', () => {
         getAccessToken: vi.fn(() => Promise.resolve({ token: 'mock-access-token' })),
       };
 
-      vi.mocked(google.auth.OAuth2).mockReturnValue(mockAuth as any);
+      vi.mocked(google.auth.OAuth2).mockReturnValue(mockAuth as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const auth = google.auth.OAuth2();
       await auth.getAccessToken();
@@ -73,7 +73,7 @@ describe('Google Drive Integration', () => {
         getAccessToken: vi.fn(() => Promise.reject(new Error('Authentication failed'))),
       };
 
-      vi.mocked(google.auth.OAuth2).mockReturnValue(mockAuth as any);
+      vi.mocked(google.auth.OAuth2).mockReturnValue(mockAuth as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const auth = google.auth.OAuth2();
       
@@ -95,7 +95,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       const response = await drive.files.list({
@@ -125,7 +125,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       const response = await drive.files.list({
@@ -145,7 +145,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       
@@ -168,7 +168,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       const response = await drive.files.get({
@@ -191,7 +191,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       
@@ -204,7 +204,7 @@ describe('Google Drive Integration', () => {
 
   describe('File Processing', () => {
     it('should process file metadata correctly', () => {
-      const processFileMetadata = (file: any) => {
+      const processFileMetadata = (file: Record<string, unknown>) => {
         return {
           id: file.id,
           name: file.name,
@@ -237,7 +237,7 @@ describe('Google Drive Integration', () => {
     });
 
     it('should handle different file types', () => {
-      const processFileMetadata = (file: any) => {
+      const processFileMetadata = (file: Record<string, unknown>) => {
         return {
           id: file.id,
           name: file.name,
@@ -296,7 +296,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       
@@ -315,7 +315,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       
@@ -334,7 +334,7 @@ describe('Google Drive Integration', () => {
         },
       };
 
-      vi.mocked(google.drive).mockReturnValue(mockDrive as any);
+      vi.mocked(google.drive).mockReturnValue(mockDrive as unknown as ReturnType<typeof google.auth.OAuth2>);
 
       const drive = google.drive();
       
@@ -348,7 +348,7 @@ describe('Google Drive Integration', () => {
 
   describe('Data Validation', () => {
     it('should validate file data structure', () => {
-      const validateFileData = (file: any): boolean => {
+      const validateFileData = (file: Record<string, unknown>): boolean => {
         return !!(
           file &&
           typeof file.id === 'string' &&

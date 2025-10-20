@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    await params; // id not used in current implementation
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {
@@ -33,7 +33,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    await params; // id not used in current implementation
     const { user, error } = await verifyFirebaseTokenFromCookie(request);
     
     if (error || !user || !isAuthorizedAdmin(user)) {

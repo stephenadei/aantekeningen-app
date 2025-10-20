@@ -85,6 +85,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Return student data (without sensitive information)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { pinHash, ...studentData } = student;
 
     return NextResponse.json({
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
       student: studentData,
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in student login:', error);
     
     if (error instanceof z.ZodError) {

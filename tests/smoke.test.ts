@@ -8,7 +8,6 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('Critical Smoke Tests', () => {
-  let server: any;
 
   beforeAll(async () => {
     // Start test server if needed

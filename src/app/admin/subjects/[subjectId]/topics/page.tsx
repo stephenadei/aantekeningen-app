@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Trash2, Edit2, Loader, ArrowLeft } from 'lucide-react';
@@ -35,9 +35,9 @@ export default function TopicsPage() {
     if (subjectId) {
       fetchTopics();
     }
-  }, [subjectId]);
+  }, [subjectId, fetchTopics]);
 
-  async function fetchTopics() {
+  const fetchTopics = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/admin/subjects/${subjectId}/topics`);
@@ -50,7 +50,7 @@ export default function TopicsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [subjectId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

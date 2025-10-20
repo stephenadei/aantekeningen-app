@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, FileText, Shield, TrendingUp, Folder, AlertCircle } from 'lucide-react';
+import { Users, FileText, Shield, TrendingUp, Folder } from 'lucide-react';
 import Link from 'next/link';
 
 interface DashboardStats {

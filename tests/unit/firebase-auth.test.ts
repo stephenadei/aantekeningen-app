@@ -1,8 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { 
-  isAuthorizedAdmin,
-  verifyFirebaseToken,
-  verifyFirebaseTokenFromCookie
+  isAuthorizedAdmin
 } from '@/lib/firebase-auth';
 
 // Mock the Firebase Admin SDK
@@ -83,7 +81,7 @@ describe('Firebase Auth Helpers', () => {
     it('should detect Edge Runtime', () => {
       // Mock Edge Runtime environment
       const originalProcess = global.process;
-      global.process = { ...process, env: { ...process.env, NEXT_RUNTIME: 'edge' } } as any;
+      global.process = { ...process, env: { ...process.env, NEXT_RUNTIME: 'edge' } } as unknown as NodeJS.Process;
       
       // This would be tested in the actual implementation
       // For now, we'll test the concept
@@ -96,7 +94,7 @@ describe('Firebase Auth Helpers', () => {
     it('should detect Node.js Runtime', () => {
       // Mock Node.js environment
       const originalProcess = global.process;
-      global.process = { ...process, env: { ...process.env, NEXT_RUNTIME: 'nodejs' } } as any;
+      global.process = { ...process, env: { ...process.env, NEXT_RUNTIME: 'nodejs' } } as unknown as NodeJS.Process;
       
       expect(process.env.NEXT_RUNTIME).toBe('nodejs');
       
@@ -123,7 +121,7 @@ describe('Firebase Auth Helpers', () => {
         name: validToken.name || null,
         picture: validToken.picture || null,
         emailVerified: validToken.email_verified || false,
-        customClaims: validToken.customClaims as any,
+        customClaims: validToken.customClaims as Record<string, unknown>,
       };
 
       expect(user.uid).toBe('test-uid');
@@ -147,7 +145,7 @@ describe('Firebase Auth Helpers', () => {
         name: partialToken.name || null,
         picture: partialToken.picture || null,
         emailVerified: partialToken.email_verified || false,
-        customClaims: partialToken.customClaims as any,
+        customClaims: partialToken.customClaims as Record<string, unknown> | undefined,
       };
 
       expect(user.uid).toBe('test-uid');
@@ -168,7 +166,7 @@ describe('Firebase Auth Helpers', () => {
             return null;
           }
         }
-      } as any;
+      } as unknown as { cookies: { get: (name: string) => { value: string } | null } };
 
       const cookie = mockRequest.cookies.get('__session')?.value;
       expect(cookie).toBe('mock-session-cookie');
@@ -177,9 +175,9 @@ describe('Firebase Auth Helpers', () => {
     it('should handle missing session cookie', () => {
       const mockRequest = {
         cookies: {
-          get: (name: string) => null
+          get: () => null
         }
-      } as any;
+      } as unknown as { cookies: { get: (name: string) => null } };
 
       const cookie = mockRequest.cookies.get('__session')?.value;
       expect(cookie).toBeUndefined();
@@ -191,7 +189,7 @@ describe('Firebase Auth Helpers', () => {
       const error = new Error('Token verification failed');
       
       // Test error handling logic
-      const handleError = (error: any) => {
+      const handleError = (error: Error) => {
         if (error.message?.includes('verification failed')) {
           return { user: null, error: 'Invalid token' };
         }
@@ -206,7 +204,7 @@ describe('Firebase Auth Helpers', () => {
     it('should handle network errors', () => {
       const error = new Error('Network error');
       
-      const handleError = (error: any) => {
+      const handleError = (error: Error) => {
         if (error.message?.includes('Network')) {
           return { user: null, error: 'Network error' };
         }

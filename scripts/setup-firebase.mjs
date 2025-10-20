@@ -29,10 +29,10 @@ function checkFirebaseCLI() {
 // Check if user is logged in
 function checkFirebaseLogin() {
   try {
-    const result = execSync('firebase projects:list', { stdio: 'pipe' });
+    execSync('firebase projects:list', { stdio: 'pipe' });
     console.log('✅ Je bent ingelogd bij Firebase');
     return true;
-  } catch (error) {
+  } catch {
     console.log('❌ Je bent niet ingelogd bij Firebase');
     console.log('🔐 Login met: firebase login');
     return false;
@@ -49,7 +49,7 @@ function getFirebaseProjectInfo() {
       console.log(`✅ Actief project: ${match[1]}`);
       return match[1];
     }
-  } catch (error) {
+  } catch {
     console.log('❌ Geen actief Firebase project');
     console.log('🎯 Selecteer een project met: firebase use your-project-id');
   }
