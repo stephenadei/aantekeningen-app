@@ -20,6 +20,7 @@ Een standalone Next.js applicatie voor het beheren van student aantekeningen voo
 
 - **Framework**: Next.js 15
 - **Language**: TypeScript
+- **Runtime**: Node.js 20.x LTS
 - **Styling**: Tailwind CSS
 - **Database**: Firebase Firestore
 - **Authentication**: Firebase Auth + Google OAuth2
@@ -57,6 +58,19 @@ src/
 ```
 
 ## 🔧 Setup
+
+### Prerequisites
+
+- **Node.js 20.x LTS** of hoger
+- **npm 10.x** of hoger
+
+Gebruik `nvm` om de juiste Node.js versie te installeren:
+```bash
+nvm install 20
+nvm use 20
+```
+
+### Installation
 
 1. **Clone de repository**:
    ```bash
