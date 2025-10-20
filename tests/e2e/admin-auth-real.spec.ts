@@ -16,7 +16,7 @@ test.describe('Admin Portal Real Authentication E2E', () => {
     await page.goto('/admin/login');
     
     // Check that we're on the login page
-    await expect(page).toHaveTitle(/Docentenportaal/);
+    await expect(page).toHaveTitle(/Aantekeningen - Stephen's Privelessen/);
     await expect(page.locator('h2')).toContainText('Docentenportaal');
     
     // Click the Google sign-in button
