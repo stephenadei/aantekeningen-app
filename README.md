@@ -141,6 +141,12 @@ npm run test:coverage     # Coverage report
 npm run test:summary      # Test summary
 ```
 
+### E2E Test Setup
+Voor E2E tests met Playwright, installeer eerst de browsers:
+```bash
+npx playwright install
+```
+
 ### Test Coverage
 - **Unit tests**: 80%+ coverage target
 - **Integration tests**: 70%+ coverage target

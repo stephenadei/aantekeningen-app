@@ -49,6 +49,9 @@ describe('Admin Management API Integration', () => {
   const mockAdminUser = {
     uid: 'admin-uid',
     email: 'admin@stephensprivelessen.nl',
+    name: 'Admin User',
+    picture: 'https://example.com/photo.jpg',
+    emailVerified: true,
     customClaims: { role: 'admin' }
   };
 
@@ -87,11 +90,9 @@ describe('Admin Management API Integration', () => {
         get: vi.fn().mockResolvedValue(mockSnapshot)
       } as any);
 
-      const request = new NextRequest('http://localhost:3000/api/admin/drive-data');
-
       try {
         const { GET } = await import('@/app/api/admin/drive-data/route');
-        const response = await GET(request);
+        const response = await GET();
         const data = await response.json();
 
         expect([200, 400, 500]).toContain(response.status);
