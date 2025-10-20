@@ -49,8 +49,7 @@ export interface FileMetadata {
  * Get cached data from Firestore
  */
 export async function getCachedData(
-  cacheKey: string, 
-  type: CacheType
+  cacheKey: string
 ): Promise<Record<string, unknown> | null> {
   try {
     const doc = await db.collection('driveCache').doc(cacheKey).get();
@@ -119,7 +118,7 @@ export async function setCachedData(
  */
 export async function getCachedFiles(folderId: string): Promise<Record<string, unknown>[] | null> {
   const cacheKey = `files_${folderId}`;
-  const data = await getCachedData(cacheKey, 'files');
+  const data = await getCachedData(cacheKey);
   return data ? (data as unknown as Record<string, unknown>[]) : null;
 }
 
