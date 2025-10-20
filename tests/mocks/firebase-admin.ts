@@ -23,21 +23,27 @@ export class Timestamp {
   }
 }
 
-// Mock Firestore Document Reference
-export const mockDocRef = {
-  set: vi.fn().mockResolvedValue(undefined),
-  get: vi.fn().mockResolvedValue(null),
-  update: vi.fn().mockResolvedValue(undefined),
-  delete: vi.fn().mockResolvedValue(undefined),
-  collection: vi.fn().mockReturnValue(mockCollectionRef),
-};
-
 // Mock Firestore Query
 export const mockQuery = {
   where: vi.fn().mockReturnThis(),
   orderBy: vi.fn().mockReturnThis(),
   limit: vi.fn().mockReturnThis(),
   get: vi.fn().mockResolvedValue({ docs: [] }),
+};
+
+// Mock Firestore Document Reference
+export const mockDocRef: {
+  set: ReturnType<typeof vi.fn>;
+  get: ReturnType<typeof vi.fn>;
+  update: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  collection: ReturnType<typeof vi.fn>;
+} = {
+  set: vi.fn().mockResolvedValue(undefined),
+  get: vi.fn().mockResolvedValue(null),
+  update: vi.fn().mockResolvedValue(undefined),
+  delete: vi.fn().mockResolvedValue(undefined),
+  collection: vi.fn().mockReturnValue({}),
 };
 
 // Mock Firestore Collection Reference

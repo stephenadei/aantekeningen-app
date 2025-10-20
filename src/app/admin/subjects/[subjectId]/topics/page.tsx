@@ -30,13 +30,6 @@ export default function TopicsPage() {
     description: '',
   });
 
-  // Fetch topics on mount
-  useEffect(() => {
-    if (subjectId) {
-      fetchTopics();
-    }
-  }, [subjectId, fetchTopics]);
-
   const fetchTopics = useCallback(async () => {
     try {
       setLoading(true);
@@ -51,6 +44,13 @@ export default function TopicsPage() {
       setLoading(false);
     }
   }, [subjectId]);
+
+  // Fetch topics on mount
+  useEffect(() => {
+    if (subjectId) {
+      fetchTopics();
+    }
+  }, [subjectId, fetchTopics]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

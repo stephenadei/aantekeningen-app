@@ -1,16 +1,18 @@
-import { vi } from 'vitest';
+import { vi, beforeAll } from 'vitest';
 
 // Global test setup
 beforeAll(() => {
   // Set test environment variables
-  process.env.NODE_ENV = 'test';
-  process.env.FIREBASE_PROJECT_ID = 'test-project';
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID = 'test-project';
-  process.env.NEXT_PUBLIC_FIREBASE_API_KEY = 'test-api-key';
-  process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = 'test-project.firebaseapp.com';
-  process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
-  process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
-  process.env.OPENAI_API_KEY = 'test-openai-key';
+  Object.assign(process.env, {
+    NODE_ENV: 'test',
+    FIREBASE_PROJECT_ID: 'test-project',
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: 'test-project',
+    NEXT_PUBLIC_FIREBASE_API_KEY: 'test-api-key',
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: 'test-project.firebaseapp.com',
+    GOOGLE_CLIENT_ID: 'test-google-client-id',
+    GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
+    OPENAI_API_KEY: 'test-openai-key',
+  });
 });
 
 // Mock console methods to reduce noise in tests
