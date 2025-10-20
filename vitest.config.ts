@@ -19,7 +19,7 @@ export default defineConfig({
       '**/tests/e2e/**' // Exclude Playwright E2E tests from Vitest
     ],
     coverage: {
-      provider: 'c8',
+      provider: 'v8',
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
