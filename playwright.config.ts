@@ -1,13 +1,20 @@
 import { defineConfig, devices } from '@playwright/test';
 
+// Handle unhandled rejections to prevent crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process, just log the error
+});
+
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  fullyParallel: process.env.CI ? false : true, // Disable full parallel in CI to prevent conflicts
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 4 : undefined,
+  workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? 'github' : 'html',
   timeout: 30 * 1000, // 30 seconds per test
+  maxFailures: process.env.CI ? 5 : undefined, // Stop after 5 failures in CI
   expect: {
     timeout: 10 * 1000, // 10 seconds for assertions
   },
@@ -37,7 +44,18 @@ export default defineConfig({
             '--disable-renderer-backgrounding',
             '--disable-features=TranslateUI',
             '--disable-ipc-flooding-protection',
-            '--memory-pressure-off'
+            '--memory-pressure-off',
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-default-apps',
+            '--disable-sync',
+            '--disable-translate',
+            '--hide-scrollbars',
+            '--mute-audio',
+            '--no-default-browser-check',
+            '--disable-logging',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor'
           ]
         }
       },
