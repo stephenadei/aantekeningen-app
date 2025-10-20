@@ -273,7 +273,8 @@ describe('Google Drive Integration', () => {
     it('should handle cache expiration', () => {
       const isCacheExpired = (timestamp: number, ttl: number = 600000): boolean => {
         // TTL = 10 minutes (600 seconds)
-        return Date.now() - timestamp > ttl;
+        // Cache is expired if age >= TTL (matches real implementation)
+        return Date.now() - timestamp >= ttl;
       };
 
       const now = Date.now();
@@ -282,7 +283,7 @@ describe('Google Drive Integration', () => {
 
       // Five minutes ago is still within 10 minute TTL
       expect(isCacheExpired(fiveMinutesAgo)).toBe(false); // 5 min within 10 min TTL
-      expect(isCacheExpired(tenMinutesAgo)).toBe(false); // 10 min is at the boundary
+      expect(isCacheExpired(tenMinutesAgo)).toBe(true); // 10 min is at the boundary - should be expired
       expect(isCacheExpired(now - 700000)).toBe(true); // 700 seconds is beyond TTL
     });
   });
