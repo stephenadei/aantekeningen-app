@@ -133,7 +133,7 @@ describe('Folder Management API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         doc: vi.fn().mockReturnValue(mockRef)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/folders/folder-123/link', {
         method: 'POST',
@@ -167,7 +167,7 @@ describe('Folder Management API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         doc: vi.fn().mockReturnValue(mockRef)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/folders/folder-123/confirm', {
         method: 'POST',
@@ -194,7 +194,7 @@ describe('Folder Management API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         doc: vi.fn().mockReturnValue(mockRef)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/folders/folder-123/reject', {
         method: 'POST',

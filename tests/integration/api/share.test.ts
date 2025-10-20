@@ -54,9 +54,15 @@ describe('Share API Integration', () => {
     id: 'student-123',
     displayName: 'Rachel',
     driveFolderId: 'drive-folder-123',
+    driveFolderName: 'Rachel Folder',
     subject: 'Wiskunde',
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    pinHash: 'hashed-pin',
+    pinUpdatedAt: new Date() as any,
+    folderConfirmed: true,
+    folderLinkedAt: new Date() as any,
+    folderConfirmedAt: new Date() as any,
+    createdAt: new Date() as any,
+    updatedAt: new Date() as any,
   };
 
   beforeEach(() => {
@@ -79,9 +85,9 @@ describe('Share API Integration', () => {
         const response = await GET(request, { params: Promise.resolve({ id: 'student-123' }) });
 
         expect([200, 400, 500]).toContain(response.status);
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If route doesn't exist, test passes - it's a structure issue, not a mock issue
-        expect(error?.message).toContain('Cannot find module');
+        expect((error as Error)?.message).toContain('Cannot find module');
       }
     });
 
@@ -96,8 +102,8 @@ describe('Share API Integration', () => {
         const response = await GET(request, { params: Promise.resolve({ id: 'nonexistent' }) });
 
         expect([404, 500]).toContain(response.status);
-      } catch (error: any) {
-        expect(error?.message).toContain('Cannot find module');
+      } catch (error: unknown) {
+        expect((error as Error)?.message).toContain('Cannot find module');
       }
     });
 
@@ -112,8 +118,8 @@ describe('Share API Integration', () => {
         const response = await GET(request, { params: Promise.resolve({ id: 'student-123' }) });
 
         expect([500, 400]).toContain(response.status);
-      } catch (error: any) {
-        expect(error?.message).toContain('Cannot find module');
+      } catch (error: unknown) {
+        expect((error as Error)?.message).toContain('Cannot find module');
       }
     });
 
@@ -125,8 +131,8 @@ describe('Share API Integration', () => {
         const response = await GET(request, { params: Promise.resolve({ id: 'invalid' }) });
 
         expect([200, 400, 404, 500]).toContain(response.status);
-      } catch (error: any) {
-        expect(error?.message).toContain('Cannot find module');
+      } catch (error: unknown) {
+        expect((error as Error)?.message).toContain('Cannot find module');
       }
     });
   });

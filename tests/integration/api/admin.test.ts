@@ -97,9 +97,9 @@ describe('Admin Management API Integration', () => {
 
         expect([200, 400, 500]).toContain(response.status);
         expect(data).toBeDefined();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If route doesn't exist or import fails, test passes - it's a structure issue
-        expect(error?.message).toBeDefined();
+        expect((error as Error)?.message).toBeDefined();
       }
     });
   });

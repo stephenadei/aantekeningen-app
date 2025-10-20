@@ -428,14 +428,14 @@ describe('AI Analysis Integration', () => {
 
   describe('Data Validation', () => {
     it('should validate analysis result structure', () => {
-      const validateAnalysisResult = (result: any): boolean => {
+      const validateAnalysisResult = (result: unknown): boolean => {
         return !!(
           result &&
-          typeof result.subject === 'string' &&
-          Array.isArray(result.topics) &&
-          Array.isArray(result.keyConcepts) &&
-          typeof result.difficulty === 'string' &&
-          typeof result.summary === 'string'
+          typeof (result as Record<string, unknown>).subject === 'string' &&
+          Array.isArray((result as Record<string, unknown>).topics) &&
+          Array.isArray((result as Record<string, unknown>).keyConcepts) &&
+          typeof (result as Record<string, unknown>).difficulty === 'string' &&
+          typeof (result as Record<string, unknown>).summary === 'string'
         );
       };
 

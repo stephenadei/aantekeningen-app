@@ -97,7 +97,7 @@ describe('Subjects API Integration', () => {
         orderBy: vi.fn().mockReturnValue({
           get: vi.fn().mockResolvedValue(mockSnapshot)
         })
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects');
       const { GET } = await import('@/app/api/admin/subjects/route');
@@ -123,7 +123,7 @@ describe('Subjects API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         doc: vi.fn().mockReturnValue(mockRef)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects', {
         method: 'POST',
@@ -175,7 +175,7 @@ describe('Subjects API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         doc: vi.fn().mockReturnValue(mockRef)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects/primair-onderwijs', {
         method: 'PUT',
@@ -206,7 +206,7 @@ describe('Subjects API Integration', () => {
 
       vi.mocked(db.collection).mockReturnValue({
         doc: vi.fn().mockReturnValue(mockRef)
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects/primair-onderwijs', {
         method: 'DELETE',
@@ -237,7 +237,7 @@ describe('Subjects API Integration', () => {
             })
           })
         })
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects/primair-onderwijs/topics');
 
@@ -262,7 +262,7 @@ describe('Subjects API Integration', () => {
         doc: vi.fn().mockReturnValue({
           collection: vi.fn().mockReturnValue(mockRef)
         })
-      } as any);
+      } as unknown as ReturnType<typeof db.collection>);
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects/primair-onderwijs/topics', {
         method: 'POST',
