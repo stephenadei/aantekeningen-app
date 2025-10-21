@@ -1,4 +1,30 @@
 import { google } from 'googleapis';
+import { 
+  DriveFileId,
+  DriveFolderId,
+  FileName,
+  CleanFileName,
+  DriveUrl,
+  DownloadUrl,
+  ViewUrl,
+  ThumbnailUrl,
+  Subject,
+  Topic,
+  Level,
+  SchoolYear,
+  StudentName,
+  FolderName,
+  createDriveFolderId,
+  createStudentName,
+  createSubject,
+  createDriveUrl,
+  createDriveFileId,
+  createFileName,
+  createCleanFileName,
+  createDownloadUrl,
+  createViewUrl,
+  createThumbnailUrl
+} from './types';
 
 // Google Drive API configuration
 // const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
@@ -21,27 +47,27 @@ const CACHE_KEY_METADATA = 'cached_metadata';
 const memoryCache = new Map<string, { data: Record<string, unknown>; timestamp: number }>();
 
 export interface Student {
-  id: string;
-  name: string;
-  subject: string;
-  url: string;
+  id: DriveFolderId;
+  name: StudentName;
+  subject: Subject;
+  url: DriveUrl;
 }
 
 export interface FileInfo {
-  id: string;
-  name: string;
-  title: string;
-  url: string;
-  downloadUrl: string;
-  viewUrl: string;
-  thumbnailUrl: string;
+  id: DriveFileId;
+  name: FileName;
+  title: CleanFileName;
+  url: DriveUrl;
+  downloadUrl: DownloadUrl;
+  viewUrl: ViewUrl;
+  thumbnailUrl: ThumbnailUrl;
   modifiedTime: string;
   size: number;
   // AI-generated metadata
-  subject?: string;
-  topic?: string;
-  level?: string;
-  schoolYear?: string;
+  subject?: Subject;
+  topic?: Topic;
+  level?: Level;
+  schoolYear?: SchoolYear;
   keywords?: string[];
   summary?: string;
   summaryEn?: string;
@@ -55,11 +81,11 @@ export interface StudentOverview {
   lastActivity: string | null;
   lastActivityDate: string;
   lastFile?: {
-    id: string;
-    name: string;
-    title: string;
-    subject?: string;
-    topic?: string;
+    id: DriveFileId;
+    name: FileName;
+    title: CleanFileName;
+    subject?: Subject;
+    topic?: Topic;
     summary?: string;
     modifiedTime: string;
   };
@@ -260,10 +286,10 @@ class GoogleDriveService {
           for (const studentFolder of studentFolders.data.files || []) {
             if (studentFolder.id && studentFolder.name) {
               allStudents.push({
-                id: studentFolder.id,
-                name: studentFolder.name,
-                subject: subjectName,
-                url: `https://drive.google.com/drive/folders/${studentFolder.id}`
+                id: createDriveFolderId(studentFolder.id),
+                name: createStudentName(studentFolder.name),
+                subject: createSubject(subjectName),
+                url: createDriveUrl(`https://drive.google.com/drive/folders/${studentFolder.id}`)
               });
             }
           }
@@ -355,13 +381,13 @@ class GoogleDriveService {
           const aiAnalysis = await this.analyzeDocumentWithAI(fileName);
           
           fileList.push({
-            id: typedFile.id,
-            name: fileName,
-            title: cleanTitle,
-            url: `https://drive.google.com/file/d/${typedFile.id}/view`,
-            downloadUrl: `https://drive.google.com/uc?export=download&id=${typedFile.id}`,
-            viewUrl: `https://drive.google.com/file/d/${typedFile.id}/view?usp=sharing`,
-            thumbnailUrl: `https://drive.google.com/thumbnail?id=${typedFile.id}&sz=w400-h400`,
+            id: createDriveFileId(typedFile.id),
+            name: createFileName(fileName),
+            title: createCleanFileName(cleanTitle),
+            url: createDriveUrl(`https://drive.google.com/file/d/${typedFile.id}/view`),
+            downloadUrl: createDownloadUrl(`https://drive.google.com/uc?export=download&id=${typedFile.id}`),
+            viewUrl: createViewUrl(`https://drive.google.com/file/d/${typedFile.id}/view?usp=sharing`),
+            thumbnailUrl: createThumbnailUrl(`https://drive.google.com/thumbnail?id=${typedFile.id}&sz=w400-h400`),
             modifiedTime: typedFile.modifiedTime,
             size: parseInt(typedFile.size || '0'),
             // AI-generated metadata
@@ -463,7 +489,7 @@ class GoogleDriveService {
             };
           }
         
-          const lastFile = files[0]; // Files are sorted by date, newest first
+          const lastFile: FileInfo = files[0]; // Files are sorted by date, newest first
           
           // Try to get lesson date from filename, fallback to modified time
           const lessonDate = this.extractDateFromFilename(lastFile.name);
@@ -486,7 +512,7 @@ class GoogleDriveService {
             lastFile: {
               id: lastFile.id,
               name: lastFile.name,
-              title: this.cleanFileName(lastFile.name),
+              title: createCleanFileName(this.cleanFileName(lastFile.name)),
               subject: lastFile.subject,
               topic: lastFile.topic,
               summary: lastFile.summary,
@@ -546,9 +572,9 @@ class GoogleDriveService {
         lastActivity: lastFile.modifiedTime,
         lastActivityDate: lastActivityDate,
         lastFile: {
-          id: lastFile.id,
-          name: fileName,
-          title: this.cleanFileName(fileName),
+          id: createDriveFileId(lastFile.id),
+          name: createFileName(lastFile.name),
+          title: createCleanFileName(this.cleanFileName(fileName)),
           subject: aiAnalysis.subject,
           topic: aiAnalysis.topic,
           summary: aiAnalysis.summary,
@@ -893,10 +919,10 @@ class GoogleDriveService {
           if (!studentFolder.id || !studentFolder.name) continue;
           
           allStudents.push({
-            id: studentFolder.id,
-            name: studentFolder.name,
-            subject: subjectName as string,
-            url: `https://drive.google.com/drive/folders/${studentFolder.id}`
+            id: createDriveFolderId(studentFolder.id),
+            name: createStudentName(studentFolder.name),
+            subject: createSubject(subjectName as string),
+            url: createDriveUrl(`https://drive.google.com/drive/folders/${studentFolder.id}`)
           });
         }
       }

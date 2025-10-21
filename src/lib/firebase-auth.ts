@@ -1,5 +1,12 @@
 import { NextRequest } from 'next/server';
 import { validateTeacherEmail } from './security';
+import { 
+  TeacherEmail, 
+  TeacherId,
+  Result,
+  Ok,
+  Err
+} from './types';
 
 // Runtime detection to prevent Edge Runtime usage
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,8 +33,8 @@ if (!isEdgeRuntime) {
 }
 
 export interface FirebaseUser {
-  uid: string;
-  email: string | null;
+  uid: TeacherId;
+  email: TeacherEmail | null;
   name: string | null;
   picture: string | null;
   emailVerified: boolean;
@@ -58,8 +65,8 @@ export async function verifyFirebaseToken(request: NextRequest): Promise<AuthRes
     const decodedToken = await auth.verifyIdToken!(token);
     
     const user: FirebaseUser = {
-      uid: decodedToken.uid as string,
-      email: (decodedToken.email as string) || null,
+      uid: decodedToken.uid as TeacherId,
+      email: (decodedToken.email as TeacherEmail) || null,
       name: (decodedToken.name as string) || null,
       picture: (decodedToken.picture as string) || null,
       emailVerified: (decodedToken.email_verified as boolean) || false,
@@ -91,8 +98,8 @@ export async function verifyFirebaseTokenFromCookie(request: NextRequest): Promi
     const decodedClaims = await auth.verifySessionCookie!(sessionCookie, true);
     
     const user: FirebaseUser = {
-      uid: decodedClaims.uid as string,
-      email: (decodedClaims.email as string) || null,
+      uid: decodedClaims.uid as TeacherId,
+      email: (decodedClaims.email as TeacherEmail) || null,
       name: (decodedClaims.name as string) || null,
       picture: (decodedClaims.picture as string) || null,
       emailVerified: (decodedClaims.email_verified as boolean) || false,
@@ -113,7 +120,8 @@ export function isAuthorizedAdmin(user: FirebaseUser | null): boolean {
   if (!user || !user.email) return false;
   
   // Check if email is from allowed domain
-  if (!validateTeacherEmail(user.email)) return false;
+  const emailValidation = validateTeacherEmail(user.email);
+  if (!emailValidation.success) return false;
   
   // Check custom claims for role
   if (user.customClaims?.role && !['admin', 'staff'].includes(user.customClaims.role as string)) {
@@ -146,8 +154,8 @@ export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
   try {
     const userRecord = await auth.getUser(uid);
     return {
-      uid: userRecord.uid,
-      email: userRecord.email || null,
+      uid: userRecord.uid as TeacherId,
+      email: (userRecord.email as TeacherEmail) || null,
       name: userRecord.displayName || null,
       picture: userRecord.photoURL || null,
       emailVerified: userRecord.emailVerified,

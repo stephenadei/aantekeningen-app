@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStudentByName, createLoginAudit } from '@/lib/firestore';
 import { validatePinFormat, verifyPin, getClientIP, getUserAgent } from '@/lib/security';
+import { createStudentName, createPin, isOk } from '@/lib/types';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -22,9 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Find student by display name
-    const student = await getStudentByName(displayName);
+    const studentResult = await getStudentByName(createStudentName(displayName));
 
-    if (!student) {
+    if (!isOk(studentResult)) {
       // Log failed attempt
       await createLoginAudit({
         who: `student:${displayName}`,
@@ -45,8 +46,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const student = studentResult.data;
+
     // Verify PIN
-    const isValidPin = await verifyPin(pin, student.pinHash);
+    const isValidPin = await verifyPin(createPin(pin), student.pinHash);
 
     if (!isValidPin) {
       // Log failed attempt

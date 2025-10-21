@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download, Filter } from 'lucide-react';
+import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download, Filter, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useNativeShare } from '@/hooks/useNativeShare';
-import FilterModal from '@/components/ui/FilterModal';
-import FilterSection from '@/components/ui/FilterSection';
-import DateRangeFilter from '@/components/ui/DateRangeFilter';
+import Sidebar from '@/components/ui/Sidebar';
+import FilterSidebarContent from '@/components/ui/FilterSidebarContent';
 import FilterPills from '@/components/ui/FilterPill';
+import Thumbnail from '@/components/ui/Thumbnail';
 import { 
   applyFilters, 
   extractUniqueValues, 
@@ -16,7 +16,8 @@ import {
   getActiveFilterCount,
   serializeFilters,
   deserializeFilters,
-  type FilterState 
+  type FilterState,
+  type FileInfo
 } from '@/lib/filterUtils';
 
 interface Student {
@@ -41,26 +42,6 @@ interface StudentOverview {
   };
 }
 
-interface FileInfo {
-  id: string;
-  name: string;
-  title: string;
-  url: string;
-  downloadUrl: string;
-  thumbnailUrl: string;
-  viewUrl: string;
-  modifiedTime: string;
-  size: number;
-  subject?: string;
-  topic?: string;
-  level?: string;
-  schoolYear?: string;
-  keywords?: string[];
-  summary?: string;
-  summaryEn?: string;
-  topicEn?: string;
-  keywordsEn?: string[];
-}
 
 export default function AantekeningenPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,7 +59,7 @@ export default function AantekeningenPage() {
   const { isSupported: isNativeShareSupported, share: nativeShare, isSharing } = useNativeShare();
   
   // New advanced filter states
-  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     subjects: [],
     topics: [],
@@ -246,8 +227,8 @@ export default function AantekeningenPage() {
             setCacheLoading(false);
           }
         } else {
-          console.log('📁 Student has no files yet (empty folder)');
-          // Don't set an error - empty folders are a valid state
+          console.log('❌ Student has no files - this should not happen if student was found');
+          setError('Er zijn geen aantekeningen gevonden voor deze student. Dit kan een tijdelijk probleem zijn.');
           setCacheLoading(false);
         }
       } else {
@@ -577,33 +558,54 @@ export default function AantekeningenPage() {
   }, [filters]);
 
   return (
-    <div className="min-h-screen bg-yellow-300 dark:bg-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-500 dark:from-yellow-600 dark:via-yellow-700 dark:to-amber-700 relative">
+      {/* Graduation Cap Watermark Pattern */}
+      <div className="absolute inset-0 opacity-5 pointer-events-none">
+        <div className="absolute top-10 left-10 w-16 h-16 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute top-32 right-20 w-12 h-12 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute bottom-20 left-1/4 w-14 h-14 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute bottom-40 right-1/3 w-10 h-10 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute top-1/2 left-10 w-8 h-8 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+      </div>
       <div className="container mx-auto px-4 py-8">
         {!selectedStudent ? (
           /* Search Interface */
           <div className="max-w-2xl mx-auto">
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-6 border-4 border-blue-900 dark:border-yellow-300">
+            <div className="bg-blue-800/90 backdrop-blur-xl rounded-lg shadow-md p-6 border-4 border-blue-700/20">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-blue-900 dark:text-yellow-300">Zoek je aantekeningen</h2>
+                <div className="flex items-center space-x-3">
+                  <GraduationCap className="h-8 w-8 text-yellow-300" />
+                  <h2 className="text-2xl font-bold text-yellow-100">Zoek je aantekeningen</h2>
+                </div>
                 <DarkModeToggle />
               </div>
               
               <div className="flex gap-2 mb-4">
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-600 w-5 h-5" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                     placeholder="Typ je naam om je aantekeningen te vinden..."
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400"
+                    className="w-full pl-10 pr-4 py-3 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent bg-yellow-100 text-blue-900 placeholder-blue-600"
                   />
                 </div>
                 <button
                   onClick={() => handleSearch()}
                   disabled={loading || !searchQuery.trim()}
-                  className="px-6 py-3 bg-blue-900 text-yellow-300 font-bold rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                  className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 font-bold rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200"
                 >
                   {loading ? (
                     <>
@@ -621,35 +623,35 @@ export default function AantekeningenPage() {
               
               {!hasSearched && searchQuery && (
                 <div className="mb-4 text-center">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-yellow-200">
                     Druk op Enter of klik op &quot;Zoeken&quot; om te zoeken
                   </p>
                 </div>
               )}
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6" role="alert" aria-live="assertive">
+                <div className="bg-red-100 border border-red-300 rounded-lg p-4 mb-6" role="alert" aria-live="assertive">
                   <p className="text-red-800">{error}</p>
                 </div>
               )}
 
               {students.length > 0 && (
                 <section className="space-y-3" role="region" aria-labelledby="results-heading">
-                  <h3 id="results-heading" className="font-medium text-gray-700">
+                  <h3 id="results-heading" className="font-medium text-yellow-200">
                     {students.length} {students.length === 1 ? 'student gevonden' : 'studenten gevonden'}
                   </h3>
                   {students.map((student) => (
                     <div
                       key={student.id}
-                      className="p-4 border-2 border-blue-900 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900 dark:hover:bg-opacity-10 transition-colors bg-white dark:bg-slate-800"
+                      className="p-4 border-2 border-yellow-300 rounded-lg hover:bg-yellow-100/20 transition-colors bg-blue-800/90 backdrop-blur-sm"
                     >
                       <div className="flex items-center justify-between">
                         <div 
                           onClick={() => handleStudentSelect(student)}
                           className="flex-1 cursor-pointer"
                         >
-                          <h4 className="font-bold text-lg text-blue-900 dark:text-yellow-300">{student.displayName}</h4>
-                          <p className="text-blue-700 dark:text-yellow-200">{student.subject}</p>
+                          <h4 className="font-bold text-lg text-yellow-100">{student.displayName}</h4>
+                          <p className="text-yellow-200">{student.subject}</p>
                         </div>
                         <div className="flex items-center space-x-2">
                           <button
@@ -657,12 +659,12 @@ export default function AantekeningenPage() {
                               e.stopPropagation();
                               handleShareStudent(student);
                             }}
-                            className="p-2 text-blue-900 hover:text-yellow-500 transition-colors hover:bg-yellow-100 dark:hover:bg-blue-900 rounded-full"
+                            className="p-2 text-yellow-300 hover:text-yellow-100 transition-colors hover:bg-yellow-500/20 rounded-full"
                             title="Deel link"
                           >
                             <Share2 className="w-4 h-4" />
                           </button>
-                          <div className="text-gray-400">
+                          <div className="text-yellow-300">
                             <User className="w-6 h-6" />
                           </div>
                         </div>
@@ -674,8 +676,8 @@ export default function AantekeningenPage() {
 
               {students.length === 0 && !loading && hasSearched && searchQuery && (
                 <div className="text-center py-8" role="status" aria-live="polite">
-                  <p className="text-gray-600 mb-2">Geen studenten gevonden</p>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-yellow-200 mb-2">Geen studenten gevonden</p>
+                  <p className="text-sm text-yellow-300 mb-4">
                     Probeer een andere naam of controleer de spelling.
                   </p>
                   <button
@@ -685,7 +687,7 @@ export default function AantekeningenPage() {
                       setError(null);
                       setHasSearched(false);
                     }}
-                    className="text-blue-600 hover:text-blue-800 text-sm underline"
+                    className="text-yellow-300 hover:text-yellow-100 text-sm underline"
                   >
                     Opnieuw zoeken
                   </button>
@@ -694,12 +696,12 @@ export default function AantekeningenPage() {
             </div>
 
             {/* Privacy Notice */}
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="mt-6 bg-blue-800/90 backdrop-blur-xl border border-blue-700/20 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <div className="text-blue-600 text-xl">🔒</div>
+                <div className="text-yellow-300 text-xl">🔒</div>
                 <div>
-                  <h4 className="font-medium text-blue-800 mb-1">Privacy</h4>
-                  <p className="text-blue-700 text-sm">
+                  <h4 className="font-medium text-yellow-100 mb-1">Privacy</h4>
+                  <p className="text-yellow-200 text-sm">
                     Alleen je voornaam wordt gebruikt om je aantekeningen te vinden. 
                     Ouders kunnen de voornaam van hun kind gebruiken.
                   </p>
@@ -711,11 +713,11 @@ export default function AantekeningenPage() {
           /* Student Files Interface */
           <div>
             {/* Student Header */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div className="bg-blue-800/90 backdrop-blur-xl rounded-lg shadow-md p-6 mb-6 border border-blue-700/20">
               <div className="flex items-center justify-between mb-4">
                 <button
                   onClick={handleBackToSearch}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+                  className="flex items-center gap-2 text-yellow-300 hover:text-yellow-100 transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Terug naar zoeken
@@ -725,8 +727,8 @@ export default function AantekeningenPage() {
                     onClick={() => setViewMode('list')}
                     className={`px-3 py-1 rounded text-sm ${
                       viewMode === 'list' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-yellow-500 text-blue-900' 
+                        : 'bg-yellow-100 text-blue-900 hover:bg-yellow-200'
                     }`}
                   >
                     Lijst
@@ -735,8 +737,8 @@ export default function AantekeningenPage() {
                     onClick={() => setViewMode('grid')}
                     className={`px-3 py-1 rounded text-sm ${
                       viewMode === 'grid' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        ? 'bg-yellow-500 text-blue-900' 
+                        : 'bg-yellow-100 text-blue-900 hover:bg-yellow-200'
                     }`}
                   >
                     Grid
@@ -746,15 +748,15 @@ export default function AantekeningenPage() {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                    <User className="w-8 h-8 text-blue-600" />
+                  <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-full flex items-center justify-center">
+                    <User className="w-8 h-8 text-blue-900" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold">{selectedStudent.displayName}</h2>
-                    <p className="text-gray-600">{selectedStudent.subject}</p>
+                    <h2 className="text-2xl font-bold text-yellow-100">{selectedStudent.displayName}</h2>
+                    <p className="text-yellow-200">{selectedStudent.subject}</p>
                     {studentOverview && (
                       <div className="mt-2">
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex items-center gap-4 text-sm text-yellow-300">
                           <span className="flex items-center gap-1">
                             <FileText className="w-4 h-4" />
                             {studentOverview.fileCount} bestanden
@@ -767,28 +769,28 @@ export default function AantekeningenPage() {
                         
                         {/* Laatste aantekening details */}
                         {studentOverview.lastFile && (
-                          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="mt-3 p-3 bg-yellow-100/20 rounded-lg border border-yellow-300/30">
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
-                                <h3 className="font-medium text-blue-900 text-sm">
+                                <h3 className="font-medium text-yellow-100 text-sm">
                                   Laatste aantekening
                                 </h3>
-                                <p className="text-blue-800 font-medium text-sm mt-1">
+                                <p className="text-yellow-200 font-medium text-sm mt-1">
                                   {studentOverview.lastFile.title}
                                 </p>
                                 {studentOverview.lastFile.subject && studentOverview.lastFile.topic && (
-                                  <p className="text-blue-700 text-xs mt-1">
+                                  <p className="text-yellow-300 text-xs mt-1">
                                     {studentOverview.lastFile.subject} • {studentOverview.lastFile.topic}
                                   </p>
                                 )}
                                 {studentOverview.lastFile.summary && (
-                                  <p className="text-blue-600 text-xs mt-2 line-clamp-2">
+                                  <p className="text-yellow-200 text-xs mt-2 line-clamp-2">
                                     {studentOverview.lastFile.summary}
                                   </p>
                                 )}
                               </div>
                               <div className="ml-3">
-                                <FileText className="w-5 h-5 text-blue-600" />
+                                <FileText className="w-5 h-5 text-yellow-300" />
                               </div>
                             </div>
                           </div>
@@ -802,7 +804,7 @@ export default function AantekeningenPage() {
                   <button
                     onClick={() => handleShareStudent(selectedStudent)}
                     disabled={isSharing}
-                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
                     {isSharing ? (
                       <>
@@ -844,13 +846,13 @@ export default function AantekeningenPage() {
                 {/* Filter Button and Pills */}
                 <div className="flex flex-wrap items-center gap-3">
                   <button
-                    onClick={() => setIsFilterModalOpen(true)}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-navy-900 text-white rounded-lg hover:bg-navy-800 transition-colors font-medium"
+                    onClick={() => setIsFilterSidebarOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 text-yellow-100 rounded-lg hover:bg-blue-800 transition-colors font-medium"
                   >
                     <Filter className="w-4 h-4" />
                     Filters
                     {getActiveFilterCount(filters) > 0 && (
-                      <span className="ml-1 inline-flex items-center justify-center w-6 h-6 bg-yellow-300 text-navy-900 rounded-full text-xs font-bold">
+                      <span className="ml-1 inline-flex items-center justify-center w-6 h-6 bg-yellow-300 text-blue-900 rounded-full text-xs font-bold">
                         {getActiveFilterCount(filters)}
                       </span>
                     )}
@@ -868,157 +870,81 @@ export default function AantekeningenPage() {
                   )}
                 </div>
 
-                {/* Sort Options */}
-                <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-4 rounded-lg">
-                  <label className="text-sm font-medium text-gray-700">Sorteer:</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-900"
-                  >
-                    <option value="date">Datum</option>
-                    <option value="name">Naam</option>
-                    <option value="subject">Vak</option>
-                    <option value="topic">Onderwerp</option>
-                  </select>
-
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                    className="px-3 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-navy-900"
-                  >
-                    <option value="desc">Nieuwste eerst</option>
-                    <option value="asc">Oudste eerst</option>
-                  </select>
-
-                  <span className="text-sm text-gray-600 ml-auto">
+                {/* File Count */}
+                <div className="flex justify-between items-center bg-blue-800/90 backdrop-blur-sm p-4 rounded-lg border border-blue-700/20">
+                  <span className="text-sm text-yellow-200">
                     {filteredAndSortedFiles.length} van {files.length} bestanden
                   </span>
+                  <div className="flex gap-2">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
+                      className="px-3 py-1 text-sm border border-yellow-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-100 text-blue-900"
+                    >
+                      <option value="date">Datum</option>
+                      <option value="name">Naam</option>
+                      <option value="subject">Vak</option>
+                      <option value="topic">Onderwerp</option>
+                    </select>
+
+                    <select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                      className="px-3 py-1 text-sm border border-yellow-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-100 text-blue-900"
+                    >
+                      <option value="desc">Nieuwste eerst</option>
+                      <option value="asc">Oudste eerst</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Filter Modal */}
-            <FilterModal
-              isOpen={isFilterModalOpen}
-              onClose={() => setIsFilterModalOpen(false)}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-              currentFilters={filters}
+            {/* Filter Sidebar */}
+            <Sidebar
+              isOpen={isFilterSidebarOpen}
+              onClose={() => setIsFilterSidebarOpen(false)}
+              title="Filters"
+              width="lg"
             >
-              {/* Subject Filter Section */}
-              <FilterSection
-                title="Vakken"
-                items={subjectItems}
-                selectedValues={filters.subjects}
-                onSelectionChange={(values) => setFilters(prev => ({ ...prev, subjects: values }))}
-                defaultExpanded={true}
+              <FilterSidebarContent
+                currentFilters={filters}
+                onApply={handleApplyFilters}
+                onClear={handleClearFilters}
+                subjectItems={subjectItems}
+                topicItems={topicItems}
+                levelItems={levelItems}
+                schoolYearItems={schoolYearItems}
+                keywordItems={keywordItems}
               />
-
-              {/* Topic Filter Section */}
-              <FilterSection
-                title="Onderwerpen"
-                items={topicItems}
-                selectedValues={filters.topics}
-                onSelectionChange={(values) => setFilters(prev => ({ ...prev, topics: values }))}
-              />
-
-              {/* Level Filter Section */}
-              <FilterSection
-                title="Niveaus"
-                items={levelItems}
-                selectedValues={filters.levels}
-                onSelectionChange={(values) => setFilters(prev => ({ ...prev, levels: values }))}
-              />
-
-              {/* School Year Filter Section */}
-              <FilterSection
-                title="Schooljaren"
-                items={schoolYearItems}
-                selectedValues={filters.schoolYears}
-                onSelectionChange={(values) => setFilters(prev => ({ ...prev, schoolYears: values }))}
-              />
-
-              {/* Keywords Filter Section */}
-              <FilterSection
-                title="Trefwoorden"
-                items={keywordItems}
-                selectedValues={filters.keywords}
-                onSelectionChange={(values) => setFilters(prev => ({ ...prev, keywords: values }))}
-              />
-
-              {/* Date Range Filter */}
-              <div className="border-b border-gray-200 pb-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Datumbereik</h3>
-                <DateRangeFilter
-                  value={filters.dateRange}
-                  onChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
-                />
-              </div>
-
-              {/* Search Text */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Zoeken</label>
-                <input
-                  type="text"
-                  placeholder="Zoek op naam, titel, onderwerp..."
-                  value={filters.searchText}
-                  onChange={(e) => setFilters(prev => ({ ...prev, searchText: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </FilterModal>
+            </Sidebar>
 
             {loading ? (
               <div className="flex items-center justify-center py-12" role="status" aria-live="polite" aria-label="Loading files">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
                 <span className="ml-2 text-gray-600">Bestanden laden...</span>
               </div>
-            ) : files.length > 0 ? (
+            ) : (
               /* Files Display */
               <section className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'} role="list" aria-label="Student files">
                 {filteredAndSortedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className={`bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${
+                    className={`bg-blue-800/90 backdrop-blur-sm rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${
                       viewMode === 'list' ? 'flex items-center p-4' : 'p-4'
                     }`}
                   >
                     {viewMode === 'grid' ? (
                       <div>
-                        <div className="aspect-video bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl as string, '_blank')}>
-                          {file.thumbnailUrl ? (
-                            <img 
-                              src={file.thumbnailUrl} 
-                              alt={file.title}
-                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                              onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                                console.log('❌ Thumbnail failed to load for:', file.title);
-                                // Try placeholder as fallback
-                                const img = e.currentTarget as HTMLImageElement;
-                                if (!img.src.includes('/api/placeholder/')) {
-                                  img.src = `/api/placeholder/${file.id}`;
-                                } else {
-                                  // If placeholder also fails, show the icon
-                                  img.style.display = 'none';
-                                  const nextElement = img.nextElementSibling as HTMLElement;
-                                  if (nextElement) {
-                                    nextElement.style.display = 'flex';
-                                  }
-                                }
-                              }}
-                              onLoad={() => {
-                                console.log('✅ Thumbnail loaded for:', file.title);
-                              }}
-                            />
-                          ) : null}
-                          <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
-                            <div className="text-center">
-                              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                              <p className="text-xs text-gray-500">Preview niet beschikbaar</p>
-                            </div>
-                          </div>
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                        <div className="relative group">
+                          <Thumbnail
+                            src={file.thumbnailUrl}
+                            alt={file.title}
+                            fileId={file.id}
+                            className="mb-3 rounded-lg cursor-pointer"
+                            onClick={() => window.open(file.viewUrl as string, '_blank')}
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center pointer-events-none">
                             <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="bg-white bg-opacity-90 rounded-full p-2">
                                 <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1028,34 +954,34 @@ export default function AantekeningenPage() {
                             </div>
                           </div>
                         </div>
-                        <h3 className="font-medium text-lg mb-2 line-clamp-2">{file.title}</h3>
-                        <p className="text-sm text-gray-500 mb-2">{file.name}</p>
-                        <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                        <h3 className="font-medium text-lg mb-2 line-clamp-2 text-yellow-100">{file.title}</h3>
+                        <p className="text-sm text-yellow-200 mb-2">{file.name}</p>
+                        <div className="flex items-center justify-between text-xs text-yellow-300 mb-3">
                           <span>{formatDate(file.modifiedTime)}</span>
                           <span>{formatFileSize(file.size ?? 0)}</span>
                         </div>
                         <div className="flex flex-wrap gap-1 mb-3">
-                          {file.subject && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
-                          {file.topic && <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
-                          {file.level && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">{file.level}</span>}
-                          {file.schoolYear && <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
+                          {file.subject && <span className="bg-yellow-100 text-blue-900 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
+                          {file.topic && <span className="bg-yellow-200 text-blue-900 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
+                          {file.level && <span className="bg-yellow-300 text-blue-900 px-2 py-1 rounded-full text-xs">{file.level}</span>}
+                          {file.schoolYear && <span className="bg-yellow-400 text-blue-900 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
                         </div>
                         {file.keywords && file.keywords.length > 0 && (
                           <div className="flex flex-wrap gap-1 mb-3">
                             {file.keywords.slice(0, 3).map((keyword, index) => (
-                              <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                              <span key={index} className="bg-yellow-100 text-blue-900 px-2 py-1 rounded text-xs">
                                 {keyword}
                               </span>
                             ))}
                           </div>
                         )}
                         {file.summary && (
-                          <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded mb-3">{file.summary}</p>
+                          <p className="text-xs text-yellow-200 bg-yellow-100/20 p-2 rounded mb-3">{file.summary}</p>
                         )}
                         <div className="flex gap-2">
                           <a
                             href={file.downloadUrl}
-                            className="flex-1 bg-blue-600 text-white text-center py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors"
+                            className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 text-center py-2 px-3 rounded text-sm hover:shadow-lg transition-all duration-200"
                             aria-label={`Download ${file.name}`}
                           >
                             <Download className="h-4 w-4 inline mr-1" />
@@ -1066,35 +992,13 @@ export default function AantekeningenPage() {
                     ) : (
                       <div className="flex-1 flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-16 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
-                            {file.thumbnailUrl ? (
-                            <img 
-                              src={file.thumbnailUrl} 
+                          <div className="w-16 h-12 rounded-lg overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
+                            <Thumbnail
+                              src={file.thumbnailUrl}
                               alt={file.title}
-                              className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                              onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                                console.log('❌ Thumbnail failed to load for:', file.title);
-                                // Try placeholder as fallback
-                                const img = e.currentTarget as HTMLImageElement;
-                                if (!img.src.includes('/api/placeholder/')) {
-                                  img.src = `/api/placeholder/${file.id}`;
-                                } else {
-                                  // If placeholder also fails, show the icon
-                                  img.style.display = 'none';
-                                  const nextElement = img.nextElementSibling as HTMLElement;
-                                  if (nextElement) {
-                                    nextElement.style.display = 'flex';
-                                  }
-                                }
-                              }}
-                              onLoad={() => {
-                                console.log('✅ Thumbnail loaded for:', file.title);
-                              }}
+                              fileId={file.id}
+                              className="w-full h-full"
                             />
-                            ) : null}
-                            <div className={`w-full h-full flex items-center justify-center ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
-                              <FileText className="w-6 h-6 text-gray-400" />
-                            </div>
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div className="bg-white bg-opacity-90 rounded-full p-1">
@@ -1106,36 +1010,36 @@ export default function AantekeningenPage() {
                             </div>
                           </div>
                           <div>
-                            <h3 className="font-medium text-lg">{file.title}</h3>
-                            <p className="text-sm text-gray-500">{file.name}</p>
-                            <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                            <h3 className="font-medium text-lg text-yellow-100">{file.title}</h3>
+                            <p className="text-sm text-yellow-200">{file.name}</p>
+                            <div className="flex items-center gap-4 text-xs text-yellow-300 mt-1">
                               <span>{formatDate(file.modifiedTime)}</span>
                               <span>{formatFileSize(file.size ?? 0)}</span>
                             </div>
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {file.subject && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
-                              {file.topic && <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
-                              {file.level && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs">{file.level}</span>}
-                              {file.schoolYear && <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
+                              {file.subject && <span className="bg-yellow-100 text-blue-900 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
+                              {file.topic && <span className="bg-yellow-200 text-blue-900 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
+                              {file.level && <span className="bg-yellow-300 text-blue-900 px-2 py-1 rounded-full text-xs">{file.level}</span>}
+                              {file.schoolYear && <span className="bg-yellow-400 text-blue-900 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
                             </div>
                             {file.keywords && file.keywords.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {file.keywords.slice(0, 4).map((keyword, index) => (
-                                  <span key={index} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
+                                  <span key={index} className="bg-yellow-100 text-blue-900 px-2 py-1 rounded text-xs">
                                     {keyword}
                                   </span>
                                 ))}
                               </div>
                             )}
                             {file.summary && (
-                              <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded mt-2 max-w-md">{file.summary}</p>
+                              <p className="text-xs text-yellow-200 bg-yellow-100/20 p-2 rounded mt-2 max-w-md">{file.summary}</p>
                             )}
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <a
                             href={file.downloadUrl}
-                            className="bg-blue-600 text-white py-2 px-4 rounded text-sm hover:bg-blue-700 transition-colors"
+                            className="bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 py-2 px-4 rounded text-sm hover:shadow-lg transition-all duration-200"
                             aria-label={`Download ${file.name}`}
                           >
                             <Download className="h-4 w-4 inline mr-2" />
@@ -1147,24 +1051,6 @@ export default function AantekeningenPage() {
                   </div>
                 ))}
               </section>
-            ) : (
-              <div className="text-center py-12">
-                <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-600 text-lg">Geen bestanden gevonden</p>
-                <p className="text-gray-500 text-sm mt-2 mb-4">
-                  Er zijn momenteel geen aantekeningen beschikbaar voor {selectedStudent.displayName}.
-                </p>
-                <button
-                  onClick={() => {
-                    setFiles([]);
-                    setError(null);
-                    handleStudentSelect(selectedStudent);
-                  }}
-                  className="text-blue-600 hover:text-blue-800 text-sm underline"
-                >
-                  Opnieuw laden
-                </button>
-              </div>
             )}
           </div>
         )}

@@ -3,6 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { createLoginAudit } from '@/lib/firestore';
 import { getClientIP, getUserAgent } from '@/lib/security';
 import app from '@/lib/firebase-admin';
+import { createTeacherId } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
             error: 'Unauthorized domain',
             uid: decodedToken.uid,
           },
-          teacherId: decodedToken.uid,
+          teacherId: createTeacherId(decodedToken.uid),
           studentId: null,
         });
       } catch (auditError) {
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
         email: email,
         uid: decodedToken.uid,
       },
-      teacherId: decodedToken.uid,
+      teacherId: createTeacherId(decodedToken.uid),
       studentId: null,
     });
 

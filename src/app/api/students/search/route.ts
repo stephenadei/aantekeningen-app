@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllStudents } from '@/lib/firestore';
 import { googleDriveService } from '@/lib/google-drive-simple';
 import { sanitizeInput } from '@/lib/security';
+import { isOk, isErr } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +22,16 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Searching for:', query);
 
     // Get all students from Firestore
-    const allStudents = await getAllStudents();
+    const allStudentsResult = await getAllStudents();
+    if (isErr(allStudentsResult)) {
+      console.error('❌ Failed to get students from Firestore:', allStudentsResult.error);
+      return NextResponse.json(
+        { error: 'Failed to retrieve students from database' },
+        { status: 500 }
+      );
+    }
+    
+    const allStudents = allStudentsResult.data;
     console.log(`📚 Found ${allStudents.length} total students in database`);
 
     // If no students found in Firestore, try Google Drive as fallback

@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleDriveService } from '@/lib/google-drive-simple';
-import { getStudent } from '@/lib/firestore';
+import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
+import { 
+  StudentIdType, 
+  detectIdType, 
+  FirestoreStudentId, 
+  DriveFolderId,
+  isOk,
+  isErr
+} from '@/lib/types';
+import { createErrorResponse, handleUnknownError, InvalidStudentIdError, InvalidDriveFolderIdError } from '@/lib/errors';
 
 export async function GET(
   request: NextRequest,
@@ -8,33 +17,125 @@ export async function GET(
 ) {
   try {
     const { id: studentId } = await params;
-    console.log('📊 Overview API called for studentId:', studentId);
+    const { searchParams } = new URL(request.url);
+    const idType = searchParams.get('idType') as StudentIdType | null;
+    
+    console.log('📊 Overview API called for studentId:', studentId, 'idType:', idType);
 
     if (!studentId) {
       console.log('❌ No studentId provided');
       return NextResponse.json(
-        { error: 'Student ID is required' },
+        createErrorResponse(new InvalidStudentIdError('', 'unknown')),
         { status: 400 }
       );
     }
 
-    // Get student from Firestore to get the Drive folder ID
-    const student = await getStudent(studentId);
-    let driveFolderId = student?.driveFolderId;
+    let driveFolderId: DriveFolderId;
+    let studentName: string | undefined;
 
-    // If not found in Firestore, check if studentId is actually a Drive folder ID
-    if (!student || !driveFolderId) {
-      console.log('🔄 Student not found in Firestore, checking if ID is a Drive folder ID...');
-      
-      // Assume the ID is a Drive folder ID and try to use it directly
-      if (studentId.length > 20) { // Drive folder IDs are typically longer
-        driveFolderId = studentId;
-        console.log('✅ Using provided ID as Drive folder ID (fallback mode)');
-      } else {
-        console.log('❌ Student not found and ID is not a valid Drive folder ID');
+    // Determine ID type and get Drive folder ID
+    if (idType === 'drive') {
+      console.log('🔄 Using ID as Drive folder ID (explicit mode)');
+      const validationResult = await validateDriveFolderId(studentId);
+      if (isErr(validationResult)) {
+        console.log('❌ Invalid Drive folder ID:', validationResult.error);
         return NextResponse.json(
-          { error: 'Student not found or no Drive folder configured' },
+          createErrorResponse(handleUnknownError(validationResult.error)),
+          { status: 400 }
+        );
+      }
+      
+      driveFolderId = validationResult.data;
+      
+      // Try to get student name from Firestore if possible
+      const studentResult = await getStudentByDriveFolderId(validationResult.data);
+      if (isOk(studentResult)) {
+        studentName = studentResult.data.displayName;
+      }
+    } else if (idType === 'firestore') {
+      console.log('🔄 Using ID as Firestore student ID (explicit mode)');
+      const validationResult = await validateFirestoreStudentId(studentId);
+      if (isErr(validationResult)) {
+        console.log('❌ Invalid Firestore student ID:', validationResult.error);
+        return NextResponse.json(
+          createErrorResponse(handleUnknownError(validationResult.error)),
+          { status: 400 }
+        );
+      }
+      
+      const studentResult = await getStudent(validationResult.data);
+      if (isErr(studentResult)) {
+        console.log('❌ Student not found:', studentResult.error);
+        return NextResponse.json(
+          createErrorResponse(handleUnknownError(studentResult.error)),
           { status: 404 }
+        );
+      }
+      
+      const student = studentResult.data;
+      if (!student.driveFolderId) {
+        return NextResponse.json(
+          createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
+          { status: 400 }
+        );
+      }
+      
+      driveFolderId = student.driveFolderId;
+      studentName = student.displayName;
+    } else {
+      // Auto-detect ID type (backward compatibility)
+      console.log('🔄 Auto-detecting ID type...');
+      try {
+        const detectedType = detectIdType(studentId);
+        console.log('✅ Detected ID type:', detectedType);
+        
+        if (detectedType === 'firestore') {
+          const validationResult = await validateFirestoreStudentId(studentId);
+          if (isErr(validationResult)) {
+            return NextResponse.json(
+              createErrorResponse(handleUnknownError(validationResult.error)),
+              { status: 400 }
+            );
+          }
+          
+          const studentResult = await getStudent(validationResult.data);
+          if (isErr(studentResult)) {
+            return NextResponse.json(
+              createErrorResponse(handleUnknownError(studentResult.error)),
+              { status: 404 }
+            );
+          }
+          
+          const student = studentResult.data;
+          if (!student.driveFolderId) {
+            return NextResponse.json(
+              createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
+              { status: 400 }
+            );
+          }
+          
+          driveFolderId = student.driveFolderId;
+          studentName = student.displayName;
+        } else {
+          const validationResult = await validateDriveFolderId(studentId);
+          if (isErr(validationResult)) {
+            return NextResponse.json(
+              createErrorResponse(handleUnknownError(validationResult.error)),
+              { status: 400 }
+            );
+          }
+          
+          driveFolderId = validationResult.data;
+          const studentResult = await getStudentByDriveFolderId(validationResult.data);
+          if (isOk(studentResult)) {
+            studentName = studentResult.data.displayName;
+          }
+        }
+      } catch (error) {
+        console.log('❌ Unable to determine ID type:', error);
+        return NextResponse.json(
+          createErrorResponse(handleUnknownError(error)),
+          { status: 400 }
         );
       }
     }
@@ -45,17 +146,15 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      overview
+      overview,
+      studentName,
+      idType: idType || detectIdType(studentId)
     });
 
   } catch (error) {
     console.error('❌ Error getting student overview:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to get student overview',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      },
+      createErrorResponse(handleUnknownError(error)),
       { status: 500 }
     );
   }

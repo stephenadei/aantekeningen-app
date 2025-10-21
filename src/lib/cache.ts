@@ -1,5 +1,21 @@
 import { db } from './firebase-admin';
 import { Timestamp, DocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
+import { 
+  DriveFileId,
+  FirestoreStudentId,
+  DriveFolderId,
+  FileName,
+  CleanFileName,
+  DownloadUrl,
+  ViewUrl,
+  ThumbnailUrl,
+  Subject,
+  Topic,
+  Level,
+  SchoolYear,
+  createFirestoreStudentId,
+  createDriveFolderId
+} from './types';
 
 // Cache configuration
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
@@ -14,27 +30,27 @@ export interface DriveCache {
   data: Record<string, unknown>;  // cached data
   createdAt: Timestamp;
   expiresAt: Timestamp;          // TTL
-  studentId?: string;            // for filtering
-  folderId?: string;             // for filtering
+  studentId?: FirestoreStudentId;            // for filtering
+  folderId?: DriveFolderId;             // for filtering
   lastModified?: Timestamp;      // for sync comparison
 }
 
 // File metadata schema for optimized queries
 export interface FileMetadata {
-  id: string;                    // file ID from Drive
-  studentId: string;
-  folderId: string;
-  name: string;
-  title: string;
+  id: DriveFileId;                    // file ID from Drive
+  studentId: FirestoreStudentId;
+  folderId: DriveFolderId;
+  name: FileName;
+  title: CleanFileName;
   modifiedTime: Timestamp;
   size: number;
-  thumbnailUrl: string;
-  downloadUrl: string;
-  viewUrl: string;
-  subject?: string;
-  topic?: string;
-  level?: string;
-  schoolYear?: string;
+  thumbnailUrl: ThumbnailUrl;
+  downloadUrl: DownloadUrl;
+  viewUrl: ViewUrl;
+  subject?: Subject;
+  topic?: Topic;
+  level?: Level;
+  schoolYear?: SchoolYear;
   keywords?: string[];
   summary?: string;
   summaryEn?: string;
@@ -101,8 +117,8 @@ export async function setCachedData(
       data,
       createdAt: Timestamp.fromDate(now),
       expiresAt: Timestamp.fromDate(expiresAt),
-      studentId,
-      folderId,
+      studentId: studentId ? createFirestoreStudentId(studentId) : undefined,
+      folderId: folderId ? createDriveFolderId(folderId) : undefined,
       lastModified: lastModified ? Timestamp.fromDate(lastModified) : undefined,
     };
 

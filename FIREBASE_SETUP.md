@@ -27,48 +27,39 @@ Deze guide helpt je met het opzetten van Firebase/Firestore voor de Aantekeninge
 5. Voeg je project support email toe
 6. Sla de Web SDK configuration op (je hebt dit later nodig)
 
-## 4. Service Account Setup (Zonder Keys)
+## 4. Service Account Setup
 
-**Probleem**: Je organisatie blokkeert service account key creation voor security.
+**Verplicht**: De app vereist expliciete service account credentials voor betrouwbare authenticatie.
 
-**Oplossing**: Gebruik Application Default Credentials (veiliger en eenvoudiger):
+### Stap 1: Service Account Key Genereren
+1. Ga naar Firebase Console → Project Settings → Service accounts tab
+2. Klik "Generate new private key"
+3. Download de JSON file (bewaar deze veilig!)
 
-### Voor Local Development:
-1. Installeer Firebase CLI: `npm install -g firebase-tools`
-2. Login: `firebase login`
-3. Selecteer je project: `firebase use your-project-id`
-4. Firebase CLI zorgt automatisch voor credentials
+### Stap 2: Environment Variables Toevoegen
+Voeg deze variabelen toe aan je `.env.local`:
 
-### Voor Vercel Deployment:
-1. Ga naar Vercel Dashboard → Project Settings → Environment Variables
-2. Voeg alleen toe: `FIREBASE_PROJECT_ID=your-project-id`
-3. Vercel gebruikt automatisch Application Default Credentials
+```env
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
 
-**Geen service account keys nodig!** 🎉
+### Stap 3: Extract Values from JSON
+Van de gedownloade JSON file:
+- `project_id` → `FIREBASE_PROJECT_ID`
+- `client_email` → `FIREBASE_CLIENT_EMAIL`  
+- `private_key` → `FIREBASE_PRIVATE_KEY` (houd de quotes en \n characters)
 
 ## 5. Environment Variables
 
-Voeg de volgende variabelen toe aan je `.env.local` (veel eenvoudiger!):
+Kopieer `.env.local.template` naar `.env.local` en vul alle waarden in:
 
-```env
-# Firebase Configuration (Server-side - Application Default Credentials)
-FIREBASE_PROJECT_ID=your-project-id
-
-# Firebase Client Configuration (voor frontend)
-NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-
-# Bestaande Google Drive configuratie (blijft hetzelfde)
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:3000
-GOOGLE_REFRESH_TOKEN=your_refresh_token
-
-# Bestaande configuratie (blijft hetzelfde)
-NEXTAUTH_SECRET=your_nextauth_secret
-OPENAI_API_KEY=your_openai_api_key
+```bash
+cp .env.local.template .env.local
 ```
+
+Zie [AUTHENTICATION.md](AUTHENTICATION.md) voor gedetailleerde instructies over alle credentials.
 
 ## 6. Firestore Security Rules
 

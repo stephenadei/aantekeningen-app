@@ -98,14 +98,10 @@ describe('Share API Integration', () => {
 
       const request = new NextRequest('http://localhost:3000/api/students/nonexistent/share');
 
-      try {
-        const { GET } = await import('@/app/api/students/[id]/share/route');
-        const response = await GET(request, { params: Promise.resolve({ id: 'nonexistent' }) });
+      const { GET } = await import('@/app/api/students/[id]/share/route');
+      const response = await GET(request, { params: Promise.resolve({ id: 'nonexistent' }) });
 
-        expect([404, 500]).toContain(response.status);
-      } catch (error: unknown) {
-        expect((error as Error)?.message).toContain('Cannot find module');
-      }
+      expect([400, 404, 500]).toContain(response.status);
     });
 
     it('should handle database errors gracefully', async () => {

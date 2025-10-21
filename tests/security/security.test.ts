@@ -9,30 +9,42 @@ import {
   getClientIP,
   getUserAgent
 } from '@/lib/security';
+import { isOk } from '@/lib/types';
 
 describe('Security Helpers', () => {
   describe('PIN Validation', () => {
     it('should validate correct PIN format', () => {
-      expect(validatePinFormat('123456')).toBe(true);
-      expect(validatePinFormat('000000')).toBe(true);
-      expect(validatePinFormat('999999')).toBe(true);
+      const result1 = validatePinFormat('123456');
+      expect(isOk(result1)).toBe(true);
+      if (isOk(result1)) expect(result1.data).toBe('123456');
+      
+      const result2 = validatePinFormat('000000');
+      expect(isOk(result2)).toBe(true);
+      if (isOk(result2)) expect(result2.data).toBe('000000');
+      
+      const result3 = validatePinFormat('999999');
+      expect(isOk(result3)).toBe(true);
+      if (isOk(result3)) expect(result3.data).toBe('999999');
     });
 
     it('should reject invalid PIN formats', () => {
-      expect(validatePinFormat('12345')).toBe(false); // Too short
-      expect(validatePinFormat('1234567')).toBe(false); // Too long
-      expect(validatePinFormat('12345a')).toBe(false); // Contains letter
-      expect(validatePinFormat('12345!')).toBe(false); // Contains special char
-      expect(validatePinFormat('')).toBe(false); // Empty
-      expect(validatePinFormat('12 3456')).toBe(false); // Contains space
+      expect(isOk(validatePinFormat('12345'))).toBe(false); // Too short
+      expect(isOk(validatePinFormat('1234567'))).toBe(false); // Too long
+      expect(isOk(validatePinFormat('12345a'))).toBe(false); // Contains letter
+      expect(isOk(validatePinFormat('12345!'))).toBe(false); // Contains special char
+      expect(isOk(validatePinFormat(''))).toBe(false); // Empty
+      expect(isOk(validatePinFormat('12 3456'))).toBe(false); // Contains space
     });
 
     it('should generate valid PINs', () => {
       for (let i = 0; i < 10; i++) {
         const pin = generatePin();
-        expect(validatePinFormat(pin)).toBe(true);
-        expect(pin).toHaveLength(6);
-        expect(/^\d{6}$/.test(pin)).toBe(true);
+        const result = validatePinFormat(pin);
+        expect(isOk(result)).toBe(true);
+        if (isOk(result)) {
+          expect(result.data).toHaveLength(6);
+          expect(/^\d{6}$/.test(result.data)).toBe(true);
+        }
       }
     });
 
@@ -60,24 +72,38 @@ describe('Security Helpers', () => {
 
   describe('Email Validation', () => {
     it('should validate teacher emails', () => {
-      expect(validateTeacherEmail('teacher@stephensprivelessen.nl')).toBe(true);
-      expect(validateTeacherEmail('admin@stephensprivelessen.nl')).toBe(true);
-      expect(validateTeacherEmail('stephen@stephensprivelessen.nl')).toBe(true);
+      const result1 = validateTeacherEmail('teacher@stephensprivelessen.nl');
+      expect(isOk(result1)).toBe(true);
+      if (isOk(result1)) expect(result1.data).toBe('teacher@stephensprivelessen.nl');
+      
+      const result2 = validateTeacherEmail('admin@stephensprivelessen.nl');
+      expect(isOk(result2)).toBe(true);
+      if (isOk(result2)) expect(result2.data).toBe('admin@stephensprivelessen.nl');
+      
+      const result3 = validateTeacherEmail('stephen@stephensprivelessen.nl');
+      expect(isOk(result3)).toBe(true);
+      if (isOk(result3)) expect(result3.data).toBe('stephen@stephensprivelessen.nl');
     });
 
     it('should reject non-teacher emails', () => {
-      expect(validateTeacherEmail('student@gmail.com')).toBe(false);
-      expect(validateTeacherEmail('teacher@other-school.nl')).toBe(false);
-      expect(validateTeacherEmail('admin@stephensprivelessen.com')).toBe(false);
-      expect(validateTeacherEmail('')).toBe(false);
-      expect(validateTeacherEmail('invalid-email')).toBe(false);
+      expect(isOk(validateTeacherEmail('student@gmail.com'))).toBe(false);
+      expect(isOk(validateTeacherEmail('teacher@other-school.nl'))).toBe(false);
+      expect(isOk(validateTeacherEmail('admin@stephensprivelessen.com'))).toBe(false);
+      expect(isOk(validateTeacherEmail(''))).toBe(false);
+      expect(isOk(validateTeacherEmail('invalid-email'))).toBe(false);
     });
 
     it('should handle edge cases', () => {
-      expect(validateTeacherEmail('teacher+tag@stephensprivelessen.nl')).toBe(true);
-      expect(validateTeacherEmail('teacher.name@stephensprivelessen.nl')).toBe(true);
+      const result1 = validateTeacherEmail('teacher+tag@stephensprivelessen.nl');
+      expect(isOk(result1)).toBe(true);
+      if (isOk(result1)) expect(result1.data).toBe('teacher+tag@stephensprivelessen.nl');
+      
+      const result2 = validateTeacherEmail('teacher.name@stephensprivelessen.nl');
+      expect(isOk(result2)).toBe(true);
+      if (isOk(result2)) expect(result2.data).toBe('teacher.name@stephensprivelessen.nl');
+      
       // Case sensitivity: uppercase domain doesn't match due to .endsWith() being case-sensitive
-      expect(validateTeacherEmail('TEACHER@STEPHENSPRIVELESSEN.NL')).toBe(false);
+      expect(isOk(validateTeacherEmail('TEACHER@STEPHENSPRIVELESSEN.NL'))).toBe(false);
     });
   });
 
@@ -157,18 +183,18 @@ describe('Security Helpers', () => {
         }
       } as unknown as { headers: { get: () => null } };
 
-      const ip = getClientIP(emptyRequest);
+      // getClientIP now returns a branded type, so we need to handle the error case
+      expect(() => getClientIP(emptyRequest)).toThrow('Invalid ipaddress format');
       const userAgent = getUserAgent(emptyRequest);
       
-      expect(ip).toBe('unknown');
       expect(userAgent).toBe('unknown');
     });
   });
 
   describe('Edge Cases', () => {
     it('should handle null/undefined inputs', () => {
-      expect(validatePinFormat(null as unknown as string)).toBe(false);
-      expect(validatePinFormat(undefined as unknown as string)).toBe(false);
+      expect(isOk(validatePinFormat(null as unknown as string))).toBe(false);
+      expect(isOk(validatePinFormat(undefined as unknown as string))).toBe(false);
       // validateTeacherEmail throws on null/undefined due to .endsWith call
       expect(() => validateTeacherEmail(null as unknown as string)).toThrow();
       expect(() => validateTeacherEmail(undefined as unknown as string)).toThrow();
@@ -179,10 +205,12 @@ describe('Security Helpers', () => {
 
     it('should handle very long inputs', () => {
       const longPin = '1'.repeat(100);
-      expect(validatePinFormat(longPin)).toBe(false);
+      expect(isOk(validatePinFormat(longPin))).toBe(false);
       
       const longEmail = 'a'.repeat(100) + '@stephensprivelessen.nl';
-      expect(validateTeacherEmail(longEmail)).toBe(true); // Email can be long
+      const result = validateTeacherEmail(longEmail);
+      expect(isOk(result)).toBe(true); // Email can be long
+      if (isOk(result)) expect(result.data).toBe(longEmail);
     });
   });
 });

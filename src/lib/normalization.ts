@@ -2,6 +2,18 @@
  * Normalization utilities for consistent subject, level, and topic categorization
  */
 
+import { 
+  Subject, 
+  Level, 
+  Topic,
+  createSubject,
+  createLevel,
+  createTopic,
+  Result,
+  Ok,
+  Err
+} from './types';
+
 // Subject canonicalization mapping
 const SUBJECT_MAP: Record<string, string> = {
   'wiskunde': 'wiskunde',
@@ -169,25 +181,40 @@ export function slugify(input: string): string {
 /**
  * Canonicalize subject name
  */
-export function canonSubject(input: string): string {
+export function canonSubject(input: string): Result<Subject> {
   const slug = slugify(input);
-  return SUBJECT_MAP[slug] || slug;
+  const canonicalSubject = SUBJECT_MAP[slug] || slug;
+  try {
+    return Ok(createSubject(canonicalSubject));
+  } catch (error) {
+    return Err(error instanceof Error ? error : new Error('Invalid subject format'));
+  }
 }
 
 /**
  * Canonicalize level name
  */
-export function canonLevel(input: string): string {
+export function canonLevel(input: string): Result<Level> {
   const slug = slugify(input);
-  return LEVEL_MAP[slug] || slug;
+  const canonicalLevel = LEVEL_MAP[slug] || slug;
+  try {
+    return Ok(createLevel(canonicalLevel));
+  } catch (error) {
+    return Err(error instanceof Error ? error : new Error('Invalid level format'));
+  }
 }
 
 /**
  * Canonicalize topic name
  */
-export function canonTopic(input: string): string {
+export function canonTopic(input: string): Result<Topic> {
   const slug = slugify(input);
-  return TOPIC_MAP[slug] || slug;
+  const canonicalTopic = TOPIC_MAP[slug] || slug;
+  try {
+    return Ok(createTopic(canonicalTopic));
+  } catch (error) {
+    return Err(error instanceof Error ? error : new Error('Invalid topic format'));
+  }
 }
 
 /**
@@ -195,12 +222,12 @@ export function canonTopic(input: string): string {
  * Example: "wispunten 3 HAVO overbreuken" -> { subject: "wiskunde", level: "havo-3", topic: "breuken" }
  */
 export function parseNaturalLanguage(input: string): {
-  subject?: string;
-  level?: string;
-  topic?: string;
+  subject?: Subject;
+  level?: Level;
+  topic?: Topic;
 } {
   const words = input.toLowerCase().split(/\s+/);
-  const result: { subject?: string; level?: string; topic?: string } = {};
+  const result: { subject?: Subject; level?: Level; topic?: Topic } = {};
   
   // Look for level patterns first (most specific)
   for (let i = 0; i < words.length; i++) {
@@ -211,7 +238,10 @@ export function parseNaturalLanguage(input: string): {
       const nextWord = words[i + 1];
       if (nextWord && ['havo', 'vwo', 'vmbo'].includes(nextWord)) {
         const levelStr = `${word} ${nextWord}`;
-        result.level = canonLevel(levelStr);
+        const levelResult = canonLevel(levelStr);
+        if (levelResult.success) {
+          result.level = levelResult.data;
+        }
         words.splice(i, 2); // Remove matched words
         break;
       }
@@ -219,7 +249,10 @@ export function parseNaturalLanguage(input: string): {
       const prevWord = words[i - 1];
       if (prevWord && prevWord.match(/^\d+$/)) {
         const levelStr = `${prevWord} ${word}`;
-        result.level = canonLevel(levelStr);
+        const levelResult = canonLevel(levelStr);
+        if (levelResult.success) {
+          result.level = levelResult.data;
+        }
         words.splice(i - 1, 2); // Remove matched words
         break;
       }
@@ -229,7 +262,10 @@ export function parseNaturalLanguage(input: string): {
   // Look for subject patterns
   for (const word of words) {
     if (SUBJECT_MAP[word]) {
-      result.subject = canonSubject(word);
+      const subjectResult = canonSubject(word);
+      if (subjectResult.success) {
+        result.subject = subjectResult.data;
+      }
       break;
     }
   }
@@ -237,7 +273,10 @@ export function parseNaturalLanguage(input: string): {
   // Look for topic patterns
   for (const word of words) {
     if (TOPIC_MAP[word]) {
-      result.topic = canonTopic(word);
+      const topicResult = canonTopic(word);
+      if (topicResult.success) {
+        result.topic = topicResult.data;
+      }
       break;
     }
   }
@@ -248,20 +287,12 @@ export function parseNaturalLanguage(input: string): {
 /**
  * Generate search tags for a note
  */
-export function generateTags(subject: string, level: string, topic: string): Array<{ key: string; value: string }> {
+export function generateTags(subject: Subject, level: Level, topic: Topic): Array<{ key: string; value: string }> {
   const tags = [];
   
-  if (subject) {
-    tags.push({ key: 'subject', value: canonSubject(subject) });
-  }
-  
-  if (level) {
-    tags.push({ key: 'level', value: canonLevel(level) });
-  }
-  
-  if (topic) {
-    tags.push({ key: 'topic', value: canonTopic(topic) });
-  }
+  tags.push({ key: 'subject', value: subject });
+  tags.push({ key: 'level', value: level });
+  tags.push({ key: 'topic', value: topic });
   
   return tags;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getLoginAudits } from '@/lib/firestore';
 import { db } from '@/lib/firebase-admin';
+import { isOk } from '@/lib/types';
 
 export async function GET() {
   try {
@@ -12,7 +13,8 @@ export async function GET() {
     }));
 
     // Get audit logs
-    const audits = await getLoginAudits();
+    const auditsResult = await getLoginAudits();
+    const audits = isOk(auditsResult) ? auditsResult.data : [];
 
     // Calculate basic stats
     const stats = {

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText, User, Share2, Download, ArrowLeft, Loader2 } from 'lucide-react';
+import { FileText, User, Share2, Download, ArrowLeft, Loader2, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import FileDetailModal from '@/components/ui/FileDetailModal';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import SkeletonLoader from '@/components/ui/SkeletonLoader';
 import { useNativeShare } from '@/hooks/useNativeShare';
+import Thumbnail from '@/components/ui/Thumbnail';
 import { useStudentFiles } from '@/hooks/useStudentFiles';
 
 interface Student {
@@ -126,6 +127,14 @@ export default function StudentPage() {
           displayName: shareData.student.displayName,
           subject: shareData.student.subject,
           driveFolderId: shareData.student.driveFolderId
+        });
+      } else if (shareData.success && shareData.studentName) {
+        // Use studentName from share API response
+        setStudent({
+          id: studentId,
+          displayName: shareData.studentName,
+          subject: overviewData.success ? (overviewData.overview.lastFile?.subject || 'Onbekend') : 'Onbekend',
+          driveFolderId: studentId
         });
       } else if (overviewData.success) {
         // Fallback: If share API didn't work but overview did, create a basic student object
@@ -337,25 +346,46 @@ export default function StudentPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-500 dark:from-yellow-600 dark:via-yellow-700 dark:to-amber-700 relative">
+      {/* Graduation Cap Watermark Pattern */}
+      <div className="absolute inset-0 opacity-5 pointer-events-none">
+        <div className="absolute top-10 left-10 w-16 h-16 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute top-32 right-20 w-12 h-12 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute bottom-20 left-1/4 w-14 h-14 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute bottom-40 right-1/3 w-10 h-10 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+        <div className="absolute top-1/2 left-10 w-8 h-8 text-blue-900">
+          <GraduationCap className="w-full h-full" />
+        </div>
+      </div>
       {/* Header */}
-      <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl shadow-lg border-b border-white/20 dark:border-slate-700/20">
+      <div className="bg-blue-900/95 backdrop-blur-xl shadow-lg border-b border-blue-800/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Link 
                 href="/"
-                className="inline-flex items-center text-slate-600 hover:text-slate-900 transition-all duration-200 hover:scale-105"
+                className="inline-flex items-center text-yellow-200 hover:text-yellow-100 transition-all duration-200 hover:scale-105"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
                 Terug
               </Link>
-              <div className="h-6 w-px bg-gradient-to-b from-transparent via-slate-300 to-transparent" />
-              <div>
-                <h1 className="text-xl font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                  {student?.displayName || 'Onbekende student'}
-                </h1>
-                <p className="text-sm text-slate-500">{student?.subject || 'Onbekend vak'}</p>
+              <div className="h-6 w-px bg-gradient-to-b from-transparent via-yellow-300 to-transparent" />
+              <div className="flex items-center space-x-3">
+                <GraduationCap className="h-6 w-6 text-yellow-300" />
+                <div>
+                  <h1 className="text-xl font-semibold text-yellow-100">
+                    {student?.displayName || 'Onbekende student'}
+                  </h1>
+                  <p className="text-sm text-yellow-200">{student?.subject || 'Onbekend vak'}</p>
+                </div>
               </div>
             </div>
             
@@ -364,7 +394,7 @@ export default function StudentPage() {
               <button
                 onClick={handleShare}
                 disabled={isSharing}
-                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {isSharing ? (
                   <>
@@ -384,33 +414,51 @@ export default function StudentPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section with Last File Details */}
+        {/* Hero Section with Student Name */}
+        <div className="mb-8">
+          <div className="bg-blue-800/90 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-blue-700/20">
+            <div className="p-8 text-center">
+              <div className="flex items-center justify-center space-x-4 mb-4">
+                <GraduationCap className="h-12 w-12 text-yellow-300" />
+                <h1 className="text-4xl font-bold text-yellow-100 uppercase tracking-wide">
+                  {student?.displayName || 'Onbekende student'}
+                </h1>
+                <GraduationCap className="h-12 w-12 text-yellow-300" />
+              </div>
+              <p className="text-xl text-yellow-200 font-medium">
+                {student?.subject || 'Onbekend vak'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Last File Details */}
         {studentOverview && studentOverview.lastFile && (
           <div className="mb-8">
-            <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 dark:border-slate-700/20">
+            <div className="bg-blue-800/90 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-blue-700/20">
               <div className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <h3 className="font-medium text-blue-900 dark:text-blue-100 text-lg mb-2">
+                    <h3 className="font-medium text-yellow-100 text-lg mb-2">
                       Laatste aantekening
                     </h3>
-                    <p className="text-blue-800 dark:text-blue-200 font-medium text-lg mb-2">
+                    <p className="text-yellow-200 font-medium text-lg mb-2">
                       {studentOverview.lastFile.title}
                     </p>
                     {studentOverview.lastFile.subject && studentOverview.lastFile.topic && (
-                      <p className="text-blue-700 dark:text-blue-300 text-sm mb-3">
+                      <p className="text-yellow-300 text-sm mb-3">
                         {studentOverview.lastFile.subject} • {studentOverview.lastFile.topic}
                       </p>
                     )}
                     {studentOverview.lastFile.summary && (
-                      <p className="text-blue-600 dark:text-blue-400 text-sm line-clamp-2">
+                      <p className="text-yellow-200 text-sm line-clamp-2">
                         {studentOverview.lastFile.summary}
                       </p>
                     )}
                   </div>
                   <div className="ml-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                      <FileText className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+                      <FileText className="w-6 h-6 text-blue-900" />
                     </div>
                   </div>
                 </div>
@@ -421,18 +469,18 @@ export default function StudentPage() {
 
         {/* Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 dark:border-slate-700/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="bg-blue-800/90 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-blue-700/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <User className="h-6 w-6 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <User className="h-6 w-6 text-blue-900" />
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-slate-500 truncate">Student</dt>
-                    <dd className="text-lg font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                    <dt className="text-sm font-medium text-yellow-200 truncate">Student</dt>
+                    <dd className="text-lg font-semibold text-yellow-100">
                       {student?.displayName || 'Onbekende student'}
                     </dd>
                   </dl>
@@ -441,18 +489,18 @@ export default function StudentPage() {
             </div>
           </div>
 
-          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-white/20 dark:border-slate-700/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="bg-blue-800/90 backdrop-blur-xl overflow-hidden shadow-xl rounded-2xl border border-blue-700/20 hover:shadow-2xl transition-all duration-300 hover:scale-105">
             <div className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <FileText className="h-6 w-6 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <FileText className="h-6 w-6 text-blue-900" />
                   </div>
                 </div>
                 <div className="ml-5 w-0 flex-1">
                   <dl>
-                    <dt className="text-sm font-medium text-slate-500 truncate">Aantal bestanden</dt>
-                    <dd className="text-lg font-semibold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                    <dt className="text-sm font-medium text-yellow-200 truncate">Aantal bestanden</dt>
+                    <dd className="text-lg font-semibold text-yellow-100">
                       {studentOverview?.fileCount || 0}
                     </dd>
                   </dl>
@@ -515,11 +563,11 @@ export default function StudentPage() {
 
         {/* Sticky Header with Filters and Sorting */}
         {files.length > 0 && (
-          <div className="sticky top-0 z-40 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-700/50 shadow-md">
+          <div className="sticky top-0 z-40 bg-blue-900/95 backdrop-blur-md border-b border-blue-800/50 shadow-md">
             <div className="px-4 sm:px-6 py-4">
               {/* File Count and Sort Controls */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-                <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                <div className="text-sm font-medium text-yellow-200">
                   {filteredAndSortedFiles().length} van {files.length} bestanden
                 </div>
                 
@@ -528,7 +576,7 @@ export default function StudentPage() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
-                    className="px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-1.5 text-sm bg-yellow-100 border border-yellow-300 rounded-lg text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                   >
                     <option value="date">Datum</option>
                     <option value="name">Naam</option>
@@ -540,7 +588,7 @@ export default function StudentPage() {
                   <select
                     value={sortOrder}
                     onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
-                    className="px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-1.5 text-sm bg-yellow-100 border border-yellow-300 rounded-lg text-blue-900 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                   >
                     <option value="desc">Nieuwste eerst</option>
                     <option value="asc">Oudste eerst</option>
@@ -550,7 +598,7 @@ export default function StudentPage() {
                   {(filters.subject || filters.topic || filters.level || filters.schoolYear || filters.keyword) && (
                     <button
                       onClick={() => setFilters({ subject: '', topic: '', level: '', schoolYear: '', keyword: '' })}
-                      className="text-sm px-3 py-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      className="text-sm px-3 py-1.5 text-red-300 hover:text-red-200 hover:bg-red-900/20 rounded-lg transition-colors"
                     >
                       Filters wissen
                     </button>
@@ -635,71 +683,26 @@ export default function StudentPage() {
               </div>
             ))}
           </div>
-        ) : files.length === 0 ? (
-          <div className="text-center py-16 mt-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-600 dark:to-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <FileText className="h-8 w-8 text-slate-500 dark:text-slate-400" />
-            </div>
-            <h3 className="mt-2 text-lg font-semibold text-slate-900 dark:text-slate-100">Geen bestanden gevonden</h3>
-            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 mb-6">
-              Er zijn momenteel geen aantekeningen beschikbaar voor {student?.displayName || 'deze student'}.
-            </p>
-            <button
-              onClick={() => {
-                setError(null);
-                refresh();
-              }}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
-            >
-              <Loader2 className="h-4 w-4 mr-2" />
-              Opnieuw laden
-            </button>
-          </div>
         ) : (
           <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6" role="list" aria-label="Student files">
             {filteredAndSortedFiles().map((file: FileInfo) => (
               <div
                 key={file.id}
                 onClick={() => handleFileClick(file)}
-                className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer group"
+                className="bg-blue-800/90 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer group"
                 role="listitem"
                 aria-label={`Open ${file.name}`}
               >
                 {/* Thumbnail */}
-                <div className="relative aspect-video bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 overflow-hidden">
-                  {file.thumbnailUrl ? (
-                    <img
-                      src={file.thumbnailUrl}
-                      alt={file.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                        const img = e.currentTarget as HTMLImageElement;
-                        if (!img.src.includes('/api/placeholder/')) {
-                          img.src = `/api/placeholder/${file.id}`;
-                        } else {
-                          img.style.display = 'none';
-                        }
-                      }}
-                    />
-                  ) : (
-                    <img
-                      src={`/api/placeholder/${file.id}`}
-                      alt={file.title}
-                      className="w-full h-full object-cover"
-                      onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                        const img = e.currentTarget as HTMLImageElement;
-                        img.style.display = 'none';
-                      }}
-                    />
-                  )}
-                  
-                  {/* Fallback Icon */}
-                  <div className={`absolute inset-0 flex items-center justify-center bg-slate-100 dark:bg-slate-700 ${file.thumbnailUrl ? 'hidden' : 'flex'}`}>
-                    <FileText className="h-12 w-12 text-slate-400 dark:text-slate-500" />
-                  </div>
-
+                <div className="relative group">
+                  <Thumbnail
+                    src={file.thumbnailUrl}
+                    alt={file.title}
+                    fileId={file.id}
+                    className="group-hover:scale-110 transition-transform duration-300"
+                  />
                   {/* Overlay on Hover */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
                     <div className="bg-white/90 dark:bg-slate-900/90 rounded-full p-3">
                       <svg className="w-6 h-6 text-slate-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -708,29 +711,28 @@ export default function StudentPage() {
                   </div>
                 </div>
 
-                {/* Card Content */}
                 <div className="p-4">
-                  <h3 className="font-semibold text-lg text-slate-900 dark:text-slate-100 line-clamp-2 mb-2">
+                  <h3 className="font-semibold text-lg text-yellow-100 line-clamp-2 mb-2">
                     {file.title}
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
+                  <p className="text-xs text-yellow-200 mb-3">
                     {formatDate(file.modifiedTime)} • {formatFileSize(file.size)}
                   </p>
 
                   {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {file.subject && (
-                      <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2 py-1 bg-yellow-100 text-blue-900 text-xs rounded-full font-medium">
                         {file.subject}
                       </span>
                     )}
                     {file.topic && (
-                      <span className="inline-block px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2 py-1 bg-yellow-200 text-blue-900 text-xs rounded-full font-medium">
                         {file.topic}
                       </span>
                     )}
                     {file.level && (
-                      <span className="inline-block px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2 py-1 bg-yellow-300 text-blue-900 text-xs rounded-full font-medium">
                         {file.level}
                       </span>
                     )}
@@ -738,7 +740,7 @@ export default function StudentPage() {
 
                   {/* Summary */}
                   {file.summary && (
-                    <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">
+                    <p className="text-sm text-yellow-200 line-clamp-2 mb-3">
                       {file.summary}
                     </p>
                   )}
@@ -747,7 +749,7 @@ export default function StudentPage() {
                   <a
                     href={file.downloadUrl}
                     onClick={(e) => e.stopPropagation()}
-                    className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white font-medium py-2 px-3 rounded-lg text-center hover:shadow-lg transition-all duration-200 text-sm"
+                    className="block w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 font-medium py-2 px-3 rounded-lg text-center hover:shadow-lg transition-all duration-200 text-sm"
                   >
                     <Download className="h-4 w-4 inline mr-1" />
                     Downloaden
@@ -768,7 +770,7 @@ export default function StudentPage() {
                 loadMore(newOffset);
               }}
               disabled={isLoadingMore}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
             >
               {isLoadingMore ? (
                 <>

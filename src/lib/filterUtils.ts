@@ -1,17 +1,31 @@
+import { 
+  DriveFileId,
+  FileName,
+  CleanFileName,
+  DriveUrl,
+  DownloadUrl,
+  ThumbnailUrl,
+  ViewUrl,
+  Subject,
+  Topic,
+  Level,
+  SchoolYear
+} from './types';
+
 export interface FileInfo {
-  id: string;
-  name: string;
-  title: string;
-  url?: string;
-  downloadUrl?: string;
-  thumbnailUrl?: string;
-  viewUrl?: string;
+  id: DriveFileId;
+  name: FileName;
+  title: CleanFileName;
+  url?: DriveUrl;
+  downloadUrl?: DownloadUrl;
+  thumbnailUrl?: ThumbnailUrl;
+  viewUrl?: ViewUrl;
   modifiedTime: string;
   size?: number;
-  subject?: string;
-  topic?: string;
-  level?: string;
-  schoolYear?: string;
+  subject?: Subject;
+  topic?: Topic;
+  level?: Level;
+  schoolYear?: SchoolYear;
   keywords?: string[];
   summary?: string;
   summaryEn?: string;

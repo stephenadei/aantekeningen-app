@@ -9,6 +9,19 @@ import {
 } from './cache';
 import { getAllStudents } from './firestore';
 import { Timestamp } from 'firebase-admin/firestore';
+import { 
+  FirestoreStudentId,
+  DriveFolderId,
+  Result,
+  isOk,
+  isErr,
+  createDriveFileId,
+  createFirestoreStudentId,
+  createDriveFolderId,
+  createThumbnailUrl,
+  createDownloadUrl,
+  createViewUrl
+} from './types';
 
 /**
  * Background sync job to keep Firestore cache fresh
@@ -34,7 +47,12 @@ export class BackgroundSyncService {
       await cleanupExpiredCache();
 
       // Get all students
-      const students = await getAllStudents();
+      const studentsResult = await getAllStudents();
+      if (isErr(studentsResult)) {
+        console.error('❌ Failed to get students:', studentsResult.error);
+        return;
+      }
+      const students = studentsResult.data;
       console.log(`📚 Found ${students.length} students to sync`);
 
       let totalFiles = 0;
@@ -126,16 +144,16 @@ export class BackgroundSyncService {
         if (needsUpdate) {
           // Convert to FileMetadata format
           const fileMeta: FileMetadata = {
-            id: driveFile.id,
-            studentId: student.id,
-            folderId: student.driveFolderId,
+            id: createDriveFileId(driveFile.id),
+            studentId: createFirestoreStudentId(student.id),
+            folderId: createDriveFolderId(student.driveFolderId),
             name: driveFile.name,
             title: driveFile.title,
             modifiedTime: Timestamp.fromDate(driveModifiedTime),
             size: driveFile.size,
-            thumbnailUrl: driveFile.thumbnailUrl || '',
-            downloadUrl: driveFile.downloadUrl || '',
-            viewUrl: driveFile.viewUrl || '',
+            thumbnailUrl: driveFile.thumbnailUrl ? createThumbnailUrl(driveFile.thumbnailUrl) : createThumbnailUrl(''),
+            downloadUrl: driveFile.downloadUrl ? createDownloadUrl(driveFile.downloadUrl) : createDownloadUrl(''),
+            viewUrl: driveFile.viewUrl ? createViewUrl(driveFile.viewUrl) : createViewUrl(''),
             subject: driveFile.subject,
             topic: driveFile.topic,
             level: driveFile.level,
@@ -226,7 +244,13 @@ export class BackgroundSyncService {
    */
   async forceSyncStudent(studentId: string): Promise<void> {
     try {
-      const students = await getAllStudents();
+      const studentsResult = await getAllStudents();
+      if (isErr(studentsResult)) {
+        console.error('❌ Failed to get students:', studentsResult.error);
+        throw new Error(`Failed to get students: ${studentsResult.error.message}`);
+      }
+      
+      const students = studentsResult.data;
       const student = students.find(s => s.id === studentId);
       
       if (!student || !student.id) {
