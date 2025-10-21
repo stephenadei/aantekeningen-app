@@ -2,37 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { X, BookOpen, Edit3, Trash2, Plus, Loader2 } from 'lucide-react';
-
-interface KeyConcept {
-  id: string;
-  term: string;
-  explanation: string;
-  example?: string;
-  isAiGenerated: boolean;
-}
-
-interface FileInfo {
-  id: string;
-  name: string;
-  title: string;
-  viewUrl: string;
-  downloadUrl: string;
-  subject?: string;
-  topic?: string;
-  level?: string;
-  schoolYear?: string;
-  summary?: string;
-}
-
-interface FileDetailModalProps {
-  file: FileInfo | null;
-  studentId: string;
-  isOpen: boolean;
-  onClose: () => void;
-}
+import type { 
+  FileDetailModalKeyConcept, 
+  FileDetailModalFileInfo, 
+  FileDetailModalProps,
+  EditConceptFormProps
+} from '@/lib/interfaces';
 
 export default function FileDetailModal({ file, studentId, isOpen, onClose }: FileDetailModalProps) {
-  const [concepts, setConcepts] = useState<KeyConcept[]>([]);
+  const [concepts, setConcepts] = useState<FileDetailModalKeyConcept[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingConcept, setEditingConcept] = useState<string | null>(null);
   const [newConcept, setNewConcept] = useState({ term: '', explanation: '', example: '' });
@@ -83,7 +61,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
     }
   };
 
-  const handleUpdateConcept = async (conceptId: string, updates: Partial<KeyConcept>) => {
+  const handleUpdateConcept = async (conceptId: string, updates: Partial<FileDetailModalKeyConcept>) => {
     if (!file) return;
 
     try {
@@ -304,11 +282,6 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
   );
 }
 
-interface EditConceptFormProps {
-  concept: KeyConcept;
-  onSave: (updates: Partial<KeyConcept>) => void;
-  onCancel: () => void;
-}
 
 function EditConceptForm({ concept, onSave, onCancel }: EditConceptFormProps) {
   const [formData, setFormData] = useState({

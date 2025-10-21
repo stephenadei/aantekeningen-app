@@ -1,52 +1,7 @@
-import { 
-  DriveFileId,
-  FileName,
-  CleanFileName,
-  DriveUrl,
-  DownloadUrl,
-  ThumbnailUrl,
-  ViewUrl,
-  Subject,
-  Topic,
-  Level,
-  SchoolYear
-} from './types';
+// No direct type imports needed for this utility file
+import type { FileInfo, FilterState } from './interfaces';
 
-export interface FileInfo {
-  id: DriveFileId;
-  name: FileName;
-  title: CleanFileName;
-  url?: DriveUrl;
-  downloadUrl?: DownloadUrl;
-  thumbnailUrl?: ThumbnailUrl;
-  viewUrl?: ViewUrl;
-  modifiedTime: string;
-  size?: number;
-  subject?: Subject;
-  topic?: Topic;
-  level?: Level;
-  schoolYear?: SchoolYear;
-  keywords?: string[];
-  summary?: string;
-  summaryEn?: string;
-  topicEn?: string;
-  keywordsEn?: string[];
-}
-
-export interface FilterState {
-  subjects: string[];
-  topics: string[];
-  levels: string[];
-  schoolYears: string[];
-  keywords: string[];
-  dateRange: {
-    type: 'all' | 'days' | 'weeks' | 'months' | 'years' | 'custom';
-    value?: number;
-    startDate?: Date;
-    endDate?: Date;
-  };
-  searchText: string;
-}
+// FileInfo and FilterState interfaces are now imported from ./interfaces
 
 /**
  * Convert a date range type to actual start and end dates
@@ -197,11 +152,14 @@ export function getFilterCounts(
     // Check if file matches other filters (excluding the current field)
     const tempFilters: FilterState = {
       subjects: filters.subjects || [],
+      topicGroups: filters.topicGroups || [],
       topics: filters.topics || [],
       levels: filters.levels || [],
       schoolYears: filters.schoolYears || [],
       keywords: filters.keywords || [],
       dateRange: filters.dateRange || { type: 'all' },
+      sortBy: filters.sortBy || 'date',
+      sortOrder: filters.sortOrder || 'desc',
       searchText: filters.searchText || '',
     };
 
@@ -265,6 +223,7 @@ export function serializeFilters(filters: FilterState): URLSearchParams {
 export function deserializeFilters(params: URLSearchParams): FilterState {
   return {
     subjects: params.get('subjects')?.split(',').filter(Boolean) || [],
+    topicGroups: params.get('topicGroups')?.split(',').filter(Boolean) || [],
     topics: params.get('topics')?.split(',').filter(Boolean) || [],
     levels: params.get('levels')?.split(',').filter(Boolean) || [],
     schoolYears: params.get('schoolYears')?.split(',').filter(Boolean) || [],
@@ -273,6 +232,8 @@ export function deserializeFilters(params: URLSearchParams): FilterState {
       type: (params.get('dateRangeType') || 'all') as 'all' | 'days' | 'weeks' | 'months' | 'years' | 'custom',
       value: params.get('dateRangeValue') ? parseInt(params.get('dateRangeValue')!) : undefined,
     },
+    sortBy: (params.get('sortBy') || 'date') as 'date' | 'name' | 'subject' | 'topic',
+    sortOrder: (params.get('sortOrder') || 'desc') as 'asc' | 'desc',
     searchText: params.get('searchText') || '',
   };
 }

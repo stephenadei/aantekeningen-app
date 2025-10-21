@@ -2,36 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Users, FileText, TrendingUp, Activity, BarChart3, PieChart } from 'lucide-react';
-
-interface StatsData {
-  totalStudents: number;
-  totalNotes: number;
-  recentActivity: number;
-  activeStudents: number;
-  unconfirmedFolders: number;
-  unlinkedFolders: number;
-  subjectBreakdown: Array<{
-    subject: string;
-    count: number;
-  }>;
-  levelBreakdown: Array<{
-    level: string;
-    count: number;
-  }>;
-  recentNotes: Array<{
-    id: string;
-    topic: string;
-    student: {
-      displayName: string;
-    };
-    createdAt: string;
-  }>;
-  monthlyGrowth: Array<{
-    month: string;
-    students: number;
-    notes: number;
-  }>;
-}
+import type { StatsData } from '@/lib/interfaces';
 
 export default function StatsPage() {
   const [stats, setStats] = useState<StatsData | null>(null);

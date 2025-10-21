@@ -2,32 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Download, Filter, Calendar } from 'lucide-react';
-
-interface LoginAudit {
-  id: string;
-  who: string;
-  action: string;
-  ip: string | null;
-  userAgent: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-  teacher?: {
-    id: string;
-    name: string;
-    email: string;
-  };
-  student?: {
-    id: string;
-    displayName: string;
-  };
-}
-
-interface AuditResponse {
-  audits: LoginAudit[];
-  total: number;
-  page: number;
-  totalPages: number;
-}
+import type { LoginAudit, AuditResponse } from '@/lib/interfaces';
 
 const ACTION_TYPES = [
   'login_ok',
@@ -143,7 +118,7 @@ export default function AuditPage() {
       return `${audit.teacher.name} (${audit.teacher.email})`;
     }
     if (audit.student) {
-      return `Student: ${audit.student.displayName}`;
+      return `Student: ${audit.student.name}`;
     }
     return audit.who;
   };
@@ -332,12 +307,12 @@ export default function AuditPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionBadgeColor(audit.action)}`}>
-                        {ACTION_LABELS[audit.action as keyof typeof ACTION_LABELS] || audit.action}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionBadgeColor(audit.action || 'unknown')}`}>
+                        {ACTION_LABELS[audit.action as keyof typeof ACTION_LABELS] || audit.action || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {audit.ip || '-'}
+                      {audit.ipAddress || '-'}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                       {audit.userAgent || '-'}

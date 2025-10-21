@@ -2,10 +2,7 @@ import { NextRequest } from 'next/server';
 import { validateTeacherEmail } from './security';
 import { 
   TeacherEmail, 
-  TeacherId,
-  Result,
-  Ok,
-  Err
+  TeacherId
 } from './types';
 
 // Runtime detection to prevent Edge Runtime usage
@@ -41,19 +38,7 @@ async function getFirebaseAuth() {
   }
 }
 
-export interface FirebaseUser {
-  uid: TeacherId;
-  email: TeacherEmail | null;
-  name: string | null;
-  picture: string | null;
-  emailVerified: boolean;
-  customClaims?: Record<string, unknown>;
-}
-
-export interface AuthResult {
-  user: FirebaseUser | null;
-  error: string | null;
-}
+import type { FirebaseUser, AuthResult } from './interfaces';
 
 /**
  * Verify Firebase ID token from request headers
@@ -61,7 +46,7 @@ export interface AuthResult {
  */
 export async function verifyFirebaseToken(request: NextRequest): Promise<AuthResult> {
   if (isEdgeRuntime) {
-    return { user: null, error: 'Firebase Admin SDK not available in Edge Runtime' };
+    return { success: false, user: undefined, error: 'Firebase Admin SDK not available in Edge Runtime' };
   }
 
   try {
@@ -69,25 +54,28 @@ export async function verifyFirebaseToken(request: NextRequest): Promise<AuthRes
     
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return { user: null, error: 'No authorization header' };
+      return { success: false, user: undefined, error: 'No authorization header' };
     }
 
     const token = authHeader.substring(7);
-    const decodedToken = await firebaseAuth.verifyIdToken!(token);
+    if (!firebaseAuth || !firebaseAuth.verifyIdToken) {
+      return { success: false, user: undefined, error: 'Firebase Auth not initialized' };
+    }
+    const decodedToken = await firebaseAuth.verifyIdToken(token);
     
     const user: FirebaseUser = {
       uid: decodedToken.uid as TeacherId,
-      email: (decodedToken.email as TeacherEmail) || null,
-      name: (decodedToken.name as string) || null,
-      picture: (decodedToken.picture as string) || null,
+      email: (decodedToken.email as TeacherEmail) || undefined,
+      name: (decodedToken.name as string) || undefined,
+      picture: (decodedToken.picture as string) || undefined,
       emailVerified: (decodedToken.email_verified as boolean) || false,
       customClaims: decodedToken.customClaims as Record<string, unknown>,
     };
 
-    return { user, error: null };
+    return { user, success: true, error: undefined };
   } catch (error) {
     console.error('Token verification failed:', error);
-    return { user: null, error: 'Invalid token' };
+    return { success: false, user: undefined, error: 'Invalid token' };
   }
 }
 
@@ -97,7 +85,7 @@ export async function verifyFirebaseToken(request: NextRequest): Promise<AuthRes
  */
 export async function verifyFirebaseTokenFromCookie(request: NextRequest): Promise<AuthResult> {
   if (isEdgeRuntime) {
-    return { user: null, error: 'Firebase Admin SDK not available in Edge Runtime' };
+    return { success: false, user: undefined, error: 'Firebase Admin SDK not available in Edge Runtime' };
   }
 
   try {
@@ -105,24 +93,27 @@ export async function verifyFirebaseTokenFromCookie(request: NextRequest): Promi
     
     const sessionCookie = request.cookies.get('__session')?.value;
     if (!sessionCookie) {
-      return { user: null, error: 'No session cookie' };
+      return { success: false, user: undefined, error: 'No session cookie' };
     }
 
-    const decodedClaims = await firebaseAuth.verifySessionCookie!(sessionCookie, true);
+    if (!firebaseAuth || !firebaseAuth.verifySessionCookie) {
+      return { success: false, user: undefined, error: 'Firebase Auth not initialized' };
+    }
+    const decodedClaims = await firebaseAuth.verifySessionCookie(sessionCookie, true);
     
     const user: FirebaseUser = {
       uid: decodedClaims.uid as TeacherId,
-      email: (decodedClaims.email as TeacherEmail) || null,
-      name: (decodedClaims.name as string) || null,
-      picture: (decodedClaims.picture as string) || null,
+      email: (decodedClaims.email as TeacherEmail) || undefined,
+      name: (decodedClaims.name as string) || undefined,
+      picture: (decodedClaims.picture as string) || undefined,
       emailVerified: (decodedClaims.email_verified as boolean) || false,
       customClaims: decodedClaims.customClaims as Record<string, unknown>,
     };
 
-    return { user, error: null };
+    return { user, success: true, error: undefined };
   } catch (error) {
     console.error('Session cookie verification failed:', error);
-    return { user: null, error: 'Invalid session cookie' };
+    return { success: false, user: undefined, error: 'Invalid session cookie' };
   }
 }
 
@@ -153,7 +144,7 @@ export async function setUserRole(uid: string, role: 'admin' | 'staff'): Promise
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
   const firebaseAuth = await getFirebaseAuth();
-  if (!firebaseAuth.setCustomUserClaims) {
+  if (!firebaseAuth || !firebaseAuth.setCustomUserClaims) {
     throw new Error('setCustomUserClaims not available');
   }
   await firebaseAuth.setCustomUserClaims(uid, { role });
@@ -170,15 +161,15 @@ export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
 
   try {
     const firebaseAuth = await getFirebaseAuth();
-    if (!firebaseAuth.getUser) {
+    if (!firebaseAuth || !firebaseAuth.getUser) {
       throw new Error('getUser not available');
     }
     const userRecord = await firebaseAuth.getUser(uid);
     return {
       uid: userRecord.uid as TeacherId,
-      email: (userRecord.email as TeacherEmail) || null,
-      name: userRecord.displayName || null,
-      picture: userRecord.photoURL || null,
+      email: (userRecord.email as TeacherEmail) || undefined,
+      name: userRecord.displayName || undefined,
+      picture: userRecord.photoURL || undefined,
       emailVerified: userRecord.emailVerified,
       customClaims: userRecord.customClaims as Record<string, unknown>,
     };
@@ -197,7 +188,7 @@ export async function createCustomToken(uid: string, additionalClaims?: Record<s
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
   const firebaseAuth = await getFirebaseAuth();
-  if (!firebaseAuth.createCustomToken) {
+  if (!firebaseAuth || !firebaseAuth.createCustomToken) {
     throw new Error('createCustomToken not available');
   }
   return await firebaseAuth.createCustomToken(uid, additionalClaims);

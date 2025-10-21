@@ -2,21 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-interface DateRangeFilterProps {
-  value: {
-    type: 'all' | 'days' | 'weeks' | 'months' | 'years' | 'custom';
-    value?: number;
-    startDate?: Date;
-    endDate?: Date;
-  };
-  onChange: (value: {
-    type: 'all' | 'days' | 'weeks' | 'months' | 'years' | 'custom';
-    value?: number;
-    startDate?: Date;
-    endDate?: Date;
-  }) => void;
-}
+import type { DateRangeFilterProps } from '@/lib/interfaces';
 
 export default function DateRangeFilter({ value, onChange }: DateRangeFilterProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());

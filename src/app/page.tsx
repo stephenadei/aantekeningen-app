@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { Search, FileText, Calendar, User, ArrowLeft, Loader2, Share2, Download, Filter, GraduationCap } from 'lucide-react';
-import Link from 'next/link';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useNativeShare } from '@/hooks/useNativeShare';
 import Sidebar from '@/components/ui/Sidebar';
@@ -15,39 +14,16 @@ import {
   getFilterCounts, 
   getActiveFilterCount,
   serializeFilters,
-  deserializeFilters,
-  type FilterState,
-  type FileInfo
+  deserializeFilters
 } from '@/lib/filterUtils';
-
-interface Student {
-  id: string;
-  displayName: string;
-  subject: string;
-  url: string;
-}
-
-interface StudentOverview {
-  fileCount: number;
-  lastActivity: string | null;
-  lastActivityDate: string;
-  lastFile?: {
-    id: string;
-    name: string;
-    title: string;
-    subject?: string;
-    topic?: string;
-    summary?: string;
-    modifiedTime: string;
-  };
-}
+import type { FilterState, FileInfo, MainPageStudent, MainPageStudentOverview } from '@/lib/interfaces';
 
 
 export default function AantekeningenPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [students, setStudents] = useState<Student[]>([]);
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
-  const [studentOverview, setStudentOverview] = useState<StudentOverview | null>(null);
+  const [students, setStudents] = useState<MainPageStudent[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<MainPageStudent | null>(null);
+  const [studentOverview, setStudentOverview] = useState<MainPageStudentOverview | null>(null);
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [cacheLoading, setCacheLoading] = useState(false);
@@ -62,11 +38,14 @@ export default function AantekeningenPage() {
   const [isFilterSidebarOpen, setIsFilterSidebarOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     subjects: [],
+    topicGroups: [],
     topics: [],
     levels: [],
     schoolYears: [],
     keywords: [],
     dateRange: { type: 'all' },
+    sortBy: 'date',
+    sortOrder: 'desc',
     searchText: ''
   });
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'subject' | 'topic'>('date');
@@ -166,7 +145,7 @@ export default function AantekeningenPage() {
     }
   };
 
-  const handleStudentSelect = async (student: Student) => {
+  const handleStudentSelect = async (student: MainPageStudent) => {
     console.log('🔄 Loading student:', student.displayName, 'ID:', student.id);
     setSelectedStudent(student);
     setLoading(true);
@@ -262,7 +241,7 @@ export default function AantekeningenPage() {
     setHasSearched(false);
   };
 
-  const handleShareStudent = async (student: Student) => {
+  const handleShareStudent = async (student: MainPageStudent) => {
     try {
       const response = await fetch(`/api/students/${student.id}/share`);
       const data = await response.json();
@@ -338,6 +317,16 @@ export default function AantekeningenPage() {
   const subjectItems = useMemo(() => {
     const items = extractUniqueValues(files, 'subject');
     const counts = getFilterCounts(files, 'subject', filters);
+    return items.map(item => ({
+      value: item.value,
+      label: item.label,
+      count: counts.get(item.value) || 0
+    }));
+  }, [files, filters]);
+
+  const topicGroupItems = useMemo(() => {
+    const items = extractUniqueValues(files, 'topicGroup');
+    const counts = getFilterCounts(files, 'topicGroup', filters);
     return items.map(item => ({
       value: item.value,
       label: item.label,
@@ -456,11 +445,14 @@ export default function AantekeningenPage() {
   const handleClearFilters = () => {
     setFilters({
       subjects: [],
+      topicGroups: [],
       topics: [],
       levels: [],
       schoolYears: [],
       keywords: [],
       dateRange: { type: 'all' },
+      sortBy: 'date',
+      sortOrder: 'desc',
       searchText: ''
     });
   };
@@ -473,6 +465,12 @@ export default function AantekeningenPage() {
         setFilters(prev => ({
           ...prev,
           subjects: prev.subjects.filter(s => s !== value)
+        }));
+        break;
+      case 'topicGroup':
+        setFilters(prev => ({
+          ...prev,
+          topicGroups: prev.topicGroups.filter(tg => tg !== value)
         }));
         break;
       case 'topic':
@@ -514,6 +512,10 @@ export default function AantekeningenPage() {
     
     filters.subjects.forEach(subject => {
       pills.push({ id: `subject:${subject}`, label: `Vak: ${subject}` });
+    });
+    
+    filters.topicGroups.forEach(topicGroup => {
+      pills.push({ id: `topicGroup:${topicGroup}`, label: `Domein: ${topicGroup}` });
     });
     
     filters.topics.forEach(topic => {
@@ -876,25 +878,25 @@ export default function AantekeningenPage() {
                     {filteredAndSortedFiles.length} van {files.length} bestanden
                   </span>
                   <div className="flex gap-2">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'date' | 'name' | 'subject' | 'topic')}
                       className="px-3 py-1 text-sm border border-yellow-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-100 text-blue-900"
-                    >
-                      <option value="date">Datum</option>
-                      <option value="name">Naam</option>
-                      <option value="subject">Vak</option>
-                      <option value="topic">Onderwerp</option>
-                    </select>
+                  >
+                    <option value="date">Datum</option>
+                    <option value="name">Naam</option>
+                    <option value="subject">Vak</option>
+                    <option value="topic">Onderwerp</option>
+                  </select>
 
-                    <select
-                      value={sortOrder}
-                      onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+                  <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
                       className="px-3 py-1 text-sm border border-yellow-300 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-100 text-blue-900"
-                    >
-                      <option value="desc">Nieuwste eerst</option>
-                      <option value="asc">Oudste eerst</option>
-                    </select>
+                  >
+                    <option value="desc">Nieuwste eerst</option>
+                    <option value="asc">Oudste eerst</option>
+                  </select>
                   </div>
                 </div>
               </div>
@@ -909,9 +911,10 @@ export default function AantekeningenPage() {
             >
               <FilterSidebarContent
                 currentFilters={filters}
-                onApply={handleApplyFilters}
-                onClear={handleClearFilters}
+              onApply={handleApplyFilters}
+              onClear={handleClearFilters}
                 subjectItems={subjectItems}
+                topicGroupItems={topicGroupItems}
                 topicItems={topicItems}
                 levelItems={levelItems}
                 schoolYearItems={schoolYearItems}
@@ -938,9 +941,10 @@ export default function AantekeningenPage() {
                       <div>
                         <div className="relative group">
                           <Thumbnail
-                            src={file.thumbnailUrl}
-                            alt={file.title}
+                              src={file.thumbnailUrl} 
+                              alt={file.title}
                             fileId={file.id}
+                            fileType={file.mimeType}
                             className="mb-3 rounded-lg cursor-pointer"
                             onClick={() => window.open(file.viewUrl as string, '_blank')}
                           />
@@ -994,9 +998,10 @@ export default function AantekeningenPage() {
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-12 rounded-lg overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
                             <Thumbnail
-                              src={file.thumbnailUrl}
+                              src={file.thumbnailUrl} 
                               alt={file.title}
                               fileId={file.id}
+                              fileType={file.mimeType}
                               className="w-full h-full"
                             />
                             <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">

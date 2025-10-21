@@ -1,36 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-interface FileInfo {
-  id: string;
-  name: string;
-  title: string;
-  url: string;
-  downloadUrl: string;
-  viewUrl: string;
-  thumbnailUrl: string;
-  modifiedTime: string;
-  size: number;
-  subject?: string;
-  topic?: string;
-  level?: string;
-  schoolYear?: string;
-  keywords?: string[];
-  summary?: string;
-  summaryEn?: string;
-  topicEn?: string;
-  keywordsEn?: string[];
-  aiAnalyzedAt?: string;
-}
-
-interface StudentFilesResponse {
-  success: boolean;
-  files: FileInfo[];
-  count: number;
-  totalCount: number;
-  hasMore: boolean;
-  fromCache?: boolean;
-  cacheFresh?: boolean;
-}
+import type { FileInfo, StudentFilesResponse } from '@/lib/interfaces';
 
 /**
  * Fetch student files from API

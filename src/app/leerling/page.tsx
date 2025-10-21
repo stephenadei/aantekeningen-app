@@ -1,27 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { User, Key, ArrowRight, AlertCircle, FileText, Calendar } from 'lucide-react';
+import { User, ArrowRight, AlertCircle, FileText, Calendar } from 'lucide-react';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { validatePinFormat } from '@/lib/security';
-import { verifyPin } from '@/lib/security';
-import { getLoginAudits } from '@/lib/firestore';
-
-interface Student {
-  id: string;
-  displayName: string;
-  notes: Array<{
-    id: string;
-    contentMd: string;
-    subject: string;
-    level: string;
-    topic: string;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-}
+import type { StudentPortalStudent } from '@/lib/interfaces';
 
 export default function LeerlingPortal() {
   const [formData, setFormData] = useState({
@@ -31,8 +15,7 @@ export default function LeerlingPortal() {
   const [loading, setLoading] = useState(false);
   const [loadingStudent, setLoadingStudent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [student, setStudent] = useState<Student | null>(null);
-  const router = useRouter();
+  const [student, setStudent] = useState<StudentPortalStudent | null>(null);
 
   // Helper functions for sessionStorage (client-side only)
   const setSessionStorage = (key: string, value: string) => {
@@ -120,7 +103,7 @@ export default function LeerlingPortal() {
             // Session expired, clear it
             removeSessionStorage('studentSession');
           }
-        } catch (err) {
+        } catch {
           removeSessionStorage('studentSession');
         }
       }
@@ -138,7 +121,7 @@ export default function LeerlingPortal() {
       } else {
         removeSessionStorage('studentSession');
       }
-    } catch (err) {
+    } catch {
       removeSessionStorage('studentSession');
     } finally {
       setLoadingStudent(false);

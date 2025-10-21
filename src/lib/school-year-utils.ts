@@ -2,12 +2,7 @@
  * Utility functions for automatically determining school years from file dates
  */
 
-export interface SchoolYearInfo {
-  schoolYear: string;
-  academicYear: string;
-  semester: 'Eerste' | 'Tweede';
-  period: string;
-}
+import type { SchoolYearInfo } from './interfaces';
 
 /**
  * Determines the school year based on a file's modification date

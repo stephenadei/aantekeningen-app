@@ -1,12 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-
-interface FilterPillProps {
-  label: string;
-  onRemove: () => void;
-  color?: string;
-}
+import type { FilterPillProps, FilterPillsProps } from '@/lib/interfaces';
 
 export function FilterPill({ label, onRemove, color }: FilterPillProps) {
   return (
@@ -29,15 +24,6 @@ export function FilterPill({ label, onRemove, color }: FilterPillProps) {
   );
 }
 
-interface FilterPillsProps {
-  pills: Array<{
-    id: string;
-    label: string;
-    color?: string;
-  }>;
-  onRemovePill: (id: string) => void;
-  onClearAll?: () => void;
-}
 
 export default function FilterPills({
   pills,

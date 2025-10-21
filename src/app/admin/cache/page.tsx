@@ -2,18 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Loader2, RefreshCw, Database, Clock, TrendingUp, AlertCircle } from 'lucide-react';
-
-interface CacheStats {
-  totalEntries: number;
-  expiredEntries: number;
-  byType: Record<string, number>;
-}
-
-interface SyncStatus {
-  lastSync: string | null;
-  isRunning: boolean;
-  version: string;
-}
+import type { CacheStats, SyncStatus } from '@/lib/interfaces';
 
 export default function CacheDashboard() {
   const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);

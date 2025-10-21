@@ -1,19 +1,5 @@
 import { google } from 'googleapis';
 import { 
-  DriveFileId,
-  DriveFolderId,
-  FileName,
-  CleanFileName,
-  DriveUrl,
-  DownloadUrl,
-  ViewUrl,
-  ThumbnailUrl,
-  Subject,
-  Topic,
-  Level,
-  SchoolYear,
-  StudentName,
-  FolderName,
   createDriveFolderId,
   createStudentName,
   createSubject,
@@ -25,6 +11,7 @@ import {
   createViewUrl,
   createThumbnailUrl
 } from './types';
+import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
 
 // Google Drive API configuration
 // const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
@@ -46,50 +33,9 @@ const CACHE_KEY_METADATA = 'cached_metadata';
 // In-memory cache (in production, consider using Redis)
 const memoryCache = new Map<string, { data: Record<string, unknown>; timestamp: number }>();
 
-export interface Student {
-  id: DriveFolderId;
-  name: StudentName;
-  subject: Subject;
-  url: DriveUrl;
-}
+// DriveStudent and FileInfo interfaces are now imported from ./interfaces
 
-export interface FileInfo {
-  id: DriveFileId;
-  name: FileName;
-  title: CleanFileName;
-  url: DriveUrl;
-  downloadUrl: DownloadUrl;
-  viewUrl: ViewUrl;
-  thumbnailUrl: ThumbnailUrl;
-  modifiedTime: string;
-  size: number;
-  // AI-generated metadata
-  subject?: Subject;
-  topic?: Topic;
-  level?: Level;
-  schoolYear?: SchoolYear;
-  keywords?: string[];
-  summary?: string;
-  summaryEn?: string;
-  topicEn?: string;
-  keywordsEn?: string[];
-  aiAnalyzedAt?: Date;
-}
-
-export interface StudentOverview {
-  fileCount: number;
-  lastActivity: string | null;
-  lastActivityDate: string;
-  lastFile?: {
-    id: DriveFileId;
-    name: FileName;
-    title: CleanFileName;
-    subject?: Subject;
-    topic?: Topic;
-    summary?: string;
-    modifiedTime: string;
-  };
-}
+// StudentOverview interface is now imported from ./interfaces
 
 class GoogleDriveService {
   private drive!: ReturnType<typeof google.drive>;
@@ -249,16 +195,16 @@ class GoogleDriveService {
    * Find student folders by name (case-insensitive, partial match)
    * Searches through all subject folders (WO, Rekenen, VO) for student names
    */
-  async findStudentFolders(needle: string): Promise<Student[]> {
+  async findStudentFolders(needle: string): Promise<DriveStudent[]> {
     try {
       // Try to get cached data first
       const cachedData = this.getCache(CACHE_KEY_STUDENTS);
       
-      let allStudents: Student[] = [];
+      let allStudents: DriveStudent[] = [];
       
       if (cachedData) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const cachedStudents = ((cachedData as any).data?.students as Student[] | undefined) || [];
+        const cachedStudents = ((cachedData as any).data?.students as DriveStudent[] | undefined) || [];
         console.log('Using cached student data (' + cachedStudents.length + ' students)');
         allStudents = cachedStudents;
       } else {
@@ -359,21 +305,21 @@ class GoogleDriveService {
 
       // Fetch all pages of files
       do {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const files: any = await this.drive.files.list({
+        const files = await this.drive.files.list({
           q: `'${folderId}' in parents and trashed=false`,
-          fields: 'files(id, name, modifiedTime, size),nextPageToken',
+          fields: 'files(id, name, modifiedTime, size, mimeType),nextPageToken',
           orderBy: 'modifiedTime desc',
           pageSize: pageSize,
           pageToken: pageToken,
-        });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as any;
 
         // Process files from this page
         for (const file of files.data.files || []) {
           if (!file.id || !file.name) continue;
           
           // Type assertion to ensure properties exist
-          const typedFile = file as { id: string; name: string; modifiedTime: string; size?: string };
+          const typedFile = file as { id: string; name: string; modifiedTime: string; size?: string; mimeType?: string };
           const fileName = typedFile.name;
           const cleanTitle = this.cleanFileName(fileName);
           
@@ -390,8 +336,10 @@ class GoogleDriveService {
             thumbnailUrl: createThumbnailUrl(`https://drive.google.com/thumbnail?id=${typedFile.id}&sz=w400-h400`),
             modifiedTime: typedFile.modifiedTime,
             size: parseInt(typedFile.size || '0'),
+            mimeType: typedFile.mimeType,
             // AI-generated metadata
             subject: aiAnalysis.subject,
+            topicGroup: aiAnalysis.topicGroup,
             topic: aiAnalysis.topic,
             level: aiAnalysis.level,
             schoolYear: aiAnalysis.schoolYear,
@@ -443,6 +391,37 @@ class GoogleDriveService {
     } catch (error) {
       console.error('Error listing files: ' + error);
       return [];
+    }
+  }
+
+  /**
+   * Get file information by file ID
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getFileInfo(fileId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      console.log('🔍 getFileInfo called for fileId:', fileId);
+      
+      if (!fileId || typeof fileId !== 'string') {
+        console.log('❌ Error: Invalid fileId provided to getFileInfo:', fileId);
+        return { success: false, error: 'Invalid file ID' };
+      }
+
+      const response = await this.drive.files.get({
+        fileId: fileId,
+        fields: 'id,name,mimeType,size,modifiedTime,thumbnailLink'
+      });
+
+      if (!response.data) {
+        console.log('❌ No file data returned for fileId:', fileId);
+        return { success: false, error: 'File not found' };
+      }
+
+      console.log('✅ File info retrieved successfully for fileId:', fileId);
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('❌ Error getting file info:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -576,6 +555,7 @@ class GoogleDriveService {
           name: createFileName(lastFile.name),
           title: createCleanFileName(this.cleanFileName(fileName)),
           subject: aiAnalysis.subject,
+          topicGroup: aiAnalysis.topicGroup,
           topic: aiAnalysis.topic,
           summary: aiAnalysis.summary,
           modifiedTime: lastFile.modifiedTime
@@ -665,15 +645,20 @@ class GoogleDriveService {
    * Analyze document content with OpenAI to extract metadata
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private async analyzeDocumentWithAI(fileName: string): Promise<any> {
+  private async analyzeDocumentWithAI(fileName: string, forceReanalyze = false): Promise<any> {
     try {
-      // Check cache first
+      // Check cache first (unless force re-analyze is requested)
       const cacheKey = CACHE_KEY_AI_ANALYSIS + fileName.substring(0, 50); // Limit to 50 chars
-      const cachedData = this.getCache(cacheKey);
       
-      if (cachedData) {
-        console.log('Using cached AI analysis for: ' + fileName);
-        return cachedData.analysis;
+      if (!forceReanalyze) {
+        const cachedData = this.getCache(cacheKey);
+        
+        if (cachedData) {
+          console.log('Using cached AI analysis for: ' + fileName);
+          return cachedData.analysis;
+        }
+      } else {
+        console.log('Force re-analyzing with AI (ignoring cache): ' + fileName);
       }
       
       // If no API key, return basic analysis
@@ -684,21 +669,44 @@ class GoogleDriveService {
       
       console.log('Analyzing document with AI: ' + fileName);
       
-      // Prepare prompt for OpenAI with bilingual support
-      const prompt = `Analyze this document and extract metadata. Return a JSON object with:
-      - subject: The main subject/vak from this list: Wiskunde A, Wiskunde B, Wiskunde C, Wiskunde D, Natuurkunde, Scheikunde, Informatica, Programmeren, Python, Rekenen, Statistiek, Data-analyse
-      - topic: The specific topic/onderwerp (e.g., "Algebra", "Functies", "Differentiëren", "Integreren", "Mechanica", "Elektriciteit", "Organische chemie", "Python basics", "Statistiek")
-      - level: Educational level (e.g., "VO", "WO", "HBO")
-      - schoolYear: School year in format "YY/YY" (e.g., "24/25", "23/24", "22/23")
-      - keywords: Array of 3-5 relevant keywords
-      - summary: Brief 1-sentence summary
-      - summaryEn: Brief 1-sentence summary in English
-      - topicEn: The specific topic in English
-      - keywordsEn: Array of 3-5 relevant keywords in English
-      
-      Document name: "${fileName}"
-      
-      Return only valid JSON, no other text.`;
+      // Prepare prompt for OpenAI with comprehensive taxonomy
+      const prompt = `Analyze this educational document and extract metadata. Return a JSON object with:
+
+SUBJECTS (choose the most appropriate):
+- rekenen-basis, wiskunde-a, wiskunde-b, wiskunde-c, wiskunde-d
+- economie, natuurkunde, scheikunde, biologie
+- nederlands, engels, informatica
+
+TOPIC GROUPS (choose based on subject):
+Wiskunde: rekenen-getallen, algebra-vergelijkingen, functies-grafieken, meetkunde-ruimtelijk, analyse-calculus, kans-statistiek, verdieping-vwo
+Economie: micro, macro, publiek-financien, persoonlijke-financien, internationaal, vaardigheden-modelleren
+Natuurkunde: mechanica, elektriciteit-magnetisme, golf-optica, thermodynamica, moderne-fysica, metingen-vaardigheden
+Scheikunde: materie-structuur, stoichiometrie, reacties, kinetiek-evenwicht, organische-chemie, analyse-vaardigheden
+Biologie: cel-biochemie, genetica-evolutie, fysiologie-mens, ecologie, microbiologie-immuniteit, planten, bio-vaardigheden
+Nederlands: lezen-luisteren, schrijven, taalbeschouwing-grammatica, literatuur, nl-vaardigheden
+Engels: reading-listening, writing, speaking, grammar-vocabulary, literature-culture, exam-skills
+Informatica: programmeren, web-databases, algoritmen, ethiek-veiligheid
+
+TOPICS (choose specific topic from the topic group):
+Examples: breuken-optellen, lineaire-vergelijking, pythagoras, differentiëren-somregel, vraag-en-aanbod, newton, zuur-base, dna-rna, etc.
+
+LEVELS: po, vo-vmbo-bb, vo-vmbo-kb, vo-vmbo-gt, vo-havo-onderbouw, vo-vwo-onderbouw, vo-havo-bovenbouw, vo-vwo-bovenbouw, mbo, hbo-propedeuse, hbo-hoofdfase, wo-bachelor, wo-master, wo-phd, mixed
+
+Return JSON with:
+- subject: One of the subjects above
+- topicGroup: One of the topic groups above (must match the subject)
+- topic: Specific topic from the topic group
+- level: Educational level from the list above
+- schoolYear: School year in format "YYYY-YYYY" (e.g., "2024-2025")
+- keywords: Array of 3-5 relevant keywords
+- summary: Brief 1-sentence summary in Dutch
+- summaryEn: Brief 1-sentence summary in English
+- topicEn: The specific topic in English
+- keywordsEn: Array of 3-5 relevant keywords in English
+
+Document name: "${fileName}"
+
+Return only valid JSON, no other text.`;
       
       // Call OpenAI API
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -749,6 +757,7 @@ class GoogleDriveService {
   private basicAnalysis(fileName: string): any {
     const analysis = {
       subject: 'Onbekend',
+      topicGroup: 'Algemeen',
       topic: 'Algemeen',
       level: 'VO',
       schoolYear: '24/25',
@@ -762,32 +771,37 @@ class GoogleDriveService {
     // Try to extract subject from filename
     const lowerName = fileName.toLowerCase();
     if (lowerName.includes('wiskunde') || lowerName.includes('math')) {
-      analysis.subject = 'Wiskunde';
-      analysis.topic = 'Wiskunde';
+      analysis.subject = 'wiskunde-a';
+      analysis.topicGroup = 'rekenen-getallen';
+      analysis.topic = 'rekenen';
       analysis.topicEn = 'Mathematics';
       analysis.keywords = ['wiskunde', 'rekenen', 'algebra'];
       analysis.keywordsEn = ['mathematics', 'calculations', 'algebra'];
     } else if (lowerName.includes('nederlands') || lowerName.includes('dutch')) {
-      analysis.subject = 'Nederlands';
-      analysis.topic = 'Taal';
+      analysis.subject = 'nederlands';
+      analysis.topicGroup = 'lezen-luisteren';
+      analysis.topic = 'tekststructuur';
       analysis.topicEn = 'Language';
       analysis.keywords = ['nederlands', 'taal', 'grammatica'];
       analysis.keywordsEn = ['dutch', 'language', 'grammar'];
     } else if (lowerName.includes('biologie') || lowerName.includes('biology')) {
-      analysis.subject = 'Biologie';
-      analysis.topic = 'Natuurwetenschappen';
+      analysis.subject = 'biologie';
+      analysis.topicGroup = 'cel-biochemie';
+      analysis.topic = 'celkern-organellen';
       analysis.topicEn = 'Natural Sciences';
       analysis.keywords = ['biologie', 'natuur', 'cellen'];
       analysis.keywordsEn = ['biology', 'nature', 'cells'];
     } else if (lowerName.includes('scheikunde') || lowerName.includes('chemistry')) {
-      analysis.subject = 'Scheikunde';
-      analysis.topic = 'Natuurwetenschappen';
+      analysis.subject = 'scheikunde';
+      analysis.topicGroup = 'materie-structuur';
+      analysis.topic = 'periodiek-systeem';
       analysis.topicEn = 'Natural Sciences';
       analysis.keywords = ['scheikunde', 'chemie', 'moleculen'];
       analysis.keywordsEn = ['chemistry', 'molecules', 'reactions'];
     } else if (lowerName.includes('fysica') || lowerName.includes('physics')) {
-      analysis.subject = 'Fysica';
-      analysis.topic = 'Natuurwetenschappen';
+      analysis.subject = 'natuurkunde';
+      analysis.topicGroup = 'mechanica';
+      analysis.topic = 'newton';
       analysis.topicEn = 'Natural Sciences';
       analysis.keywords = ['fysica', 'natuurkunde', 'mechanica'];
       analysis.keywordsEn = ['physics', 'mechanics', 'forces'];
@@ -892,7 +906,7 @@ class GoogleDriveService {
   /**
    * Get all students without search filter
    */
-  private async getAllStudents(): Promise<Student[]> {
+  async getAllStudents(): Promise<DriveStudent[]> {
     try {
       await this.ensureInitialized();
       
@@ -904,7 +918,7 @@ class GoogleDriveService {
         fields: 'files(id, name)',
       });
 
-      const allStudents: Student[] = [];
+      const allStudents: DriveStudent[] = [];
       
       for (const subjectFolder of subjectFolders.data.files || []) {
         const subjectName = subjectFolder.name;
@@ -938,7 +952,7 @@ class GoogleDriveService {
   /**
    * Preload and cache all metadata for better performance
    */
-  async preloadMetadata(): Promise<{ success: boolean; message: string; data?: unknown }> {
+  async preloadMetadata(forceReanalyze = false): Promise<{ success: boolean; message: string; data?: unknown }> {
     try {
       console.log('🔄 Starting metadata preload...');
       
@@ -962,18 +976,18 @@ class GoogleDriveService {
             // Get files for this student
             const files = await this.listFilesInFolder(student.id);
             
-            // Get AI analysis for each file (if not already cached)
+            // Get AI analysis for each file (if not already cached or force re-analyze)
             const filesWithMetadata = await Promise.all(
               files.map(async (file) => {
                 const cacheKey = `${CACHE_KEY_AI_ANALYSIS}${file.id}`;
                 const cached = this.getCache(cacheKey);
                 
-                if (cached) {
+                if (cached && !forceReanalyze) {
                   return { ...file, ...cached };
                 }
                 
-                // Analyze with AI if not cached
-                const analysis = await this.analyzeDocumentWithAI(file.name);
+                // Analyze with AI if not cached or force re-analyze
+                const analysis = await this.analyzeDocumentWithAI(file.name, forceReanalyze);
                 this.setCache(cacheKey, analysis);
                 
                 return { 

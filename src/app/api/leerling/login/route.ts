@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
           reason: 'student_not_found',
           displayName,
         },
-        teacherId: null,
-        studentId: null,
       });
 
       return NextResponse.json(
@@ -63,8 +61,6 @@ export async function POST(request: NextRequest) {
           studentId: student.id,
           displayName: student.displayName,
         },
-        teacherId: null,
-        studentId: student.id || null,
       });
 
       return NextResponse.json(
@@ -83,8 +79,6 @@ export async function POST(request: NextRequest) {
         studentId: student.id,
         displayName: student.displayName,
       },
-      teacherId: null,
-      studentId: student.id || null,
     });
 
     // Return student data (without sensitive information)

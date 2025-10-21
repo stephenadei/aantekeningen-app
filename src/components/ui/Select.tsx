@@ -1,12 +1,6 @@
 import { SelectHTMLAttributes, forwardRef } from 'react';
 import { clsx } from 'clsx';
-
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
-  error?: string;
-  helperText?: string;
-  options: Array<{ value: string; label: string; disabled?: boolean }>;
-}
+import type { SelectProps } from '@/lib/interfaces';
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ className, label, error, helperText, options, id, ...props }, ref) => {

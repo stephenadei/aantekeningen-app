@@ -2,14 +2,7 @@
 
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
-
-interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
-  title?: string;
-  children: React.ReactNode;
-  width?: 'sm' | 'md' | 'lg' | 'xl';
-}
+import type { SidebarProps } from '@/lib/interfaces';
 
 export default function Sidebar({ 
   isOpen, 

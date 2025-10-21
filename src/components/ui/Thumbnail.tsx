@@ -1,15 +1,7 @@
 import React from 'react';
 import { FileText } from 'lucide-react';
 import { useThumbnail } from '@/hooks/useThumbnail';
-
-interface ThumbnailProps {
-  src?: string;
-  alt: string;
-  className?: string;
-  onClick?: () => void;
-  fileId?: string;
-  showFallback?: boolean;
-}
+import type { ThumbnailProps } from '@/lib/interfaces';
 
 export default function Thumbnail({ 
   src, 
@@ -17,10 +9,11 @@ export default function Thumbnail({
   className = '', 
   onClick,
   fileId,
+  fileType,
   showFallback = true 
 }: ThumbnailProps) {
   const fallbackSrc = fileId ? `/api/placeholder/${fileId}` : undefined;
-  const { imageSrc, isLoading, hasError, imgRef, isVisible } = useThumbnail(src || null, fallbackSrc);
+  const { imageSrc, isLoading, hasError, imgRef, isVisible } = useThumbnail(src || null, fallbackSrc, fileId, fileType);
 
   return (
     <div 

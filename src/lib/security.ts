@@ -55,10 +55,7 @@ export async function verifyPin(pin: Pin, hash: PinHash): Promise<boolean> {
  */
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
-export interface RateLimitOptions {
-  windowMs: number; // Time window in milliseconds
-  maxAttempts: number; // Maximum attempts per window
-}
+import type { RateLimitOptions } from './interfaces';
 
 export function checkRateLimit(
   key: string, 

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getAllStudents, createStudent } from '@/lib/firestore';
+import { getFileMetadata } from '@/lib/cache';
+import { isErr, createPin, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
+import type { Student, CreateStudentInput } from '@/lib/interfaces';
+import bcrypt from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,11 +14,77 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore query to list students
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '25');
+    const search = searchParams.get('search') || '';
+    const subject = searchParams.get('subject') || '';
+    const activeFilter = searchParams.get('active');
+
+    // Get all students from Firestore
+    const studentsResult = await getAllStudents();
+    if (isErr(studentsResult)) {
+      return NextResponse.json({ error: studentsResult.error.message }, { status: 500 });
+    }
+
+    let students = studentsResult.data;
+
+    // Apply filters
+    if (search) {
+      const searchLower = search.toLowerCase();
+      students = students.filter(s => 
+        s.displayName.toLowerCase().includes(searchLower) ||
+        s.email?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (subject) {
+      students = students.filter(s => s.subject === subject);
+    }
+
+    if (activeFilter !== null) {
+      const isActive = activeFilter === 'true';
+      students = students.filter(s => s.isActive === isActive);
+    }
+
+    // Get file counts and last activity for each student
+    const studentsWithMetadata = await Promise.all(
+      students.map(async (student) => {
+        try {
+          const files = await getFileMetadata(student.id);
+          const fileCount = files.length;
+          const lastFile = files.length > 0 ? files[0] : null;
+          const lastActivity = lastFile ? lastFile.modifiedTime : null;
+
+          return {
+            ...student,
+            fileCount,
+            lastActivity,
+            lastLoginAt: student.lastLoginAt || null
+          };
+        } catch {
+          return {
+            ...student,
+            fileCount: 0,
+            lastActivity: null,
+            lastLoginAt: student.lastLoginAt || null
+          };
+        }
+      })
+    );
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedStudents = studentsWithMetadata.slice(startIndex, endIndex);
+
     return NextResponse.json({ 
-      students: [],
-      total: 0,
-      message: 'Students listing coming soon via Firestore'
+      students: paginatedStudents,
+      total: studentsWithMetadata.length,
+      page,
+      limit,
+      hasMore: endIndex < studentsWithMetadata.length
     });
 
   } catch (error) {
@@ -33,10 +104,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore create student
+    const body = await request.json();
+    const { displayName, email, pin, driveFolderId, subject, tags } = body;
+
+    // Validate required fields
+    if (!displayName || !pin) {
+      return NextResponse.json(
+        { error: 'Display name and PIN are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate and create branded types
+    let validatedInput: CreateStudentInput;
+    try {
+      const pinHash = await bcrypt.hash(pin, 10);
+      
+      validatedInput = {
+        displayName: createStudentName(displayName),
+        email: email ? createEmail(email) : undefined,
+        pin: createPin(pin),
+        pinHash: pinHash as string,
+        driveFolderId: driveFolderId ? createDriveFolderId(driveFolderId) : undefined,
+        subject: subject ? createSubject(subject) : undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+    } catch (validationError) {
+      return NextResponse.json(
+        { error: validationError instanceof Error ? validationError.message : 'Validation failed' },
+        { status: 400 }
+      );
+    }
+
+    // Create student in Firestore
+    const result = await createStudent(validatedInput);
+    
+    if (isErr(result)) {
+      return NextResponse.json({ error: result.error.message }, { status: 500 });
+    }
+
     return NextResponse.json({ 
-      success: true, 
-      message: 'Student creation coming soon via Firestore'
+      success: true,
+      student: result.data
     });
 
   } catch (error) {

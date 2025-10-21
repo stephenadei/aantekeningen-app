@@ -1,39 +1,92 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, FileText, Shield, TrendingUp, Folder } from 'lucide-react';
+import { Users, FileText, Shield, TrendingUp, Folder, RefreshCw, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
-
-interface DashboardStats {
-  totalStudents: number;
-  totalNotes: number;
-  recentActivity: number;
-  activeStudents: number;
-  unconfirmedFolders?: number;
-  unlinkedFolders?: number;
-}
+import type { DashboardStats } from '@/lib/interfaces';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reanalysisStatus, setReanalysisStatus] = useState<{
+    isRunning: boolean;
+    progress: number;
+    message: string;
+    error?: string;
+  }>({
+    isRunning: false,
+    progress: 0,
+    message: ''
+  });
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await fetch('/api/admin/stats');
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch dashboard stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchStats();
   }, []);
+
+  const handleReanalyzeFiles = async () => {
+    if (reanalysisStatus.isRunning) return;
+    
+    setReanalysisStatus({
+      isRunning: true,
+      progress: 0,
+      message: 'Starting re-analysis...'
+    });
+
+    try {
+      // Start the re-analysis process
+      const response = await fetch('/api/admin/reanalyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'all'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        setReanalysisStatus({
+          isRunning: false,
+          progress: 100,
+          message: result.message || 'Re-analysis started successfully'
+        });
+        
+        // Refresh stats after a short delay
+        setTimeout(() => {
+          fetchStats();
+        }, 2000);
+      } else {
+        throw new Error(result.error || 'Failed to start re-analysis');
+      }
+
+    } catch (error) {
+      setReanalysisStatus(prev => ({
+        ...prev,
+        isRunning: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      }));
+    }
+  };
 
   const statCards = [
     {
@@ -143,9 +196,71 @@ export default function AdminDashboard() {
               <Shield className="h-4 w-4 mr-2" />
               Audit Logs
             </Link>
+            <button
+              onClick={handleReanalyzeFiles}
+              disabled={reanalysisStatus.isRunning}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${reanalysisStatus.isRunning ? 'animate-spin' : ''}`} />
+              {reanalysisStatus.isRunning ? 'Re-analyzing...' : 'Re-analyze All Files'}
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Re-analysis Progress */}
+      {(reanalysisStatus.isRunning || reanalysisStatus.message || reanalysisStatus.error) && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-4 py-5 sm:p-6">
+            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+              File Re-analysis Status
+            </h3>
+            
+            {reanalysisStatus.isRunning && (
+              <div className="mb-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>Progress</span>
+                  <span>{reanalysisStatus.progress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${reanalysisStatus.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
+            
+            {reanalysisStatus.message && (
+              <div className="mb-4">
+                <p className="text-sm text-gray-700">{reanalysisStatus.message}</p>
+              </div>
+            )}
+            
+            {reanalysisStatus.error && (
+              <div className="mb-4">
+                <div className="flex items-center text-sm text-red-600">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  <span>{reanalysisStatus.error}</span>
+                </div>
+              </div>
+            )}
+            
+            {!reanalysisStatus.isRunning && (reanalysisStatus.message || reanalysisStatus.error) && (
+              <button
+                onClick={() => setReanalysisStatus({
+                  isRunning: false,
+                  progress: 0,
+                  message: ''
+                })}
+                className="text-sm text-gray-500 hover:text-gray-700"
+              >
+                Clear status
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Recent Activity */}
       <div className="bg-white shadow rounded-lg">

@@ -1,10 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-
-interface SessionProviderProps {
-  children: ReactNode;
-}
+import type { SessionProviderProps } from '@/lib/interfaces';
 
 export default function SessionProvider({ children }: SessionProviderProps) {
   // Firebase Auth doesn't need a provider wrapper like NextAuth

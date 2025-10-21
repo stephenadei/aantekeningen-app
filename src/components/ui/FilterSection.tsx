@@ -2,22 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
-
-interface FilterItem {
-  value: string;
-  label: string;
-  count?: number;
-  color?: string;
-}
-
-interface FilterSectionProps {
-  title: string;
-  items: FilterItem[];
-  selectedValues: string[];
-  onSelectionChange: (values: string[]) => void;
-  icon?: React.ReactNode;
-  defaultExpanded?: boolean;
-}
+import type { FilterItem, FilterSectionProps } from '@/lib/interfaces';
 
 export default function FilterSection({
   title,

@@ -1,16 +1,5 @@
 import { useState, useCallback } from 'react';
-
-interface ShareData {
-  title?: string;
-  text?: string;
-  url?: string;
-}
-
-interface UseNativeShareReturn {
-  isSupported: boolean;
-  share: (data: ShareData) => Promise<boolean>;
-  isSharing: boolean;
-}
+import type { ShareData, UseNativeShareReturn } from '@/lib/interfaces';
 
 export function useNativeShare(): UseNativeShareReturn {
   const [isSharing, setIsSharing] = useState(false);

@@ -4,44 +4,44 @@
 
 import { 
   Subject, 
+  TopicGroup,
   Level, 
   Topic,
   createSubject,
+  createTopicGroup,
   createLevel,
   createTopic,
   Result,
   Ok,
   Err
 } from './types';
+import { 
+  subjectSynonyms, 
+  topicGroupSynonyms,
+  isValidSubject,
+  isValidTopicGroup,
+  getTopicGroupsForSubject,
+  getTopicsForGroup
+} from '../data/taxonomy';
 
-// Subject canonicalization mapping
+// Subject canonicalization mapping (using taxonomy synonyms)
 const SUBJECT_MAP: Record<string, string> = {
-  'wiskunde': 'wiskunde',
-  'wiskunde a': 'wiskunde-a',
-  'wiskunde b': 'wiskunde-b',
-  'wiskunde c': 'wiskunde-c',
-  'wiskunde d': 'wiskunde-d',
-  'statistiek': 'statistiek',
-  'natuurkunde': 'natuurkunde',
-  'scheikunde': 'scheikunde',
-  'biologie': 'biologie',
-  'nederlands': 'nederlands',
-  'engels': 'engels',
-  'duits': 'duits',
-  'frans': 'frans',
-  'spaans': 'spaans',
-  'geschiedenis': 'geschiedenis',
-  'aardrijkskunde': 'aardrijkskunde',
-  'economie': 'economie',
-  'bedrijfseconomie': 'bedrijfseconomie',
-  'maatschappijleer': 'maatschappijleer',
-  'filosofie': 'filosofie',
-  'informatica': 'informatica',
-  'rekenen': 'rekenen',
-  'wiskunde-a': 'wiskunde-a',
-  'wiskunde-b': 'wiskunde-b',
-  'wiskunde-c': 'wiskunde-c',
-  'wiskunde-d': 'wiskunde-d',
+  ...subjectSynonyms,
+  // Additional legacy mappings
+  'statistiek': 'wiskunde-a',
+  'duits': 'nederlands', // Map to closest available subject
+  'frans': 'nederlands',
+  'spaans': 'nederlands',
+  'geschiedenis': 'nederlands',
+  'aardrijkskunde': 'nederlands',
+  'bedrijfseconomie': 'economie',
+  'maatschappijleer': 'nederlands',
+  'filosofie': 'nederlands',
+};
+
+// Topic group canonicalization mapping (using taxonomy synonyms)
+const TOPIC_GROUP_MAP: Record<string, string> = {
+  ...topicGroupSynonyms,
 };
 
 // Level canonicalization mapping
@@ -192,6 +192,19 @@ export function canonSubject(input: string): Result<Subject> {
 }
 
 /**
+ * Canonicalize topic group name
+ */
+export function canonTopicGroup(input: string): Result<TopicGroup> {
+  const slug = slugify(input);
+  const canonicalTopicGroup = TOPIC_GROUP_MAP[slug] || slug;
+  try {
+    return Ok(createTopicGroup(canonicalTopicGroup));
+  } catch (error) {
+    return Err(error instanceof Error ? error : new Error('Invalid topic group format'));
+  }
+}
+
+/**
  * Canonicalize level name
  */
 export function canonLevel(input: string): Result<Level> {
@@ -223,11 +236,12 @@ export function canonTopic(input: string): Result<Topic> {
  */
 export function parseNaturalLanguage(input: string): {
   subject?: Subject;
+  topicGroup?: TopicGroup;
   level?: Level;
   topic?: Topic;
 } {
   const words = input.toLowerCase().split(/\s+/);
-  const result: { subject?: Subject; level?: Level; topic?: Topic } = {};
+  const result: { subject?: Subject; topicGroup?: TopicGroup; level?: Level; topic?: Topic } = {};
   
   // Look for level patterns first (most specific)
   for (let i = 0; i < words.length; i++) {
@@ -270,6 +284,17 @@ export function parseNaturalLanguage(input: string): {
     }
   }
   
+  // Look for topic group patterns
+  for (const word of words) {
+    if (TOPIC_GROUP_MAP[word]) {
+      const topicGroupResult = canonTopicGroup(word);
+      if (topicGroupResult.success) {
+        result.topicGroup = topicGroupResult.data;
+      }
+      break;
+    }
+  }
+  
   // Look for topic patterns
   for (const word of words) {
     if (TOPIC_MAP[word]) {
@@ -287,10 +312,13 @@ export function parseNaturalLanguage(input: string): {
 /**
  * Generate search tags for a note
  */
-export function generateTags(subject: Subject, level: Level, topic: Topic): Array<{ key: string; value: string }> {
+export function generateTags(subject: Subject, level: Level, topic: Topic, topicGroup?: TopicGroup): Array<{ key: string; value: string }> {
   const tags = [];
   
   tags.push({ key: 'subject', value: subject });
+  if (topicGroup) {
+    tags.push({ key: 'topicGroup', value: topicGroup });
+  }
   tags.push({ key: 'level', value: level });
   tags.push({ key: 'topic', value: topic });
   

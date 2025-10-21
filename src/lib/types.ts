@@ -176,19 +176,7 @@ const TYPE_METADATA = {
     description: 'Folder name'
   },
 
-  // Academic Domain Types
-  Subject: { 
-    validate: (v: string) => v.length > 0 && v.length <= 100,
-    description: 'Academic subject'
-  },
-  Topic: { 
-    validate: (v: string) => v.length > 0 && v.length <= 200,
-    description: 'Academic topic'
-  },
-  Level: { 
-    validate: (v: string) => v.length > 0 && v.length <= 50,
-    description: 'Academic level'
-  },
+  // Academic Domain Types - validation handled by taxonomy.ts
   SchoolYear: { 
     validate: (v: string) => /^\d{4}-\d{4}$/.test(v),
     description: 'School year in YYYY-YYYY format'
@@ -252,9 +240,15 @@ export type CleanFileName = StringBrand<'CleanFileName'>;
 export type FolderName = StringBrand<'FolderName'>;
 
 // Academic Domain Types
-export type Subject = StringBrand<'Subject'>;
-export type Topic = StringBrand<'Topic'>;
-export type Level = StringBrand<'Level'>;
+// Import literal union types from taxonomy.ts as the source of truth
+import type { Subject as TaxonomySubject, Level as TaxonomyLevel, TopicGroup as TaxonomyTopicGroup } from '../data/taxonomy';
+
+// Use the literal union types from taxonomy.ts as the source of truth
+export type Subject = TaxonomySubject;
+export type Level = TaxonomyLevel;
+export type TopicGroup = TaxonomyTopicGroup;
+// Topic is just a string - it's validated through the topic group context
+export type Topic = string;
 export type SchoolYear = StringBrand<'SchoolYear'>;
 
 // URL Types
@@ -340,9 +334,18 @@ export const isFileName = createValidator<FileName>('FileName', TYPE_METADATA.Fi
 export const isCleanFileName = createValidator<CleanFileName>('CleanFileName', TYPE_METADATA.CleanFileName.validate);
 export const isFolderName = createValidator<FolderName>('FolderName', TYPE_METADATA.FolderName.validate);
 
-export const isSubject = createValidator<Subject>('Subject', TYPE_METADATA.Subject.validate);
-export const isTopic = createValidator<Topic>('Topic', TYPE_METADATA.Topic.validate);
-export const isLevel = createValidator<Level>('Level', TYPE_METADATA.Level.validate);
+// Import validation functions from taxonomy.ts
+import { isValidSubject, isValidTopicGroup, isValidLevel } from '../data/taxonomy';
+
+export const isSubject = isValidSubject;
+export const isTopicGroup = isValidTopicGroup;
+export const isLevel = isValidLevel;
+// Note: Topic validation is handled through topicGroup validation in taxonomy.ts
+export const isTopic = (value: string): value is Topic => {
+  // Topic validation requires checking against the specific topic group
+  // This is handled in the taxonomy validation functions
+  return value.length > 0 && value.length <= 200;
+};
 export const isSchoolYear = createValidator<SchoolYear>('SchoolYear', TYPE_METADATA.SchoolYear.validate);
 
 export const isDriveUrl = createValidator<DriveUrl>('DriveUrl', TYPE_METADATA.DriveUrl.validate);
@@ -375,9 +378,33 @@ export const createPinHash = createFactory<PinHash>('PinHash', isPinHash);
 export const createStudentName = createFactory<StudentName>('StudentName', isStudentName);
 export const createTeacherName = createFactory<TeacherName>('TeacherName', isTeacherName);
 
-export const createSubject = createFactory<Subject>('Subject', isSubject);
-export const createTopic = createFactory<Topic>('Topic', isTopic);
-export const createLevel = createFactory<Level>('Level', isLevel);
+export const createSubject = (value: string): Subject => {
+  if (!isSubject(value)) {
+    throw new Error(`Invalid subject: ${value}. Must be one of the valid subjects from taxonomy.`);
+  }
+  return value as Subject;
+};
+
+export const createTopicGroup = (value: string): TopicGroup => {
+  if (!isTopicGroup(value)) {
+    throw new Error(`Invalid topic group: ${value}. Must be one of the valid topic groups from taxonomy.`);
+  }
+  return value as TopicGroup;
+};
+
+export const createTopic = (value: string): Topic => {
+  if (!isTopic(value)) {
+    throw new Error(`Invalid topic: ${value}. Must be a valid topic.`);
+  }
+  return value as Topic;
+};
+
+export const createLevel = (value: string): Level => {
+  if (!isLevel(value)) {
+    throw new Error(`Invalid level: ${value}. Must be one of the valid levels from taxonomy.`);
+  }
+  return value as Level;
+};
 export const createSchoolYear = createFactory<SchoolYear>('SchoolYear', isSchoolYear);
 
 export const createFileName = createFactory<FileName>('FileName', isFileName);
@@ -408,6 +435,11 @@ export const parsePin = createParser<Pin>('Pin', isPin);
  * The type of student ID being used in API calls
  */
 export type StudentIdType = 'firestore' | 'drive';
+
+/**
+ * Cache types for different data categories
+ */
+export type CacheType = 'files' | 'metadata' | 'students' | 'fileMetadata';
 
 /**
  * Parameters for student API endpoints

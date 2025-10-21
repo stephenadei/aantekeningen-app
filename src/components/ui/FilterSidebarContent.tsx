@@ -1,26 +1,22 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import FilterSection from './FilterSection';
 import DateRangeFilter from './DateRangeFilter';
-import { type FilterState } from '@/lib/filterUtils';
-
-interface FilterSidebarContentProps {
-  currentFilters: FilterState;
-  onApply: (filters: FilterState) => void;
-  onClear: () => void;
-  subjectItems: Array<{ value: string; label: string; count: number }>;
-  topicItems: Array<{ value: string; label: string; count: number }>;
-  levelItems: Array<{ value: string; label: string; count: number }>;
-  schoolYearItems: Array<{ value: string; label: string; count: number }>;
-  keywordItems: Array<{ value: string; label: string; count: number }>;
-}
+import { type FilterState, FilterSidebarContentProps } from '@/lib/interfaces';
+import { 
+  subjectToGroups, 
+  groupToTopics, 
+  getSubjectDisplayName, 
+  getTopicGroupDisplayName 
+} from '@/data/taxonomy';
 
 export default function FilterSidebarContent({
   currentFilters,
   onApply,
   onClear,
   subjectItems,
+  topicGroupItems,
   topicItems,
   levelItems,
   schoolYearItems,
@@ -40,11 +36,14 @@ export default function FilterSidebarContent({
   const handleClear = () => {
     const clearedFilters = {
       subjects: [],
+      topicGroups: [],
       topics: [],
       levels: [],
       schoolYears: [],
       keywords: [],
       dateRange: { type: 'all' as const },
+      sortBy: 'date' as const,
+      sortOrder: 'desc' as const,
       searchText: ''
     };
     setLocalFilters(clearedFilters);
@@ -55,6 +54,77 @@ export default function FilterSidebarContent({
     setLocalFilters(prev => ({ ...prev, ...updates }));
   };
 
+  // Cascading logic: when subject changes, filter topic groups and topics
+  const availableTopicGroups = useMemo(() => {
+    if (localFilters.subjects.length === 0) {
+      return topicGroupItems;
+    }
+    
+    const validTopicGroups = new Set<string>();
+    localFilters.subjects.forEach(subject => {
+      const groups = subjectToGroups[subject as keyof typeof subjectToGroups] || [];
+      groups.forEach(group => validTopicGroups.add(group));
+    });
+    
+    return topicGroupItems.filter(item => validTopicGroups.has(item.value));
+  }, [localFilters.subjects, topicGroupItems]);
+
+  const availableTopics = useMemo(() => {
+    if (localFilters.topicGroups.length === 0) {
+      return topicItems;
+    }
+    
+    const validTopics = new Set<string>();
+    localFilters.topicGroups.forEach(topicGroup => {
+      const topics = groupToTopics[topicGroup as keyof typeof groupToTopics] || [];
+      topics.forEach(topic => validTopics.add(topic));
+    });
+    
+    return topicItems.filter(item => validTopics.has(item.value));
+  }, [localFilters.topicGroups, topicItems]);
+
+  // Handle subject change with cascading
+  const handleSubjectChange = (values: string[]) => {
+    const newFilters: Partial<FilterState> = { subjects: values };
+    
+    // Clear topic groups and topics that are no longer valid
+    const validTopicGroups = new Set<string>();
+    values.forEach(subject => {
+      const groups = subjectToGroups[subject as keyof typeof subjectToGroups] || [];
+      groups.forEach(group => validTopicGroups.add(group));
+    });
+    
+    const filteredTopicGroups = localFilters.topicGroups.filter(tg => validTopicGroups.has(tg));
+    const filteredTopics = localFilters.topics.filter(topic => {
+      return filteredTopicGroups.some(tg => {
+        const topics = groupToTopics[tg as keyof typeof groupToTopics] || [];
+        return topics.includes(topic);
+      });
+    });
+    
+    newFilters.topicGroups = filteredTopicGroups;
+    newFilters.topics = filteredTopics;
+    
+    updateFilters(newFilters);
+  };
+
+  // Handle topic group change with cascading
+  const handleTopicGroupChange = (values: string[]) => {
+    const newFilters: Partial<FilterState> = { topicGroups: values };
+    
+    // Clear topics that are no longer valid
+    const validTopics = new Set<string>();
+    values.forEach(topicGroup => {
+      const topics = groupToTopics[topicGroup as keyof typeof groupToTopics] || [];
+      topics.forEach(topic => validTopics.add(topic));
+    });
+    
+    const filteredTopics = localFilters.topics.filter(topic => validTopics.has(topic));
+    newFilters.topics = filteredTopics;
+    
+    updateFilters(newFilters);
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Subject Filter Section */}
@@ -62,14 +132,22 @@ export default function FilterSidebarContent({
         title="Vakken"
         items={subjectItems}
         selectedValues={localFilters.subjects}
-        onSelectionChange={(values) => updateFilters({ subjects: values })}
+        onSelectionChange={handleSubjectChange}
         defaultExpanded={true}
+      />
+
+      {/* Topic Group Filter Section */}
+      <FilterSection
+        title="Domeinen"
+        items={availableTopicGroups}
+        selectedValues={localFilters.topicGroups}
+        onSelectionChange={handleTopicGroupChange}
       />
 
       {/* Topic Filter Section */}
       <FilterSection
         title="Onderwerpen"
-        items={topicItems}
+        items={availableTopics}
         selectedValues={localFilters.topics}
         onSelectionChange={(values) => updateFilters({ topics: values })}
       />

@@ -1,11 +1,6 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 import { clsx } from 'clsx';
-
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
-  loading?: boolean;
-}
+import type { ButtonProps } from '@/lib/interfaces';
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, children, disabled, ...props }, ref) => {

@@ -19,16 +19,7 @@ import {
   Database,
   BookOpen,
 } from 'lucide-react';
-
-interface User {
-  name?: string | null;
-  email?: string | null;
-  image?: string | null;
-}
-
-interface AdminNavigationProps {
-  user: User;
-}
+import type { AdminNavigationProps, AdminNavigationUser } from '@/lib/interfaces';
 
 export default function AdminNavigation({ user }: AdminNavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

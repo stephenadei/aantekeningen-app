@@ -3,30 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Trash2, Edit2, GripVertical, Loader } from 'lucide-react';
-
-interface Subject {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  icon: string;
-  sortOrder: number;
-}
-
-interface FormData {
-  name: string;
-  description: string;
-  color: string;
-  icon: string;
-}
+import type { AdminSubject, SubjectFormData } from '@/lib/interfaces';
 
 export default function SubjectsPage() {
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjects, setSubjects] = useState<AdminSubject[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [, setDraggedId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<SubjectFormData>({
     name: '',
     description: '',
     color: '#3B82F6',
@@ -96,7 +81,7 @@ export default function SubjectsPage() {
     }
   }
 
-  function handleEdit(subject: Subject) {
+  function handleEdit(subject: AdminSubject) {
     setEditingId(subject.id);
     setFormData({
       name: subject.name,

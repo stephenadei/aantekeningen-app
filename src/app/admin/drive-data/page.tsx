@@ -2,49 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { RefreshCw, Folder, User, CheckCircle, AlertCircle } from 'lucide-react';
-
-interface Student {
-  id: string;
-  displayName: string;
-  driveFolderId: string | null;
-  driveFolderName: string | null;
-  subject: string | null;
-  folderConfirmed: boolean;
-  folderLinkedAt: string | null;
-  folderConfirmedAt: string | null;
-  notes: Array<{
-    id: string;
-    subject: string;
-    level: string;
-    topic: string;
-    aiGenerated: boolean;
-    aiConfirmed: boolean;
-    manuallyEdited: boolean;
-    createdAt: string;
-  }>;
-}
-
-interface UnlinkedFolder {
-  id: string;
-  driveFolderId: string;
-  folderName: string;
-  subject: string;
-  suggestedStudentId: string | null;
-  createdAt: string;
-}
-
-interface DriveDataStats {
-  totalLinkedStudents: number;
-  confirmedLinks: number;
-  unconfirmedLinks: number;
-  unlinkedFolders: number;
-  lastSyncTime: string;
-}
+import type { DriveDataStudent, DriveDataUnlinkedFolder, DriveDataStatsDetailed } from '@/lib/interfaces';
 
 export default function DriveDataPage() {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [unlinkedFolders, setUnlinkedFolders] = useState<UnlinkedFolder[]>([]);
-  const [stats, setStats] = useState<DriveDataStats | null>(null);
+  const [students, setStudents] = useState<DriveDataStudent[]>([]);
+  const [unlinkedFolders, setUnlinkedFolders] = useState<DriveDataUnlinkedFolder[]>([]);
+  const [stats, setStats] = useState<DriveDataStatsDetailed | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);

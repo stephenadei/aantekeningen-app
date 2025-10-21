@@ -6,61 +6,23 @@ import { FileText, User, Share2, Download, ArrowLeft, Loader2, GraduationCap } f
 import Link from 'next/link';
 import FileDetailModal from '@/components/ui/FileDetailModal';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
-import SkeletonLoader from '@/components/ui/SkeletonLoader';
 import { useNativeShare } from '@/hooks/useNativeShare';
 import Thumbnail from '@/components/ui/Thumbnail';
 import { useStudentFiles } from '@/hooks/useStudentFiles';
+import { 
+  getSubjectDisplayNameFromString, 
+  getTopicGroupDisplayNameFromString 
+} from '@/data/taxonomy';
+import type { ApiFileInfo, StudentPageStudent, StudentPageStudentOverview, FileInfo } from '@/lib/interfaces';
 
-interface Student {
-  id: string;
-  displayName: string;
-  subject: string;
-  driveFolderId: string;
-  url?: string;
-}
-
-interface StudentOverview {
-  fileCount: number;
-  lastActivity: string | null;
-  lastActivityDate: string;
-  lastFile?: {
-    id: string;
-    name: string;
-    title: string;
-    subject?: string;
-    topic?: string;
-    summary?: string;
-    modifiedTime: string;
-  };
-}
-
-interface FileInfo {
-  id: string;
-  name: string;
-  title: string;
-  url: string;
-  downloadUrl: string;
-  viewUrl: string;
-  thumbnailUrl: string;
-  modifiedTime: string;
-  size: number;
-  subject?: string;
-  topic?: string;
-  level?: string;
-  schoolYear?: string;
-  keywords?: string[];
-  summary?: string;
-  summaryEn?: string;
-  topicEn?: string;
-  keywordsEn?: string[];
-}
+// FileInfo interface is now imported from @/lib/interfaces
 
 export default function StudentPage() {
   const params = useParams();
   const studentId = params.id as string;
   
-  const [student, setStudent] = useState<Student | null>(null);
-  const [studentOverview, setStudentOverview] = useState<StudentOverview | null>(null);
+  const [student, setStudent] = useState<StudentPageStudent | null>(null);
+  const [studentOverview, setStudentOverview] = useState<StudentPageStudentOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shareableUrl, setShareableUrl] = useState<string>('');
@@ -70,7 +32,6 @@ export default function StudentPage() {
   // Use React Query for files
   const {
     files,
-    totalCount,
     hasMore,
     fromCache,
     cacheFresh,
@@ -106,11 +67,10 @@ export default function StudentPage() {
       setLoading(true);
       setError(null);
 
-      // Load student info, overview, and share in parallel
-      const [studentResponse, overviewResponse, shareResponse] = await Promise.all([
+      // Load student info and overview in parallel
+      const [studentResponse, overviewResponse] = await Promise.all([
         fetch(`/api/students/${studentId}/share`), // Use share API to get student info
-        fetch(`/api/students/${studentId}/overview`),
-        fetch(`/api/students/${studentId}/share`) // Duplicate for consistency
+        fetch(`/api/students/${studentId}/overview`)
       ]);
 
       if (!studentResponse.ok || !overviewResponse.ok) {
@@ -184,11 +144,6 @@ export default function StudentPage() {
     setSelectedFile(null);
   };
 
-  const loadMoreFiles = () => {
-    if (hasMore && !isLoadingMore && studentId) {
-      loadMore(files.length);
-    }
-  };
 
   const handleShare = async () => {
     if (!student) return;
@@ -243,14 +198,6 @@ export default function StudentPage() {
   };
 
   // Filter and sort functions
-  const getUniqueValues = (files: FileInfo[], key: keyof FileInfo) => {
-    const values = files
-      .map(file => file[key])
-      .filter((value): value is string => typeof value === 'string' && value.length > 0)
-      .filter((value, index, self) => self.indexOf(value) === index)
-      .sort();
-    return values;
-  };
 
 
   const filteredAndSortedFiles = () => {
@@ -445,9 +392,11 @@ export default function StudentPage() {
                     <p className="text-yellow-200 font-medium text-lg mb-2">
                       {studentOverview.lastFile.title}
                     </p>
-                    {studentOverview.lastFile.subject && studentOverview.lastFile.topic && (
+                    {studentOverview.lastFile.subject && (
                       <p className="text-yellow-300 text-sm mb-3">
-                        {studentOverview.lastFile.subject} • {studentOverview.lastFile.topic}
+                        {getSubjectDisplayNameFromString(studentOverview.lastFile.subject)}
+                        {studentOverview.lastFile.topicGroup && ` • ${getTopicGroupDisplayNameFromString(studentOverview.lastFile.topicGroup)}`}
+                        {studentOverview.lastFile.topic && ` • ${studentOverview.lastFile.topic}`}
                       </p>
                     )}
                     {studentOverview.lastFile.summary && (
@@ -699,6 +648,7 @@ export default function StudentPage() {
                     src={file.thumbnailUrl}
                     alt={file.title}
                     fileId={file.id}
+                    fileType={file.mimeType}
                     className="group-hover:scale-110 transition-transform duration-300"
                   />
                   {/* Overlay on Hover */}
@@ -716,23 +666,28 @@ export default function StudentPage() {
                     {file.title}
                   </h3>
                   <p className="text-xs text-yellow-200 mb-3">
-                    {formatDate(file.modifiedTime)} • {formatFileSize(file.size)}
+                    {formatDate(file.modifiedTime)} • {formatFileSize(file.size || 0)}
                   </p>
 
-                  {/* Tags */}
+                  {/* Hierarchical Taxonomy Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {file.subject && (
                       <span className="inline-block px-2 py-1 bg-yellow-100 text-blue-900 text-xs rounded-full font-medium">
-                        {file.subject}
+                        {getSubjectDisplayNameFromString(file.subject)}
+                      </span>
+                    )}
+                    {file.topicGroup && (
+                      <span className="inline-block px-2 py-1 bg-yellow-200 text-blue-900 text-xs rounded-full font-medium">
+                        {getTopicGroupDisplayNameFromString(file.topicGroup)}
                       </span>
                     )}
                     {file.topic && (
-                      <span className="inline-block px-2 py-1 bg-yellow-200 text-blue-900 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2 py-1 bg-yellow-300 text-blue-900 text-xs rounded-full font-medium">
                         {file.topic}
                       </span>
                     )}
                     {file.level && (
-                      <span className="inline-block px-2 py-1 bg-yellow-300 text-blue-900 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2 py-1 bg-yellow-400 text-blue-900 text-xs rounded-full font-medium">
                         {file.level}
                       </span>
                     )}

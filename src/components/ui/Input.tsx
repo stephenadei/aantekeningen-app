@@ -1,11 +1,6 @@
 import { InputHTMLAttributes, forwardRef } from 'react';
 import { clsx } from 'clsx';
-
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  helperText?: string;
-}
+import type { InputProps } from '@/lib/interfaces';
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, helperText, id, ...props }, ref) => {

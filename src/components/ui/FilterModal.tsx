@@ -2,30 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
-
-export interface FilterState {
-  subjects: string[];
-  topics: string[];
-  levels: string[];
-  schoolYears: string[];
-  keywords: string[];
-  dateRange: {
-    type: 'all' | 'days' | 'weeks' | 'months' | 'years' | 'custom';
-    value?: number;
-    startDate?: Date;
-    endDate?: Date;
-  };
-  searchText: string;
-}
-
-interface FilterModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onApply: (filters: FilterState) => void;
-  onClear: () => void;
-  currentFilters: FilterState;
-  children: React.ReactNode;
-}
+import type { FilterState, FilterModalProps } from '@/lib/interfaces';
 
 export default function FilterModal({
   isOpen,
@@ -45,11 +22,14 @@ export default function FilterModal({
   const handleClear = () => {
     const clearedFilters: FilterState = {
       subjects: [],
+      topicGroups: [],
       topics: [],
       levels: [],
       schoolYears: [],
       keywords: [],
       dateRange: { type: 'all' },
+      sortBy: 'date',
+      sortOrder: 'desc',
       searchText: '',
     };
     setFilters(clearedFilters);

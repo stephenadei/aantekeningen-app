@@ -4,28 +4,17 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, Trash2, Edit2, Loader, ArrowLeft } from 'lucide-react';
-
-interface Topic {
-  id: string;
-  name: string;
-  description: string;
-  sortOrder: number;
-}
-
-interface FormData {
-  name: string;
-  description: string;
-}
+import type { AdminTopic, TopicFormData } from '@/lib/interfaces';
 
 export default function TopicsPage() {
   const params = useParams();
   const subjectId = params.subjectId as string;
 
-  const [topics, setTopics] = useState<Topic[]>([]);
+  const [topics, setTopics] = useState<AdminTopic[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<TopicFormData>({
     name: '',
     description: '',
   });
@@ -93,7 +82,7 @@ export default function TopicsPage() {
     }
   }
 
-  function handleEdit(topic: Topic) {
+  function handleEdit(topic: AdminTopic) {
     setEditingId(topic.id);
     setFormData({
       name: topic.name,

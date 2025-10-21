@@ -39,16 +39,39 @@ test.describe('Student Portal E2E', () => {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
+          success: true,
           files: [
             {
-              id: 'file-1',
+              id: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
               name: 'Les 1 - Algebra.pdf',
-              webViewLink: 'https://drive.google.com/file/d/file-1/view',
+              title: 'Les 1 - Algebra',
+              viewUrl: 'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view',
+              downloadUrl: 'https://drive.google.com/uc?export=download&id=1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+              thumbnailUrl: 'https://drive.google.com/thumbnail?id=1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms&sz=w400-h400',
               modifiedTime: '2025-01-15T10:00:00Z',
-              size: '1024000',
-              mimeType: 'application/pdf'
+              size: 1024000,
+              mimeType: 'application/pdf',
+              subject: 'wiskunde-a',
+              topicGroup: 'algebra',
+              topic: 'lineaire-vergelijkingen',
+              level: 'havo-4',
+              schoolYear: '2023-2024',
+              keywords: ['algebra', 'vergelijkingen', 'lineair'],
+              summary: 'Test document about linear equations',
+              summaryEn: 'Test document about linear equations',
+              topicEn: 'linear-equations',
+              keywordsEn: ['algebra', 'equations', 'linear'],
+              skills: ['problem-solving', 'algebraic-manipulation'],
+              tools: ['calculator', 'graph-paper'],
+              theme: 'mathematics',
+              aiAnalyzedAt: '2025-01-15T10:00:00Z'
             }
-          ]
+          ],
+          count: 1,
+          totalCount: 1,
+          hasMore: false,
+          fromCache: false,
+          cacheFresh: true
         })
       });
     });

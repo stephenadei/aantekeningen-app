@@ -3,24 +3,19 @@ import { googleDriveService } from './google-drive-simple';
 import { 
   getFileMetadata, 
   setFileMetadata, 
-  FileMetadata, 
   isFileMetadataFresh,
   cleanupExpiredCache 
 } from './cache';
+import type { FileMetadata } from './interfaces';
 import { getAllStudents } from './firestore';
-import { Timestamp } from 'firebase-admin/firestore';
 import { 
-  FirestoreStudentId,
-  DriveFolderId,
-  Result,
-  isOk,
-  isErr,
   createDriveFileId,
   createFirestoreStudentId,
   createDriveFolderId,
   createThumbnailUrl,
   createDownloadUrl,
-  createViewUrl
+  createViewUrl,
+  isErr
 } from './types';
 
 /**
@@ -107,17 +102,21 @@ export class BackgroundSyncService {
   /**
    * Sync files for a specific student
    */
-  async syncStudentFiles(student: { id: string; displayName: string; driveFolderId: string | null }): Promise<{ files: number; updated: number }> {
+  async syncStudentFiles(student: { id: string; displayName: string; driveFolderId: string | null }, forceReanalyze = false): Promise<{ files: number; updated: number }> {
     if (!student.driveFolderId) {
       return { files: 0, updated: 0 };
     }
 
     try {
-      // Check if we need to sync (files are fresh)
-      const isFresh = await isFileMetadataFresh(student.id, 6); // 6 hours
-      if (isFresh) {
-        console.log(`📋 Files for ${student.displayName} are fresh, skipping sync`);
-        return { files: 0, updated: 0 };
+      // Check if we need to sync (files are fresh) - unless force re-analyze is requested
+      if (!forceReanalyze) {
+        const isFresh = await isFileMetadataFresh(student.id, 6); // 6 hours
+        if (isFresh) {
+          console.log(`📋 Files for ${student.displayName} are fresh, skipping sync`);
+          return { files: 0, updated: 0 };
+        }
+      } else {
+        console.log(`🔄 Force re-analyzing files for ${student.displayName} (ignoring cache freshness)`);
       }
 
       // Get current files from Firestore
@@ -137,7 +136,7 @@ export class BackgroundSyncService {
         // Check if file needs update
         let needsUpdate = true;
         if (existingFile) {
-          const existingModifiedTime = existingFile.modifiedTime.toDate();
+          const existingModifiedTime = new Date(existingFile.modifiedTime);
           needsUpdate = driveModifiedTime > existingModifiedTime;
         }
 
@@ -149,8 +148,8 @@ export class BackgroundSyncService {
             folderId: createDriveFolderId(student.driveFolderId),
             name: driveFile.name,
             title: driveFile.title,
-            modifiedTime: Timestamp.fromDate(driveModifiedTime),
-            size: driveFile.size,
+            modifiedTime: driveModifiedTime.toISOString(),
+            size: driveFile.size ?? 0,
             thumbnailUrl: driveFile.thumbnailUrl ? createThumbnailUrl(driveFile.thumbnailUrl) : createThumbnailUrl(''),
             downloadUrl: driveFile.downloadUrl ? createDownloadUrl(driveFile.downloadUrl) : createDownloadUrl(''),
             viewUrl: driveFile.viewUrl ? createViewUrl(driveFile.viewUrl) : createViewUrl(''),
@@ -163,9 +162,9 @@ export class BackgroundSyncService {
             summaryEn: driveFile.summaryEn,
             topicEn: driveFile.topicEn,
             keywordsEn: driveFile.keywordsEn,
-            aiAnalyzedAt: driveFile.aiAnalyzedAt ? Timestamp.fromDate(driveFile.aiAnalyzedAt) : undefined,
-            createdAt: existingFile?.createdAt || Timestamp.now(),
-            updatedAt: Timestamp.now(),
+            aiAnalyzedAt: driveFile.aiAnalyzedAt?.toISOString(),
+            createdAt: existingFile?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
 
           fileMetadata.push(fileMeta);
@@ -195,7 +194,7 @@ export class BackgroundSyncService {
   private async updateSyncTimestamp(): Promise<void> {
     try {
       await db.collection('system').doc('syncStatus').set({
-        lastFullSync: Timestamp.now(),
+        lastFullSync: new Date().toISOString(),
         isRunning: this.isRunning,
         version: '1.0',
       });
@@ -225,7 +224,7 @@ export class BackgroundSyncService {
 
       const data = doc.data()!;
       return {
-        lastSync: data.lastFullSync?.toDate() || null,
+        lastSync: data.lastFullSync ? new Date(data.lastFullSync) : null,
         isRunning: data.isRunning || false,
         version: data.version || '1.0',
       };
@@ -263,6 +262,86 @@ export class BackgroundSyncService {
     } catch (error) {
       console.error(`Error force syncing student ${studentId}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Force re-analysis for a specific student (ignores cache freshness)
+   */
+  async forceReanalyzeStudent(studentId: string): Promise<void> {
+    try {
+      const studentsResult = await getAllStudents();
+      if (isErr(studentsResult)) {
+        console.error('❌ Failed to get students:', studentsResult.error);
+        throw new Error(`Failed to get students: ${studentsResult.error.message}`);
+      }
+      
+      const students = studentsResult.data;
+      const student = students.find(s => s.id === studentId);
+      
+      if (!student || !student.id) {
+        throw new Error(`Student ${studentId} not found or has no ID`);
+      }
+
+      console.log(`🔄 Force re-analyzing student: ${student.displayName}`);
+      await this.syncStudentFiles(student as { id: string; displayName: string; driveFolderId: string | null }, true);
+      console.log(`✅ Force re-analysis completed for: ${student.displayName}`);
+    } catch (error) {
+      console.error(`Error force re-analyzing student ${studentId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Force re-analysis for all students (ignores cache freshness)
+   */
+  async forceReanalyzeAll(): Promise<void> {
+    if (this.isRunning) {
+      console.log('Re-analysis already running, skipping...');
+      return;
+    }
+
+    this.isRunning = true;
+    console.log('🔄 Starting force re-analysis for all students...');
+
+    try {
+      // Clean up expired cache first
+      await cleanupExpiredCache();
+      
+      const studentsResult = await getAllStudents();
+      if (isErr(studentsResult)) {
+        console.error('❌ Failed to get students:', studentsResult.error);
+        throw new Error(`Failed to get students: ${studentsResult.error.message}`);
+      }
+
+      const students = studentsResult.data;
+      const studentsWithFolders = students.filter(s => s.driveFolderId);
+      
+      console.log(`📊 Found ${studentsWithFolders.length} students with Drive folders`);
+
+      let totalFiles = 0;
+      let totalUpdated = 0;
+
+      for (const student of studentsWithFolders) {
+        try {
+          console.log(`🔄 Re-analyzing files for: ${student.displayName}`);
+          const result = await this.syncStudentFiles(student as { id: string; displayName: string; driveFolderId: string | null }, true);
+          totalFiles += result.files;
+          totalUpdated += result.updated;
+          console.log(`✅ Re-analyzed ${result.files} files (${result.updated} updated) for: ${student.displayName}`);
+        } catch (error) {
+          console.error(`❌ Error re-analyzing student ${student.displayName}:`, error);
+        }
+      }
+
+      this.lastSyncTime = new Date();
+      console.log(`🎉 Force re-analysis completed! Total: ${totalFiles} files, ${totalUpdated} updated`);
+
+    } catch (error) {
+      console.error('❌ Force re-analysis failed:', error);
+      throw error;
+    } finally {
+      this.isRunning = false;
     }
   }
 }

@@ -166,7 +166,7 @@ export async function GET(
           downloadUrl: file.downloadUrl,
           viewUrl: file.viewUrl,
           thumbnailUrl: file.thumbnailUrl,
-          modifiedTime: file.modifiedTime.toDate().toISOString(),
+          modifiedTime: file.modifiedTime,
           size: file.size,
           subject: file.subject,
           topic: file.topic,
@@ -177,7 +177,7 @@ export async function GET(
           summaryEn: file.summaryEn,
           topicEn: file.topicEn,
           keywordsEn: file.keywordsEn,
-          aiAnalyzedAt: file.aiAnalyzedAt?.toDate().toISOString(),
+          aiAnalyzedAt: file.aiAnalyzedAt,
         }));
 
         // Apply pagination

@@ -1,5 +1,5 @@
 import { db } from './firebase-admin';
-import { Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import { 
   FirestoreStudentId, 
   DriveFolderId, 
@@ -9,16 +9,7 @@ import {
   LoginAuditId,
   DriveFileId,
   TeacherEmail,
-  TeacherName,
   StudentName,
-  PinHash,
-  FolderName,
-  Subject,
-  Topic,
-  Level,
-  FileName,
-  IPAddress,
-  UserAgent,
   isFirestoreStudentId, 
   isDriveFolderId,
   Result,
@@ -26,167 +17,71 @@ import {
   Err
 } from './types';
 import { InvalidStudentIdError, InvalidDriveFolderIdError } from './errors';
+import type {
+  Teacher,
+  Student,
+  Note,
+  KeyConcept,
+  StudentTag,
+  UnlinkedFolder,
+  LoginAudit,
+  CreateTeacherInput,
+  CreateStudentInput,
+  CreateNoteInput,
+  CreateKeyConceptInput,
+  CreateStudentTagInput,
+  CreateUnlinkedFolderInput,
+  CreateLoginAuditInput
+} from './interfaces';
 
 // ============================================================================
 // ENTITY INTERFACES WITH BRANDED TYPES
 // ============================================================================
+// All interfaces are now imported from ./interfaces to avoid duplication
 
-export interface Teacher {
-  id: TeacherId;
-  email: TeacherEmail;
-  name: TeacherName | null;
-  role: 'admin' | 'staff';
-  otpSecret: string | null;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// Student interface is now imported from ./interfaces
 
-export interface Student {
-  id: FirestoreStudentId;
-  displayName: StudentName;
-  pinHash: PinHash;
-  pinUpdatedAt: Timestamp;
-  driveFolderId: DriveFolderId | null;
-  driveFolderName: FolderName | null;
-  subject: Subject | null;
-  folderConfirmed: boolean;
-  folderLinkedAt: Timestamp | null;
-  folderConfirmedAt: Timestamp | null;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// Note interface is now imported from ./interfaces
 
-export interface Note {
-  id: NoteId;
-  studentId: FirestoreStudentId;
-  contentMd: string;
-  subject: Subject;
-  level: Level;
-  topic: Topic;
-  driveFileId: DriveFileId | null;
-  driveFileName: FileName | null;
-  aiGenerated: boolean;
-  aiConfirmed: boolean;
-  manuallyEdited: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// KeyConcept interface is now imported from ./interfaces
 
-export interface KeyConcept {
-  id: KeyConceptId;
-  driveFileId: DriveFileId;
-  term: string;
-  explanation: string;
-  example: string | null;
-  orderIndex: number;
-  isAiGenerated: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// StudentTag interface is now imported from ./interfaces
 
-export interface StudentTag {
-  id?: string;
-  studentId: FirestoreStudentId;
-  key: string;
-  value: string;
-}
+// UnlinkedFolder interface is now imported from ./interfaces
 
-export interface UnlinkedFolder {
-  id?: string;
-  driveFolderId: DriveFolderId;
-  folderName: FolderName;
-  subject: Subject;
-  suggestedStudentId: FirestoreStudentId | null;
-  createdAt: Timestamp;
-}
-
-export interface LoginAudit {
-  id: LoginAuditId;
-  who: string;
-  action: string;
-  ip: IPAddress | null;
-  userAgent: UserAgent | null;
-  metadata: Record<string, unknown> | null;
-  teacherId: TeacherId | null;
-  studentId: FirestoreStudentId | null;
-  createdAt: Timestamp;
-}
+// LoginAudit interface is now imported from ./interfaces
 
 // ============================================================================
 // INPUT TYPES FOR CREATION
 // ============================================================================
 
-export interface CreateTeacherInput {
-  email: TeacherEmail;
-  name: TeacherName | null;
-  role: 'admin' | 'staff';
-  otpSecret: string | null;
-}
+// CreateTeacherInput interface is now imported from ./interfaces
 
-export interface CreateStudentInput {
-  displayName: StudentName;
-  pinHash: PinHash;
-  subject: Subject | null;
-}
+// CreateStudentInput interface is now imported from ./interfaces
 
-export interface CreateNoteInput {
-  studentId: FirestoreStudentId;
-  contentMd: string;
-  subject: Subject;
-  level: Level;
-  topic: Topic;
-  driveFileId: DriveFileId | null;
-  driveFileName: FileName | null;
-  aiGenerated: boolean;
-  aiConfirmed: boolean;
-  manuallyEdited: boolean;
-}
+// CreateNoteInput interface is now imported from ./interfaces
 
-export interface CreateKeyConceptInput {
-  driveFileId: DriveFileId;
-  term: string;
-  explanation: string;
-  example: string | null;
-  orderIndex: number;
-  isAiGenerated: boolean;
-}
+// CreateKeyConceptInput interface is now imported from ./interfaces
 
-export interface CreateStudentTagInput {
-  studentId: FirestoreStudentId;
-  key: string;
-  value: string;
-}
+// CreateStudentTagInput interface is now imported from ./interfaces
 
-export interface CreateUnlinkedFolderInput {
-  driveFolderId: DriveFolderId;
-  folderName: FolderName;
-  subject: Subject;
-  suggestedStudentId: FirestoreStudentId | null;
-}
+// CreateUnlinkedFolderInput interface is now imported from ./interfaces
 
-export interface CreateLoginAuditInput {
-  who: string;
-  action: string;
-  ip: IPAddress | null;
-  userAgent: UserAgent | null;
-  metadata: Record<string, unknown> | null;
-  teacherId: TeacherId | null;
-  studentId: FirestoreStudentId | null;
-}
+// CreateLoginAuditInput interface is now imported from ./interfaces
 
 // Helper function to convert Date to Timestamp
-export const toTimestamp = (date: Date): Timestamp => {
-  return Timestamp.fromDate(date);
+export const toTimestamp = (date: Date): string => {
+  return date.toISOString();
 };
 
 // Helper function to convert Timestamp to Date
-export const toDate = (timestamp: Timestamp): Date => {
-  return timestamp.toDate();
+export const toDate = (timestamp: string): Date => {
+  return new Date(timestamp);
 };
 
 // Helper function to get current timestamp
-export const now = (): Timestamp => {
-  return Timestamp.now();
+export const now = (): string => {
+  return new Date().toISOString();
 };
 
 // Helper function to get server timestamp
@@ -225,7 +120,7 @@ export const getTeacherByEmail = async (email: TeacherEmail): Promise<Result<Tea
 
 export const createTeacher = async (input: CreateTeacherInput): Promise<Result<TeacherId>> => {
   try {
-    const now = Timestamp.now();
+    const now = new Date().toISOString();
     const docRef = await db.collection('teachers').add({
       ...input,
       createdAt: now,
@@ -241,7 +136,7 @@ export const updateTeacher = async (id: TeacherId, data: Partial<CreateTeacherIn
   try {
     await db.collection('teachers').doc(id).update({
       ...data,
-      updatedAt: Timestamp.now(),
+      updatedAt: new Date().toISOString(),
     });
     return Ok(undefined);
   } catch (error) {
@@ -317,7 +212,7 @@ export const getDriveFolderIdFromStudentId = async (studentId: FirestoreStudentI
     if (!studentResult.success) {
       return Err(studentResult.error);
     }
-    return Ok(studentResult.data.driveFolderId);
+    return Ok(studentResult.data.driveFolderId || null);
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to get Drive folder ID from student ID'));
   }
@@ -368,7 +263,7 @@ export const getAllStudents = async (): Promise<Result<Student[]>> => {
 
 export const createStudent = async (input: CreateStudentInput): Promise<Result<FirestoreStudentId>> => {
   try {
-    const now = Timestamp.now();
+    const now = new Date().toISOString();
     const docRef = await db.collection('students').add({
       ...input,
       pinUpdatedAt: now,
@@ -388,7 +283,7 @@ export const updateStudent = async (id: FirestoreStudentId, data: Partial<Create
   try {
     await db.collection('students').doc(id).update({
       ...data,
-      updatedAt: Timestamp.now(),
+      updatedAt: new Date().toISOString(),
     });
     return Ok(undefined);
   } catch (error) {
@@ -446,7 +341,7 @@ export const getAllNotes = async (): Promise<Result<Note[]>> => {
 
 export const createNote = async (input: CreateNoteInput): Promise<Result<NoteId>> => {
   try {
-    const now = Timestamp.now();
+    const now = new Date().toISOString();
     const docRef = await db.collection('notes').add({
       ...input,
       createdAt: now,
@@ -462,7 +357,7 @@ export const updateNote = async (id: NoteId, data: Partial<CreateNoteInput>): Pr
   try {
     await db.collection('notes').doc(id).update({
       ...data,
-      updatedAt: Timestamp.now(),
+      updatedAt: new Date().toISOString(),
     });
     return Ok(undefined);
   } catch (error) {
@@ -508,7 +403,7 @@ export const getAllKeyConcepts = async (): Promise<Result<KeyConcept[]>> => {
 
 export const createKeyConcept = async (input: CreateKeyConceptInput): Promise<Result<KeyConceptId>> => {
   try {
-    const now = Timestamp.now();
+    const now = new Date().toISOString();
     const docRef = await db.collection('keyConcepts').add({
       ...input,
       createdAt: now,
@@ -524,7 +419,7 @@ export const updateKeyConcept = async (id: KeyConceptId, data: Partial<CreateKey
   try {
     await db.collection('keyConcepts').doc(id).update({
       ...data,
-      updatedAt: Timestamp.now(),
+      updatedAt: new Date().toISOString(),
     });
     return Ok(undefined);
   } catch (error) {
@@ -604,7 +499,7 @@ export const createUnlinkedFolder = async (input: CreateUnlinkedFolderInput): Pr
   try {
     const docRef = await db.collection('unlinkedFolders').add({
       ...input,
-      createdAt: Timestamp.now(),
+      createdAt: new Date().toISOString(),
     });
     return Ok(docRef.id);
   } catch (error) {
@@ -638,7 +533,7 @@ export const createLoginAudit = async (input: CreateLoginAuditInput): Promise<Re
   try {
     const docRef = await db.collection('loginAudits').add({
       ...input,
-      createdAt: Timestamp.now(),
+      createdAt: new Date().toISOString(),
     });
     return Ok(docRef.id as LoginAuditId);
   } catch (error) {
@@ -681,12 +576,7 @@ export const runTransaction = async <T>(
 };
 
 // BATCH OPERATIONS
-interface BatchOperation {
-  type: 'create' | 'update' | 'delete';
-  collection: string;
-  docId?: string;
-  data?: Record<string, unknown>;
-}
+import type { BatchOperation } from './interfaces';
 
 export const batchWrite = async (operations: BatchOperation[]): Promise<void> => {
   const batch = db.batch();
@@ -708,5 +598,109 @@ export const batchWrite = async (operations: BatchOperation[]): Promise<void> =>
   }
   
   await batch.commit();
+};
+
+// ============================================================================
+// MIGRATION HELPERS
+// ============================================================================
+
+/**
+ * Add topic group to existing files (migration helper)
+ * This function can be used to backfill topicGroup field for existing files
+ */
+export const addTopicGroupToFiles = async (): Promise<Result<{ updated: number; errors: number }>> => {
+  try {
+    console.log('🔄 Starting topic group migration...');
+    
+    // Get all students
+    const studentsResult = await getAllStudents();
+    if (studentsResult.success === false) {
+      return Err(new Error('Failed to get students: ' + studentsResult.error.message));
+    }
+    
+    const students = studentsResult.data;
+    let updated = 0;
+    let errors = 0;
+    
+    for (const student of students) {
+      try {
+        // Get all notes for this student
+        const notesSnapshot = await db
+          .collection('notes')
+          .where('studentId', '==', student.id)
+          .get();
+        
+        const batch = db.batch();
+        let batchCount = 0;
+        
+        for (const doc of notesSnapshot.docs) {
+          const note = doc.data() as Note;
+          
+          // Only update if topicGroup is missing
+          if (!note.topicGroup) {
+            // Try to infer topic group from subject and topic
+            // This is a simple heuristic - in practice, you might want more sophisticated logic
+            let inferredTopicGroup: string | undefined;
+            
+            if (note.subject && note.topic) {
+              // Simple mapping based on common patterns
+              const subject = note.subject.toLowerCase();
+              const topic = note.topic.toLowerCase();
+              
+              if (subject.includes('wiskunde')) {
+                if (topic.includes('breuk') || topic.includes('reken')) {
+                  inferredTopicGroup = 'rekenen-getallen';
+                } else if (topic.includes('algebra') || topic.includes('vergelijking')) {
+                  inferredTopicGroup = 'algebra-vergelijkingen';
+                } else if (topic.includes('functie') || topic.includes('grafiek')) {
+                  inferredTopicGroup = 'functies-grafieken';
+                } else if (topic.includes('meetkunde') || topic.includes('pythagoras')) {
+                  inferredTopicGroup = 'meetkunde-ruimtelijk';
+                }
+              } else if (subject.includes('natuurkunde')) {
+                if (topic.includes('mechanica') || topic.includes('kracht')) {
+                  inferredTopicGroup = 'mechanica';
+                } else if (topic.includes('elektriciteit') || topic.includes('stroom')) {
+                  inferredTopicGroup = 'elektriciteit-magnetisme';
+                }
+              }
+              // Add more mappings as needed
+            }
+            
+            if (inferredTopicGroup) {
+              batch.update(doc.ref, { topicGroup: inferredTopicGroup });
+              batchCount++;
+            }
+          }
+          
+          // Commit batch every 500 operations
+          if (batchCount >= 500) {
+            await batch.commit();
+            updated += batchCount;
+            batchCount = 0;
+          }
+        }
+        
+        // Commit remaining operations
+        if (batchCount > 0) {
+          await batch.commit();
+          updated += batchCount;
+        }
+        
+        console.log(`✅ Updated ${updated} files for student ${student.displayName}`);
+        
+      } catch (error) {
+        console.error(`❌ Error updating files for student ${student.displayName}:`, error);
+        errors++;
+      }
+    }
+    
+    console.log(`🎉 Migration completed: ${updated} files updated, ${errors} errors`);
+    return Ok({ updated, errors });
+    
+  } catch (error) {
+    console.error('❌ Migration failed:', error);
+    return Err(error instanceof Error ? error : new Error('Migration failed'));
+  }
 };
 

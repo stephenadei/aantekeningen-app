@@ -4,10 +4,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { FirebaseCredentialsError } from './errors';
 
 // Initialize Firebase Admin SDK
-interface FirebaseAdminConfig {
-  projectId: string;
-  credential: unknown;
-}
+import type { FirebaseAdminConfig } from './interfaces';
 
 // Validate required environment variables
 const requiredEnvVars = ['FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY'];

@@ -1,65 +1,22 @@
 import { db } from './firebase-admin';
-import { Timestamp, DocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
+import { DocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
 import { 
-  DriveFileId,
-  FirestoreStudentId,
-  DriveFolderId,
-  FileName,
-  CleanFileName,
-  DownloadUrl,
-  ViewUrl,
-  ThumbnailUrl,
-  Subject,
-  Topic,
-  Level,
-  SchoolYear,
   createFirestoreStudentId,
   createDriveFolderId
 } from './types';
+import type { DriveCache, FileMetadata } from './interfaces';
+import type { CacheType } from './types';
 
 // Cache configuration
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
 
-// Cache types
-export type CacheType = 'files' | 'metadata' | 'students' | 'fileMetadata';
+// Cache types are now imported from interfaces.ts
 
 // Firestore cache schema
-export interface DriveCache {
-  id: string;                    // cache key (e.g., "files_folderId")
-  type: CacheType;
-  data: Record<string, unknown>;  // cached data
-  createdAt: Timestamp;
-  expiresAt: Timestamp;          // TTL
-  studentId?: FirestoreStudentId;            // for filtering
-  folderId?: DriveFolderId;             // for filtering
-  lastModified?: Timestamp;      // for sync comparison
-}
+// DriveCache interface is now imported from ./interfaces
 
 // File metadata schema for optimized queries
-export interface FileMetadata {
-  id: DriveFileId;                    // file ID from Drive
-  studentId: FirestoreStudentId;
-  folderId: DriveFolderId;
-  name: FileName;
-  title: CleanFileName;
-  modifiedTime: Timestamp;
-  size: number;
-  thumbnailUrl: ThumbnailUrl;
-  downloadUrl: DownloadUrl;
-  viewUrl: ViewUrl;
-  subject?: Subject;
-  topic?: Topic;
-  level?: Level;
-  schoolYear?: SchoolYear;
-  keywords?: string[];
-  summary?: string;
-  summaryEn?: string;
-  topicEn?: string;
-  keywordsEn?: string[];
-  aiAnalyzedAt?: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+// FileMetadata interface is now imported from ./interfaces
 
 /**
  * Get cached data from Firestore
@@ -77,7 +34,7 @@ export async function getCachedData(
 
     const cacheData = doc.data() as DriveCache;
     const now = new Date();
-    const expiresAt = cacheData.expiresAt.toDate();
+    const expiresAt = new Date(cacheData.expiresAt);
 
     // Check if cache is expired
     if (now > expiresAt) {
@@ -115,11 +72,11 @@ export async function setCachedData(
       id: cacheKey,
       type,
       data,
-      createdAt: Timestamp.fromDate(now),
-      expiresAt: Timestamp.fromDate(expiresAt),
+      createdAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
       studentId: studentId ? createFirestoreStudentId(studentId) : undefined,
       folderId: folderId ? createDriveFolderId(folderId) : undefined,
-      lastModified: lastModified ? Timestamp.fromDate(lastModified) : undefined,
+      lastModified: lastModified ? lastModified.toISOString() : undefined,
     };
 
     await db.collection('driveCache').doc(cacheKey).set(cacheEntry);
@@ -217,7 +174,7 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
       batch.set(docRef, {
         ...file,
         aiAnalyzedAt: file.aiAnalyzedAt || null, // Convert undefined to null
-        updatedAt: Timestamp.now(),
+        updatedAt: new Date().toISOString(),
       });
     }
 
@@ -233,18 +190,57 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
  */
 export async function invalidateCache(pattern: string): Promise<void> {
   try {
-    const snapshot = await db.collection('driveCache')
+    // Invalidate drive cache
+    const driveSnapshot = await db.collection('driveCache')
       .where('id', '>=', pattern)
       .where('id', '<=', pattern + '\uf8ff')
       .get();
 
-    const batch = db.batch();
-    snapshot.docs.forEach(doc => {
-      batch.delete(doc.ref);
+    const driveBatch = db.batch();
+    driveSnapshot.docs.forEach(doc => {
+      driveBatch.delete(doc.ref);
     });
 
-    await batch.commit();
-    console.log(`Invalidated ${snapshot.docs.length} cache entries matching ${pattern}`);
+    if (driveSnapshot.docs.length > 0) {
+      await driveBatch.commit();
+      console.log(`Invalidated ${driveSnapshot.docs.length} drive cache entries matching ${pattern}`);
+    }
+
+    // Invalidate file metadata cache if pattern matches
+    if (pattern === 'ai-analysis' || pattern.startsWith('student-')) {
+      const fileMetadataSnapshot = await db.collection('fileMetadata')
+        .get();
+
+      const metadataBatch = db.batch();
+      let invalidatedCount = 0;
+
+      fileMetadataSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        
+        // For 'ai-analysis' pattern, invalidate all files
+        if (pattern === 'ai-analysis') {
+          metadataBatch.update(doc.ref, {
+            aiAnalyzedAt: null,
+            updatedAt: new Date().toISOString(),
+          });
+          invalidatedCount++;
+        }
+        // For 'student-X' pattern, invalidate files for that student
+        else if (pattern.startsWith('student-') && data.studentId === pattern.replace('student-', '')) {
+          metadataBatch.update(doc.ref, {
+            aiAnalyzedAt: null,
+            updatedAt: new Date().toISOString(),
+          });
+          invalidatedCount++;
+        }
+      });
+
+      if (invalidatedCount > 0) {
+        await metadataBatch.commit();
+        console.log(`Invalidated AI analysis for ${invalidatedCount} file metadata entries`);
+      }
+    }
+
   } catch (error) {
     console.error(`Error invalidating cache for pattern ${pattern}:`, error);
   }
@@ -255,7 +251,7 @@ export async function invalidateCache(pattern: string): Promise<void> {
  */
 export async function cleanupExpiredCache(): Promise<void> {
   try {
-    const now = Timestamp.now();
+    const now = new Date().toISOString();
     const snapshot = await db.collection('driveCache')
       .where('expiresAt', '<', now)
       .limit(100) // Process in batches
@@ -289,7 +285,7 @@ export async function getCacheStats(): Promise<{
   try {
     const [allSnapshot, expiredSnapshot] = await Promise.all([
       db.collection('driveCache').get(),
-      db.collection('driveCache').where('expiresAt', '<', Timestamp.now()).get()
+      db.collection('driveCache').where('expiresAt', '<', new Date().toISOString()).get()
     ]);
 
     const byType: Record<string, number> = {};
@@ -331,7 +327,7 @@ export async function isFileMetadataFresh(
       return false;
     }
 
-    const latestUpdate = snapshot.docs[0].data().updatedAt.toDate();
+    const latestUpdate = new Date(snapshot.docs[0].data().updatedAt);
     const now = new Date();
     const ageHours = (now.getTime() - latestUpdate.getTime()) / (1000 * 60 * 60);
 
