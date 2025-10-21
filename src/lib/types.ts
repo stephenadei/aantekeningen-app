@@ -100,8 +100,8 @@ const TYPE_METADATA = {
     description: 'Google Drive folder ID (longer than 20 chars)'
   },
   TeacherId: { 
-    validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
-    description: 'Firestore teacher document ID'
+    validate: (v: string) => v.length >= 20 && v.length <= 30 && /^[a-zA-Z0-9]+$/.test(v),
+    description: 'Firestore teacher document ID or Firebase UID'
   },
   NoteId: { 
     validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
