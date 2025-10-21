@@ -261,19 +261,35 @@ export const getAllStudents = async (): Promise<Result<Student[]>> => {
   }
 };
 
-export const createStudent = async (input: CreateStudentInput): Promise<Result<FirestoreStudentId>> => {
+export const createStudent = async (input: CreateStudentInput, studentId?: string): Promise<Result<FirestoreStudentId>> => {
   try {
     const now = new Date().toISOString();
-    const docRef = await db.collection('students').add({
-      ...input,
-      pinUpdatedAt: now,
-      folderConfirmed: false,
-      folderLinkedAt: null,
-      folderConfirmedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-    return Ok(docRef.id as FirestoreStudentId);
+    
+    if (studentId) {
+      // Create with specific ID
+      await db.collection('students').doc(studentId).set({
+        ...input,
+        pinUpdatedAt: now,
+        folderConfirmed: false,
+        folderLinkedAt: null,
+        folderConfirmedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return Ok(studentId as FirestoreStudentId);
+    } else {
+      // Create with auto-generated ID
+      const docRef = await db.collection('students').add({
+        ...input,
+        pinUpdatedAt: now,
+        folderConfirmed: false,
+        folderLinkedAt: null,
+        folderConfirmedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return Ok(docRef.id as FirestoreStudentId);
+    }
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to create student'));
   }

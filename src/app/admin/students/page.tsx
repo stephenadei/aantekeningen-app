@@ -112,6 +112,50 @@ export default function StudentsPage() {
     }
   };
 
+  const handleAdoptStudent = async (studentId: string) => {
+    const displayName = prompt('Enter the student\'s display name:');
+    if (!displayName) return;
+
+    const email = prompt('Enter the student\'s email (optional):') || undefined;
+    const pin = prompt('Enter a 6-digit PIN for the student:');
+    if (!pin || pin.length !== 6) {
+      alert('PIN must be exactly 6 digits');
+      return;
+    }
+
+    const driveFolderId = prompt('Enter the Drive folder ID (optional):') || undefined;
+    const subject = prompt('Enter the subject (optional):') || undefined;
+
+    try {
+      const response = await fetch('/api/admin/students/adopt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId,
+          displayName,
+          email,
+          pin,
+          driveFolderId,
+          subject
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to adopt student');
+      }
+
+      // Refresh the list
+      fetchStudents();
+      alert('Student successfully adopted!');
+    } catch (error) {
+      console.error('Error adopting student:', error);
+      alert(`Failed to adopt student: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const formatLastActivity = (dateString: string | null) => {
     if (!dateString) return 'Never';
     
@@ -278,8 +322,13 @@ export default function StudentsPage() {
                   <tr key={student.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
                           {student.displayName}
+                          {student.displayName.startsWith('Unknown Student') && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                              Orphaned
+                            </span>
+                          )}
                         </div>
                         {student.email && (
                           <div className="text-sm text-gray-500">{student.email}</div>
@@ -329,31 +378,45 @@ export default function StudentsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/admin/students/${student.id}`)}
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => router.push(`/admin/students/${student.id}/edit`)}
-                          title="Edit Student"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(student.id, student.displayName)}
-                          title="Delete Student"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {student.displayName.startsWith('Unknown Student') ? (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleAdoptStudent(student.id)}
+                            title="Adopt Student"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Adopt
+                          </Button>
+                        ) : (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => router.push(`/admin/students/${student.id}`)}
+                              title="View Details"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => router.push(`/admin/students/${student.id}/edit`)}
+                              title="Edit Student"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(student.id, student.displayName)}
+                              title="Delete Student"
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
