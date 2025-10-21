@@ -54,10 +54,12 @@ async function testFirebaseCredentials() {
   }
 }
 
-// Test credentials after initialization
-testFirebaseCredentials().catch(error => {
-  console.error('❌ Firebase credentials test failed:', error);
-});
+// Test credentials after initialization (only in development)
+if (process.env.NODE_ENV === 'development') {
+  testFirebaseCredentials().catch(error => {
+    console.error('❌ Firebase credentials test failed:', error);
+  });
+}
 
 // Export services
 export const db = getFirestore(app);
