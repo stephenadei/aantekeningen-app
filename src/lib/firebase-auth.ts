@@ -22,13 +22,22 @@ let auth: {
   createCustomToken?: (uid: string, additionalClaims?: Record<string, unknown>) => Promise<string>;
   currentUser?: unknown 
 } | null = null;
-if (!isEdgeRuntime) {
+// Lazy load Firebase Admin SDK to prevent build-time issues
+async function getFirebaseAuth() {
+  if (auth) return auth;
+  
+  if (isEdgeRuntime) {
+    throw new Error('Firebase Admin SDK not available in Edge Runtime');
+  }
+  
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const firebaseAdminModule = require('./firebase-admin') as { auth: typeof auth };
     auth = firebaseAdminModule.auth;
-  } catch {
-    console.warn('Firebase Admin SDK not available in this runtime');
+    return auth;
+  } catch (error) {
+    console.warn('Firebase Admin SDK not available in this environment:', error);
+    throw new Error('Firebase Admin SDK not available');
   }
 }
 
@@ -51,18 +60,20 @@ export interface AuthResult {
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function verifyFirebaseToken(request: NextRequest): Promise<AuthResult> {
-  if (isEdgeRuntime || !auth) {
+  if (isEdgeRuntime) {
     return { user: null, error: 'Firebase Admin SDK not available in Edge Runtime' };
   }
 
   try {
+    const firebaseAuth = await getFirebaseAuth();
+    
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return { user: null, error: 'No authorization header' };
     }
 
     const token = authHeader.substring(7);
-    const decodedToken = await auth.verifyIdToken!(token);
+    const decodedToken = await firebaseAuth.verifyIdToken!(token);
     
     const user: FirebaseUser = {
       uid: decodedToken.uid as TeacherId,
@@ -85,17 +96,19 @@ export async function verifyFirebaseToken(request: NextRequest): Promise<AuthRes
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function verifyFirebaseTokenFromCookie(request: NextRequest): Promise<AuthResult> {
-  if (isEdgeRuntime || !auth) {
+  if (isEdgeRuntime) {
     return { user: null, error: 'Firebase Admin SDK not available in Edge Runtime' };
   }
 
   try {
+    const firebaseAuth = await getFirebaseAuth();
+    
     const sessionCookie = request.cookies.get('__session')?.value;
     if (!sessionCookie) {
       return { user: null, error: 'No session cookie' };
     }
 
-    const decodedClaims = await auth.verifySessionCookie!(sessionCookie, true);
+    const decodedClaims = await firebaseAuth.verifySessionCookie!(sessionCookie, true);
     
     const user: FirebaseUser = {
       uid: decodedClaims.uid as TeacherId,
@@ -136,10 +149,14 @@ export function isAuthorizedAdmin(user: FirebaseUser | null): boolean {
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function setUserRole(uid: string, role: 'admin' | 'staff'): Promise<void> {
-  if (isEdgeRuntime || !auth || !auth.setCustomUserClaims) {
+  if (isEdgeRuntime) {
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
-  await auth.setCustomUserClaims(uid, { role });
+  const firebaseAuth = await getFirebaseAuth();
+  if (!firebaseAuth.setCustomUserClaims) {
+    throw new Error('setCustomUserClaims not available');
+  }
+  await firebaseAuth.setCustomUserClaims(uid, { role });
 }
 
 /**
@@ -147,12 +164,16 @@ export async function setUserRole(uid: string, role: 'admin' | 'staff'): Promise
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
-  if (isEdgeRuntime || !auth || !auth.getUser) {
+  if (isEdgeRuntime) {
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
 
   try {
-    const userRecord = await auth.getUser(uid);
+    const firebaseAuth = await getFirebaseAuth();
+    if (!firebaseAuth.getUser) {
+      throw new Error('getUser not available');
+    }
+    const userRecord = await firebaseAuth.getUser(uid);
     return {
       uid: userRecord.uid as TeacherId,
       email: (userRecord.email as TeacherEmail) || null,
@@ -172,9 +193,13 @@ export async function getUserByUid(uid: string): Promise<FirebaseUser | null> {
  * NOTE: This function requires Node.js runtime (not Edge Runtime)
  */
 export async function createCustomToken(uid: string, additionalClaims?: Record<string, unknown>): Promise<string> {
-  if (isEdgeRuntime || !auth || !auth.createCustomToken) {
+  if (isEdgeRuntime) {
     throw new Error('Firebase Admin SDK not available in Edge Runtime');
   }
-  return await auth.createCustomToken(uid, additionalClaims);
+  const firebaseAuth = await getFirebaseAuth();
+  if (!firebaseAuth.createCustomToken) {
+    throw new Error('createCustomToken not available');
+  }
+  return await firebaseAuth.createCustomToken(uid, additionalClaims);
 }
 
