@@ -7,10 +7,10 @@ export async function middleware(request: NextRequest) {
   // Admin routes - let client-side handle authentication
   // The AdminLayout component already handles Firebase Auth state
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    // Check if session cookie exists (basic check)
-    const sessionCookie = request.cookies.get('__session')?.value;
+    // Check if Firebase token cookie exists (basic check)
+    const firebaseToken = request.cookies.get('firebase-token')?.value;
     
-    if (!sessionCookie) {
+    if (!firebaseToken) {
       return NextResponse.redirect(new URL('/admin/login', request.url));
     }
     
@@ -27,9 +27,9 @@ export async function middleware(request: NextRequest) {
   // API routes protection - basic cookie check only
   // Detailed verification happens in the API route handlers (Node.js runtime)
   if (pathname.startsWith('/api/admin')) {
-    const sessionCookie = request.cookies.get('__session')?.value;
+    const firebaseToken = request.cookies.get('firebase-token')?.value;
     
-    if (!sessionCookie) {
+    if (!firebaseToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
