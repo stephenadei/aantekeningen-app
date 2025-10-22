@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStudentByName, createLoginAudit } from '@/lib/firestore';
+import { getFileMetadata } from '@/lib/cache';
 import { validatePinFormat, verifyPin, getClientIP, getUserAgent } from '@/lib/security';
 import { createStudentName, createPin, isOk } from '@/lib/types';
+import type { StudentPortalStudent } from '@/lib/interfaces';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -81,13 +83,30 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Return student data (without sensitive information)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { pinHash, ...studentData } = student;
+    // Get student's notes from fileMetadata
+    const files = await getFileMetadata(student.id);
+    
+    // Convert files to notes format expected by StudentPortalStudent
+    const notes = files.map(file => ({
+      id: file.id,
+      contentMd: file.summary || '', // Use summary as content
+      subject: file.subject || 'Unknown',
+      level: file.level || 'Unknown',
+      topic: file.topic || 'Unknown',
+      createdAt: file.createdAt,
+      updatedAt: file.updatedAt
+    }));
+
+    // Create StudentPortalStudent object
+    const studentPortalData: StudentPortalStudent = {
+      id: student.id,
+      displayName: student.displayName,
+      notes: notes
+    };
 
     return NextResponse.json({
       success: true,
-      student: studentData,
+      student: studentPortalData,
     });
 
   } catch (error: unknown) {
