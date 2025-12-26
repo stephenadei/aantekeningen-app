@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { datalakeService } from '@/lib/datalake-simple';
 
 export async function GET() {
   try {
-    const result = await googleDriveService.testDriveAccess();
+    const result = await datalakeService.testDatalakeAccess();
 
     return NextResponse.json(result);
 

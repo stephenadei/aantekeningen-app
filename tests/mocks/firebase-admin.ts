@@ -103,7 +103,9 @@ export const mockAuth = {
 export const db = mockDb;
 export const auth = mockAuth;
 
-export default {
+const mockFirebaseAdmin = {
   db: mockDb,
   auth: mockAuth,
 };
+
+export default mockFirebaseAdmin;

@@ -20,6 +20,7 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      "**/*.tsbuildinfo",
     ],
     rules: {
       "@typescript-eslint/no-unused-vars": "off",

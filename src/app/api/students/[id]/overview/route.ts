@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { datalakeService } from '@/lib/datalake-simple';
 import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
 import { 
   StudentIdType, 
@@ -117,18 +117,40 @@ export async function GET(
           driveFolderId = student.driveFolderId;
           studentName = student.displayName;
         } else {
-          const validationResult = await validateDriveFolderId(studentId);
-          if (isErr(validationResult)) {
-            return NextResponse.json(
-              createErrorResponse(handleUnknownError(validationResult.error)),
-              { status: 400 }
-            );
-          }
-          
-          driveFolderId = validationResult.data;
-          const studentResult = await getStudentByDriveFolderId(validationResult.data);
-          if (isOk(studentResult)) {
-            studentName = studentResult.data.displayName;
+          // Check if it's a datalake path (contains slashes)
+          if (studentId.includes('/')) {
+            // It's a datalake path, extract student name directly
+            driveFolderId = studentId as DriveFolderId;
+            const pathParts = studentId.split('/');
+            const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
+            if (studentNameFromPath) {
+              studentName = studentNameFromPath;
+            }
+            
+            // Try to get from Firestore if available (for metadata)
+            try {
+              const studentResult = await getStudentByDriveFolderId(driveFolderId);
+              if (isOk(studentResult)) {
+                studentName = studentResult.data.displayName;
+              }
+            } catch (error) {
+              // Ignore Firestore errors, use extracted name
+            }
+          } else {
+            // It's a Google Drive ID (legacy support)
+            const validationResult = await validateDriveFolderId(studentId);
+            if (isErr(validationResult)) {
+              return NextResponse.json(
+                createErrorResponse(handleUnknownError(validationResult.error)),
+                { status: 400 }
+              );
+            }
+            
+            driveFolderId = validationResult.data;
+            const studentResult = await getStudentByDriveFolderId(validationResult.data);
+            if (isOk(studentResult)) {
+              studentName = studentResult.data.displayName;
+            }
           }
         }
       } catch (error) {
@@ -140,8 +162,14 @@ export async function GET(
       }
     }
 
-    console.log('🔄 Fetching student overview from Google Drive...');
-    const overview = await googleDriveService.getStudentOverview(driveFolderId);
+    console.log('🔄 Fetching student overview from Datalake...');
+    if (!studentName) {
+      return NextResponse.json(
+        createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
+        { status: 400 }
+      );
+    }
+    const overview = await datalakeService.getStudentOverview('', studentName);
     console.log('✅ Overview fetched:', overview);
 
     return NextResponse.json({

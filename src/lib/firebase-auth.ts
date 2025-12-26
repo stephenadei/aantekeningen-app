@@ -6,7 +6,6 @@ import {
 } from './types';
 
 // Runtime detection to prevent Edge Runtime usage
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isEdgeRuntime = typeof (globalThis as any).EdgeRuntime !== 'undefined' || 
   (typeof process !== 'undefined' && process.env.NEXT_RUNTIME === 'edge');
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { datalakeService } from '@/lib/datalake-simple';
 import { getFileMetadata, isFileMetadataFresh } from '@/lib/cache';
 import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
 import { backgroundSyncService } from '@/lib/background-sync';
@@ -122,18 +122,40 @@ export async function GET(
           driveFolderId = student.driveFolderId;
           studentName = student.displayName;
         } else {
-          const validationResult = await validateDriveFolderId(studentId);
-          if (isErr(validationResult)) {
-            return NextResponse.json(
-              createErrorResponse(handleUnknownError(validationResult.error)),
-              { status: 400 }
-            );
-          }
-          
-          driveFolderId = validationResult.data;
-          const studentResult = await getStudentByDriveFolderId(validationResult.data);
-          if (isOk(studentResult)) {
-            studentName = studentResult.data.displayName;
+          // Check if it's a datalake path (contains slashes)
+          if (studentId.includes('/')) {
+            // It's a datalake path, extract student name directly
+            driveFolderId = studentId as DriveFolderId;
+            const pathParts = studentId.split('/');
+            const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
+            if (studentNameFromPath) {
+              studentName = studentNameFromPath;
+            }
+            
+            // Try to get from Firestore if available (for metadata)
+            try {
+              const studentResult = await getStudentByDriveFolderId(driveFolderId);
+              if (isOk(studentResult)) {
+                studentName = studentResult.data.displayName;
+              }
+            } catch (error) {
+              // Ignore Firestore errors, use extracted name
+            }
+          } else {
+            // It's a Google Drive ID (legacy support)
+            const validationResult = await validateDriveFolderId(studentId);
+            if (isErr(validationResult)) {
+              return NextResponse.json(
+                createErrorResponse(handleUnknownError(validationResult.error)),
+                { status: 400 }
+              );
+            }
+            
+            driveFolderId = validationResult.data;
+            const studentResult = await getStudentByDriveFolderId(validationResult.data);
+            if (isOk(studentResult)) {
+              studentName = studentResult.data.displayName;
+            }
           }
         }
       } catch (error) {
@@ -145,49 +167,54 @@ export async function GET(
       }
     }
 
-    // Check if we should use Firestore cache or fallback to Google Drive
-    const useFirestoreCache = !forceRefresh;
-    
-    if (useFirestoreCache) {
-      console.log('🔄 Checking Firestore cache for student files...');
-      
-      // Try to get files from Firestore cache first
-      const cachedFiles = await getFileMetadata(studentId);
-      
-      if (cachedFiles.length > 0) {
-        console.log(`✅ Found ${cachedFiles.length} cached files in Firestore`);
-        
-        // Convert Firestore format to API format
-        const apiFiles = cachedFiles.map(file => ({
-          id: file.id,
-          name: file.name,
-          title: file.title,
-          url: file.viewUrl,
-          downloadUrl: file.downloadUrl,
-          viewUrl: file.viewUrl,
-          thumbnailUrl: file.thumbnailUrl,
-          modifiedTime: file.modifiedTime,
-          size: file.size,
-          subject: file.subject,
-          topic: file.topic,
-          level: file.level,
-          schoolYear: file.schoolYear,
-          keywords: file.keywords,
-          summary: file.summary,
-          summaryEn: file.summaryEn,
-          topicEn: file.topicEn,
-          keywordsEn: file.keywordsEn,
-          aiAnalyzedAt: file.aiAnalyzedAt,
-        }));
-
-        // Apply pagination
-        let files = apiFiles;
-        if (limit) {
-          const limitNum = parseInt(limit);
-          const offsetNum = offset ? parseInt(offset) : 0;
-          files = apiFiles.slice(offsetNum, offsetNum + limitNum);
+    // Always fetch from Datalake first (primary source)
+    console.log('🔄 Fetching files from Datalake...');
+    if (!studentName) {
+      // Try to extract student name from driveFolderId if it's a path
+      if (driveFolderId.includes('/')) {
+        const pathParts = driveFolderId.split('/');
+        const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
+        if (studentNameFromPath) {
+          studentName = studentNameFromPath;
         }
-
+      }
+      
+      if (!studentName) {
+        return NextResponse.json(
+          createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
+          { status: 400 }
+        );
+      }
+    }
+    
+    const allFiles = await datalakeService.listFilesInFolder('', studentName);
+    
+    // Optionally enrich with Firestore cache metadata (AI analysis, etc.)
+    if (!forceRefresh) {
+      const cachedFiles = await getFileMetadata(studentId);
+      if (cachedFiles.length > 0) {
+        const cacheMap = new Map(cachedFiles.map(f => [f.id, f]));
+        
+        // Merge cache metadata with datalake files
+        const enrichedFiles = allFiles.map(file => {
+          const cached = cacheMap.get(file.id);
+          if (cached) {
+            return {
+              ...file,
+              topic: cached.topic,
+              level: cached.level,
+              schoolYear: cached.schoolYear,
+              keywords: cached.keywords,
+              summary: cached.summary,
+              summaryEn: cached.summaryEn,
+              topicEn: cached.topicEn,
+              keywordsEn: cached.keywordsEn,
+              aiAnalyzedAt: cached.aiAnalyzedAt,
+            };
+          }
+          return file;
+        });
+        
         // Check if cache is fresh, if not trigger background refresh
         const isFresh = await isFileMetadataFresh(studentId, 6); // 6 hours
         if (!isFresh) {
@@ -197,24 +224,29 @@ export async function GET(
             console.error('Background sync failed:', error);
           });
         }
-
+        
+        // Apply pagination
+        let files = enrichedFiles;
+        if (limit) {
+          const limitNum = parseInt(limit);
+          const offsetNum = offset ? parseInt(offset) : 0;
+          files = enrichedFiles.slice(offsetNum, offsetNum + limitNum);
+        }
+        
         return NextResponse.json({
           success: true,
           files,
           count: files.length,
-          totalCount: apiFiles.length,
-          hasMore: limit ? (apiFiles.length > (parseInt(limit) + (offset ? parseInt(offset) : 0))) : false,
-          fromCache: true,
+          totalCount: enrichedFiles.length,
+          hasMore: limit ? (enrichedFiles.length > (parseInt(limit) + (offset ? parseInt(offset) : 0))) : false,
+          fromCache: false,
+          cacheEnriched: true,
           cacheFresh: isFresh,
           studentName,
           idType: idType || detectIdType(studentId)
         });
       }
     }
-
-    // Fallback to Google Drive API
-    console.log('🔄 Cache miss or force refresh, fetching from Google Drive...');
-    const allFiles = await googleDriveService.listFilesInFolder(driveFolderId);
     
     // Apply pagination if requested
     let files = allFiles;
@@ -224,7 +256,7 @@ export async function GET(
       files = allFiles.slice(offsetNum, offsetNum + limitNum);
     }
     
-    console.log('✅ Files fetched from Google Drive:', files.length, 'files (total:', allFiles.length, ')');
+    console.log('✅ Files fetched from Datalake:', files.length, 'files (total:', allFiles.length, ')');
 
     // Trigger background sync to update Firestore cache
     backgroundSyncService.forceSyncStudent(studentId).catch(error => {

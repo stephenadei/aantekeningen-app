@@ -49,7 +49,6 @@ export async function GET(
     }));
 
     const note: AdminNoteWithMetadata = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...(noteData as any),
       id: createDriveFileId(doc.id),
       student: {
@@ -145,7 +144,6 @@ export async function PUT(
     const student = studentResult.data;
 
     const note: AdminNoteWithMetadata = {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ...(noteData as any),
       id: createDriveFileId(doc.id),
       student: {

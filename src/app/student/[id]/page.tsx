@@ -60,7 +60,7 @@ export default function StudentPage() {
     if (studentId) {
       loadStudentData();
     }
-  }, [studentId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [studentId]);
 
   const loadStudentData = async () => {
     try {

@@ -32,7 +32,6 @@ export async function GET(
     const student = studentResult.data;
 
     // Get file metadata
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let files: any[] = [];
     let fileCount = 0;
     let lastActivity = null;
@@ -155,7 +154,6 @@ export async function DELETE(
     const studentId = createFirestoreStudentId(id);
     
     // Soft delete by setting isActive to false
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await updateStudent(studentId, { isActive: false } as any);
     
     if (isErr(result)) {

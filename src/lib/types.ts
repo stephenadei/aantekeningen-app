@@ -116,8 +116,18 @@ const TYPE_METADATA = {
     description: 'Firestore login audit document ID'
   },
   DriveFileId: { 
-    validate: (v: string) => v.length > 20 && /^[a-zA-Z0-9_-]+$/.test(v),
-    description: 'Google Drive file ID'
+    validate: (v: string) => {
+      // Accept Google Drive IDs (alphanumeric with underscores/hyphens)
+      if (v.length > 20 && /^[a-zA-Z0-9_-]+$/.test(v)) {
+        return true;
+      }
+      // Accept datalake paths (contain slashes, longer paths)
+      if (v.includes('/') && v.length > 10) {
+        return true;
+      }
+      return false;
+    },
+    description: 'Google Drive file ID or Datalake file path'
   },
   SubjectId: { 
     validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
@@ -184,20 +194,68 @@ const TYPE_METADATA = {
 
   // URL Types
   DriveUrl: { 
-    validate: (v: string) => v.startsWith('https://drive.google.com/'),
-    description: 'Google Drive URL'
+    validate: (v: string) => {
+      // Accept Google Drive URLs
+      if (v.startsWith('https://drive.google.com/')) {
+        return true;
+      }
+      // Accept datalake paths (start with /)
+      if (v.startsWith('/')) {
+        return true;
+      }
+      // Accept presigned MinIO URLs (http/https)
+      if (v.startsWith('http://') || v.startsWith('https://')) {
+        return true;
+      }
+      return false;
+    },
+    description: 'Google Drive URL, Datalake path, or presigned URL'
   },
   DownloadUrl: { 
-    validate: (v: string) => v.startsWith('https://drive.google.com/uc?export=download'),
-    description: 'Google Drive download URL'
+    validate: (v: string) => {
+      // Accept Google Drive download URLs
+      if (v.startsWith('https://drive.google.com/uc?export=download')) {
+        return true;
+      }
+      // Accept presigned MinIO URLs (http/https)
+      if (v.startsWith('http://') || v.startsWith('https://')) {
+        return true;
+      }
+      return false;
+    },
+    description: 'Google Drive download URL or presigned MinIO URL'
   },
   ViewUrl: { 
-    validate: (v: string) => v.startsWith('https://drive.google.com/file/d/'),
-    description: 'Google Drive view URL'
+    validate: (v: string) => {
+      // Accept Google Drive view URLs
+      if (v.startsWith('https://drive.google.com/file/d/')) {
+        return true;
+      }
+      // Accept presigned MinIO URLs (http/https)
+      if (v.startsWith('http://') || v.startsWith('https://')) {
+        return true;
+      }
+      return false;
+    },
+    description: 'Google Drive view URL or presigned MinIO URL'
   },
   ThumbnailUrl: { 
-    validate: (v: string) => v.startsWith('https://drive.google.com/thumbnail'),
-    description: 'Google Drive thumbnail URL'
+    validate: (v: string) => {
+      // Accept Google Drive thumbnail URLs
+      if (v.startsWith('https://drive.google.com/thumbnail')) {
+        return true;
+      }
+      // Accept empty string (no thumbnail)
+      if (v === '') {
+        return true;
+      }
+      // Accept other URLs
+      if (v.startsWith('http://') || v.startsWith('https://')) {
+        return true;
+      }
+      return false;
+    },
+    description: 'Google Drive thumbnail URL, other URL, or empty string'
   },
 
   // Display Name Types

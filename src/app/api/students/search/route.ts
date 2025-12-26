@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllStudents } from '@/lib/firestore';
-import { googleDriveService } from '@/lib/google-drive-simple';
-import { sanitizeInput } from '@/lib/security';
-import { isOk, isErr } from '@/lib/types';
+import { datalakeService } from '@/lib/datalake-simple';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,91 +18,44 @@ export async function GET(request: NextRequest) {
 
     console.log('🔍 Searching for:', query);
 
-    // Get all students from Firestore
-    const allStudentsResult = await getAllStudents();
-    if (isErr(allStudentsResult)) {
-      console.error('❌ Failed to get students from Firestore:', allStudentsResult.error);
-      return NextResponse.json(
-        { error: 'Failed to retrieve students from database' },
-        { status: 500 }
+    // Search directly in Datalake
+    try {
+      // Check if we have MinIO credentials
+      const hasMinIOCredentials = !!(
+        process.env.MINIO_ENDPOINT && 
+        process.env.MINIO_ACCESS_KEY && 
+        process.env.MINIO_SECRET_KEY
       );
-    }
-    
-    const allStudents = allStudentsResult.data;
-    console.log(`📚 Found ${allStudents.length} total students in database`);
 
-    // If no students found in Firestore, try Google Drive as fallback
-    if (allStudents.length === 0) {
-      console.log('⚠️ No students found in Firestore, trying Google Drive fallback...');
-      
-      try {
-        // Check if we have Google Drive OAuth credentials
-        const hasGoogleCredentials = !!(
-          process.env.GOOGLE_CLIENT_ID && 
-          process.env.GOOGLE_CLIENT_SECRET && 
-          process.env.GOOGLE_REFRESH_TOKEN
-        );
-
-        if (hasGoogleCredentials) {
-          console.log('🔄 Falling back to Google Drive search...');
-          try {
-            const driveStudents = await googleDriveService.findStudentFolders(query);
-            
-            if (driveStudents.length > 0) {
-              console.log(`✅ Found ${driveStudents.length} students in Google Drive`);
-              return NextResponse.json({
-                success: true,
-                students: driveStudents,
-                count: driveStudents.length,
-                fromDrive: true,
-                message: 'Students found in Google Drive. Consider running "npm run init-students" to migrate to Firestore for better performance.'
-              });
-            }
-          } catch (driveError) {
-            console.error('❌ Google Drive search failed:', driveError);
-            // Continue to show the helpful message below
-          }
-        }
-
+      if (!hasMinIOCredentials) {
         return NextResponse.json({
           success: true,
           students: [],
           count: 0,
-          message: 'No students found. Run "npm run init-students" to initialize students from Google Drive structure.'
-        });
-      } catch (driveError) {
-        console.error('❌ Google Drive fallback failed:', driveError);
-        return NextResponse.json({
-          success: true,
-          students: [],
-          count: 0,
-          message: 'No students found in database. Google Drive fallback also failed. Check your configuration.'
+          message: 'MinIO credentials not configured. Please set MINIO_ENDPOINT, MINIO_ACCESS_KEY, and MINIO_SECRET_KEY environment variables.'
         });
       }
+
+      const datalakeStudents = await datalakeService.findStudentFolders(query);
+      
+      console.log(`✅ Found ${datalakeStudents.length} students in Datalake`);
+      
+      return NextResponse.json({
+        success: true,
+        students: datalakeStudents,
+        count: datalakeStudents.length,
+        fromDatalake: true
+      });
+    } catch (datalakeError) {
+      console.error('❌ Datalake search failed:', datalakeError);
+      return NextResponse.json({
+        success: false,
+        students: [],
+        count: 0,
+        error: 'Failed to search students in Datalake',
+        message: datalakeError instanceof Error ? datalakeError.message : 'Unknown error'
+      }, { status: 500 });
     }
-
-    // Filter students by search query
-    const searchTerm = sanitizeInput(query).toLowerCase();
-    const filteredStudents = allStudents.filter(student =>
-      student.displayName.toLowerCase().includes(searchTerm)
-    );
-
-    console.log(`✅ Found ${filteredStudents.length} matching students`);
-
-    // Convert Firestore objects to plain JavaScript objects for JSON serialization
-    const plainStudents = filteredStudents.map(student => ({
-      id: student.id,
-      displayName: student.displayName,
-      subject: student.subject,
-      driveFolderId: student.driveFolderId,
-      // Omit Firestore Timestamp objects to ensure proper serialization
-    }));
-
-    return NextResponse.json({
-      success: true,
-      students: plainStudents,
-      count: plainStudents.length
-    });
 
   } catch (error) {
     console.error('❌ Error searching students:', error);

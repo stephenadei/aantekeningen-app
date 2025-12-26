@@ -43,16 +43,13 @@ export async function GET(request: NextRequest) {
     const studentIdsFromStudents = new Set(studentsResult.data.map(s => s.id));
 
     // Find student IDs that exist in fileMetadata but not in students collection
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const orphanedStudentIds = Array.from(studentIdsFromFiles).filter(id => !studentIdsFromStudents.has(id as any));
 
     // Create placeholder student objects for orphaned students
     const orphanedStudents = orphanedStudentIds.map(id => ({
       id,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       displayName: `Unknown Student (${id})` as any,
       email: undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pinHash: '' as any,
       driveFolderId: undefined,
       subject: undefined,
@@ -162,7 +159,6 @@ export async function POST(request: NextRequest) {
         pinHash: pinHash as string,
         driveFolderId: driveFolderId ? createDriveFolderId(driveFolderId) : undefined,
         subject: subject ? createSubject(subject) : undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
     } catch (validationError) {
       return NextResponse.json(

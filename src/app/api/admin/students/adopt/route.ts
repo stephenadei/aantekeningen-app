@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
         pinHash: pinHash as string,
         driveFolderId: driveFolderId ? createDriveFolderId(driveFolderId) : undefined,
         subject: subject ? createSubject(subject) : undefined,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any;
     } catch (validationError) {
       return NextResponse.json(

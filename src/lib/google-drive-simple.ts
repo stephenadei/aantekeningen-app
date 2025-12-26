@@ -107,7 +107,6 @@ class GoogleDriveService {
     return null;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private setCache(key: string, data: any) {
     memoryCache.set(key, {
       data,
@@ -203,7 +202,6 @@ class GoogleDriveService {
       let allStudents: DriveStudent[] = [];
       
       if (cachedData) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cachedStudents = ((cachedData as any).data?.students as DriveStudent[] | undefined) || [];
         console.log('Using cached student data (' + cachedStudents.length + ' students)');
         allStudents = cachedStudents;
@@ -311,7 +309,6 @@ class GoogleDriveService {
           orderBy: 'modifiedTime desc',
           pageSize: pageSize,
           pageToken: pageToken,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any;
 
         // Process files from this page
@@ -397,7 +394,6 @@ class GoogleDriveService {
   /**
    * Get file information by file ID
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getFileInfo(fileId: string): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
       console.log('🔍 getFileInfo called for fileId:', fileId);
@@ -450,7 +446,6 @@ class GoogleDriveService {
       console.log('📊 Cache check for folderId:', folderId, 'cachedData:', !!cachedData);
       
       if (cachedData) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const files = (cachedData as any).files;
         console.log('📁 Using cached data for folderId:', folderId, 'files count:', files ? files.length : 'null');
         
@@ -644,7 +639,6 @@ class GoogleDriveService {
   /**
    * Analyze document content with OpenAI to extract metadata
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private async analyzeDocumentWithAI(fileName: string, forceReanalyze = false): Promise<any> {
     try {
       // Check cache first (unless force re-analyze is requested)
@@ -753,7 +747,6 @@ Return only valid JSON, no other text.`;
   /**
    * Basic analysis when AI is not available
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private basicAnalysis(fileName: string): any {
     const analysis = {
       subject: 'Onbekend',

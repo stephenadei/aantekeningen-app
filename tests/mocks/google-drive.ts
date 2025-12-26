@@ -24,13 +24,9 @@ export interface MockStudent {
   url: DriveUrl;
 }
 
-export interface MockFileInfo extends FileInfo {
-  // This now extends the real FileInfo interface
-}
+export type MockFileInfo = FileInfo;
 
-export interface MockStudentOverview extends StudentOverview {
-  // This now extends the real StudentOverview interface
-}
+export type MockStudentOverview = StudentOverview;
 
 export const mockGoogleDriveService = {
   getStudents: vi.fn().mockResolvedValue([
@@ -177,6 +173,8 @@ export const mockGoogleDriveService = {
 
 export const googleDriveService = mockGoogleDriveService;
 
-export default {
+const mockGoogleDrive = {
   googleDriveService: mockGoogleDriveService,
 };
+
+export default mockGoogleDrive;

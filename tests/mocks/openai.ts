@@ -57,9 +57,11 @@ export const openaiExtractConcepts = vi.fn().mockResolvedValue([
   },
 ]);
 
-export default {
+const mockOpenAIModule = {
   openaiAnalyzeFile,
   openaiExtractConcepts,
   mockOpenAI,
   mockOpenAIClient,
 };
+
+export default mockOpenAIModule;

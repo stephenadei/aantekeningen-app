@@ -99,7 +99,7 @@ export default function AantekeningenPage() {
         console.log('Could not parse filter params from URL', e);
       }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-load files when student is selected (removed redundant logic)
   // The handleStudentSelect function is called directly when student is selected

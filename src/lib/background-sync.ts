@@ -1,5 +1,5 @@
 import { db } from './firebase-admin';
-import { googleDriveService } from './google-drive-simple';
+import { datalakeService } from './datalake-simple';
 import { 
   getFileMetadata, 
   setFileMetadata, 
@@ -41,14 +41,16 @@ export class BackgroundSyncService {
       // Clean up expired cache first
       await cleanupExpiredCache();
 
-      // Get all students
-      const studentsResult = await getAllStudents();
-      if (isErr(studentsResult)) {
-        console.error('❌ Failed to get students:', studentsResult.error);
-        return;
-      }
-      const students = studentsResult.data;
-      console.log(`📚 Found ${students.length} students to sync`);
+      // Get all students from Datalake (primary source)
+      const allDatalakeStudents = await datalakeService.getAllStudentFolders();
+      console.log(`📚 Found ${allDatalakeStudents.length} students in Datalake to sync`);
+      
+      // Convert to format expected by syncStudentFiles
+      const students = allDatalakeStudents.map(student => ({
+        id: student.id, // Use datalake path as ID
+        displayName: student.name,
+        driveFolderId: student.id, // Use datalake path as driveFolderId
+      }));
 
       let totalFiles = 0;
       let updatedFiles = 0;
@@ -103,7 +105,7 @@ export class BackgroundSyncService {
    * Sync files for a specific student
    */
   async syncStudentFiles(student: { id: string; displayName: string; driveFolderId: string | null }, forceReanalyze = false): Promise<{ files: number; updated: number }> {
-    if (!student.driveFolderId) {
+    if (!student.displayName) {
       return { files: 0, updated: 0 };
     }
 
@@ -123,8 +125,8 @@ export class BackgroundSyncService {
       const currentFiles = await getFileMetadata(student.id);
       const currentFileMap = new Map(currentFiles.map(f => [f.id, f]));
 
-      // Get latest files from Google Drive
-      const driveFiles = await googleDriveService.listFilesInFolder(student.driveFolderId);
+      // Get latest files from Datalake
+      const driveFiles = await datalakeService.listFilesInFolder('', student.displayName);
       
       let updatedCount = 0;
       const fileMetadata: FileMetadata[] = [];
@@ -140,12 +142,27 @@ export class BackgroundSyncService {
           needsUpdate = driveModifiedTime > existingModifiedTime;
         }
 
-        if (needsUpdate) {
+        if (needsUpdate || forceReanalyze) {
+          // Perform AI analysis if file needs update or force re-analyze
+          let aiAnalysis: any = null;
+          try {
+            // Get file path for AI analysis
+            const filePath = driveFile.id; // driveFile.id contains the full path
+            aiAnalysis = await datalakeService.analyzeDocumentWithAI(
+              driveFile.name,
+              filePath,
+              forceReanalyze
+            );
+          } catch (error) {
+            console.error(`Error analyzing file ${driveFile.name}:`, error);
+            // Continue with basic metadata even if AI analysis fails
+          }
+
           // Convert to FileMetadata format
           const fileMeta: FileMetadata = {
             id: createDriveFileId(driveFile.id),
             studentId: createFirestoreStudentId(student.id),
-            folderId: createDriveFolderId(student.driveFolderId),
+            folderId: student.driveFolderId ? createDriveFolderId(student.driveFolderId) : createDriveFolderId(''),
             name: driveFile.name,
             title: driveFile.title,
             modifiedTime: driveModifiedTime.toISOString(),
@@ -153,16 +170,16 @@ export class BackgroundSyncService {
             thumbnailUrl: driveFile.thumbnailUrl ? createThumbnailUrl(driveFile.thumbnailUrl) : createThumbnailUrl(''),
             downloadUrl: driveFile.downloadUrl ? createDownloadUrl(driveFile.downloadUrl) : createDownloadUrl(''),
             viewUrl: driveFile.viewUrl ? createViewUrl(driveFile.viewUrl) : createViewUrl(''),
-            subject: driveFile.subject,
-            topic: driveFile.topic,
-            level: driveFile.level,
-            schoolYear: driveFile.schoolYear,
-            keywords: driveFile.keywords,
-            summary: driveFile.summary,
-            summaryEn: driveFile.summaryEn,
-            topicEn: driveFile.topicEn,
-            keywordsEn: driveFile.keywordsEn,
-            aiAnalyzedAt: driveFile.aiAnalyzedAt?.toISOString(),
+            subject: aiAnalysis?.subject || driveFile.subject,
+            topic: aiAnalysis?.topic || driveFile.topic,
+            level: aiAnalysis?.level || driveFile.level,
+            schoolYear: aiAnalysis?.schoolYear || driveFile.schoolYear,
+            keywords: aiAnalysis?.keywords || driveFile.keywords || [],
+            summary: aiAnalysis?.summary || driveFile.summary,
+            summaryEn: aiAnalysis?.summaryEn || driveFile.summaryEn,
+            topicEn: aiAnalysis?.topicEn || driveFile.topicEn,
+            keywordsEn: aiAnalysis?.keywordsEn || driveFile.keywordsEn || [],
+            aiAnalyzedAt: aiAnalysis ? new Date().toISOString() : (existingFile?.aiAnalyzedAt || undefined),
             createdAt: existingFile?.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
