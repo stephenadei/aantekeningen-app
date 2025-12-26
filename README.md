@@ -1,5 +1,7 @@
 # Aantekeningen App
 
+[![Test Suite](https://github.com/stephenadei/aantekeningen-app/actions/workflows/test.yml/badge.svg)](https://github.com/stephenadei/aantekeningen-app/actions/workflows/test.yml)
+
 Een standalone Next.js applicatie voor het beheren van student aantekeningen voor Stephen's Privelessen.
 
 ## 🚀 Features
@@ -18,7 +20,7 @@ Een standalone Next.js applicatie voor het beheren van student aantekeningen voo
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 15
+- **Framework**: Next.js 16
 - **Language**: TypeScript
 - **Runtime**: Node.js 20.x LTS
 - **Styling**: Tailwind CSS
