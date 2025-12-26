@@ -1,15 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock OpenAI API
-vi.mock('openai', () => ({
-  OpenAI: vi.fn(() => ({
-    chat: {
+// Mock OpenAI API - define mock functions outside vi.mock
+const mockCreateFn = vi.fn();
+
+vi.mock('openai', () => {
+  const MockOpenAI = vi.fn(function(this: any) {
+    this.chat = {
       completions: {
-        create: vi.fn(),
+        create: mockCreateFn,
       },
-    },
-  })),
-}));
+    };
+    return this;
+  });
+  return {
+    OpenAI: MockOpenAI,
+  };
+});
 
 describe('AI Analysis Integration', () => {
   const mockOpenAIResponse = {
@@ -48,20 +54,14 @@ describe('AI Analysis Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCreateFn.mockReset();
   });
 
   describe('OpenAI API Integration', () => {
     it('should analyze document successfully', async () => {
       const { OpenAI } = await import('openai');
-      const mockOpenAI = {
-        chat: {
-          completions: {
-            create: vi.fn(() => Promise.resolve(mockOpenAIResponse)),
-          },
-        },
-      };
-
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
+      
+      mockCreateFn.mockResolvedValue(mockOpenAIResponse);
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       const response = await openai.chat.completions.create({
@@ -81,7 +81,7 @@ describe('AI Analysis Integration', () => {
       });
 
       expect(response.choices[0].message.content).toBeDefined();
-      expect(mockOpenAI.chat.completions.create).toHaveBeenCalledWith({
+      expect(mockCreateFn).toHaveBeenCalledWith({
         model: 'gpt-3.5-turbo',
         messages: expect.arrayContaining([
           expect.objectContaining({
@@ -100,15 +100,8 @@ describe('AI Analysis Integration', () => {
 
     it('should handle API errors gracefully', async () => {
       const { OpenAI } = await import('openai');
-      const mockOpenAI = {
-        chat: {
-          completions: {
-            create: vi.fn(() => Promise.reject(new Error('API quota exceeded'))),
-          },
-        },
-      };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
+      mockCreateFn.mockRejectedValue(new Error('API quota exceeded'));
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -125,15 +118,8 @@ describe('AI Analysis Integration', () => {
 
     it('should handle rate limit errors', async () => {
       const { OpenAI } = await import('openai');
-      const mockOpenAI = {
-        chat: {
-          completions: {
-            create: vi.fn(() => Promise.reject(new Error('Rate limit exceeded'))),
-          },
-        },
-      };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
+      mockCreateFn.mockRejectedValue(new Error('Rate limit exceeded'));
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -377,15 +363,8 @@ describe('AI Analysis Integration', () => {
   describe('Error Handling', () => {
     it('should handle timeout errors', async () => {
       const { OpenAI } = await import('openai');
-      const mockOpenAI = {
-        chat: {
-          completions: {
-            create: vi.fn(() => Promise.reject(new Error('Request timeout'))),
-          },
-        },
-      };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
+      mockCreateFn.mockRejectedValue(new Error('Request timeout'));
 
       const openai = new OpenAI({ apiKey: 'test-key' });
       
@@ -402,15 +381,8 @@ describe('AI Analysis Integration', () => {
 
     it('should handle invalid API key', async () => {
       const { OpenAI } = await import('openai');
-      const mockOpenAI = {
-        chat: {
-          completions: {
-            create: vi.fn(() => Promise.reject(new Error('Invalid API key'))),
-          },
-        },
-      };
 
-      vi.mocked(OpenAI).mockReturnValue(mockOpenAI as unknown as InstanceType<typeof OpenAI>);
+      mockCreateFn.mockRejectedValue(new Error('Invalid API key'));
 
       const openai = new OpenAI({ apiKey: 'invalid-key' });
       
