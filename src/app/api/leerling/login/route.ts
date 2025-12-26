@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStudentByName, createLoginAudit } from '@/lib/firestore';
+import { createLoginAudit } from '@/lib/firestore';
 import { getFileMetadata } from '@/lib/cache';
-import { validatePinFormat, verifyPin, getClientIP, getUserAgent } from '@/lib/security';
-import { createStudentName, createPin, isOk } from '@/lib/types';
+import { validatePinFormat, getClientIP, getUserAgent } from '@/lib/security';
+import { createStudentName } from '@/lib/types';
+import { findStudentByName, verifyStudentPin, checkDashboardAvailability } from '@/lib/dashboard-api';
 import type { StudentPortalStudent } from '@/lib/interfaces';
 import { z } from 'zod';
 
@@ -24,10 +25,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find student by display name
-    const studentResult = await getStudentByName(createStudentName(displayName));
+    // Check if dashboard API is available
+    console.log(`🔍 Checking dashboard availability: ${process.env.DASHBOARD_API_URL || 'http://localhost:4141'}`);
+    const dashboardAvailable = await checkDashboardAvailability();
+    console.log(`📊 Dashboard available: ${dashboardAvailable}`);
+    
+    if (!dashboardAvailable) {
+      console.warn('⚠️ Dashboard API not available');
+      return NextResponse.json(
+        { error: 'Login service temporarily unavailable. Please try again later.' },
+        { status: 503 }
+      );
+    }
 
-    if (!isOk(studentResult)) {
+    // Find student by display name in privelessen-dashboard
+    console.log(`🔍 Looking up student: ${displayName}`);
+    const dashboardStudent = await findStudentByName(displayName);
+
+    if (!dashboardStudent) {
       // Log failed attempt
       await createLoginAudit({
         who: `student:${displayName}`,
@@ -46,45 +61,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const student = studentResult.data;
+    // Verify PIN via dashboard API
+    const pinVerification = await verifyStudentPin(displayName, pin);
 
-    // Verify PIN
-    const isValidPin = await verifyPin(createPin(pin), student.pinHash);
-
-    if (!isValidPin) {
+    if (!pinVerification.valid || !pinVerification.student) {
       // Log failed attempt
       await createLoginAudit({
-        who: `student:${student.displayName}`,
+        who: `student:${displayName}`,
         action: 'login_fail',
         ip: getClientIP(request),
         userAgent: getUserAgent(request),
         metadata: {
-          reason: 'invalid_pin',
-          studentId: student.id,
-          displayName: student.displayName,
+          reason: pinVerification.error || 'invalid_pin',
+          studentId: dashboardStudent.id,
+          displayName: displayName,
         },
       });
 
       return NextResponse.json(
-        { error: 'Ongeldige PIN' },
+        { error: pinVerification.error || 'Ongeldige PIN' },
         { status: 401 }
       );
     }
 
+    const student = pinVerification.student;
+
     // Log successful login
     await createLoginAudit({
-      who: `student:${student.displayName}`,
+      who: `student:${student.name}`,
       action: 'login_ok',
       ip: getClientIP(request),
       userAgent: getUserAgent(request),
       metadata: {
         studentId: student.id,
-        displayName: student.displayName,
+        displayName: student.name,
       },
     });
 
     // Get student's notes from fileMetadata
-    const files = await getFileMetadata(student.id);
+    // Use datalakePath if available, otherwise use student ID
+    const studentIdForMetadata = student.datalakePath || student.id;
+    const files = await getFileMetadata(studentIdForMetadata);
     
     // Convert files to notes format expected by StudentPortalStudent
     const notes = files.map(file => ({
@@ -99,8 +116,8 @@ export async function POST(request: NextRequest) {
 
     // Create StudentPortalStudent object
     const studentPortalData: StudentPortalStudent = {
-      id: student.id,
-      displayName: student.displayName,
+      id: student.datalakePath || student.id, // Use datalakePath if available
+      displayName: student.name,
       notes: notes
     };
 

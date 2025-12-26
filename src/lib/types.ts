@@ -96,8 +96,18 @@ const TYPE_METADATA = {
     description: 'Firestore student document ID (20 alphanumeric chars)'
   },
   DriveFolderId: { 
-    validate: (v: string) => v.length > 20,
-    description: 'Google Drive folder ID (longer than 20 chars)'
+    validate: (v: string) => {
+      // Accept Google Drive folder IDs (longer than 20 chars, alphanumeric)
+      if (v.length > 20 && /^[a-zA-Z0-9_-]+$/.test(v)) {
+        return true;
+      }
+      // Accept datalake paths (contain slashes, longer paths)
+      if (v.includes('/') && v.length > 10) {
+        return true;
+      }
+      return false;
+    },
+    description: 'Google Drive folder ID or Datalake path'
   },
   TeacherId: { 
     validate: (v: string) => v.length >= 20 && v.length <= 30 && /^[a-zA-Z0-9]+$/.test(v),
@@ -525,6 +535,10 @@ export function detectIdType(id: string): StudentIdType {
   } else if (isDriveFolderId(id)) {
     return 'drive';
   } else {
+    // If it contains slashes, it's likely a datalake path, treat as drive
+    if (id.includes('/')) {
+      return 'drive';
+    }
     throw new Error(`Unable to detect ID type for: ${id}`);
   }
 }

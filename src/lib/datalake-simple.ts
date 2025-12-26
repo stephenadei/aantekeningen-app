@@ -140,6 +140,14 @@ class DatalakeService {
         const studentFolders = new Set<string>();
         let objectCount = 0;
         
+        // List of known subject/vak names to filter out
+        const knownSubjectNames = new Set([
+          'wiskunde-a', 'wiskunde-b', 'rekenen-basis', 'rekenen',
+          'vo', 'wo', 'engels', 'nederlands', 'frans', 'duits',
+          'natuurkunde', 'scheikunde', 'biologie', 'geschiedenis',
+          'aardrijkskunde', 'economie', 'maatschappijleer'
+        ]);
+
         for await (const obj of objectsStream) {
           objectCount++;
           if (obj.name && obj.name !== prefix && !obj.name.endsWith('/')) {
@@ -151,9 +159,12 @@ class DatalakeService {
             }
             const parts = relativePath.split('/').filter((p: string) => p.length > 0);
             if (parts.length > 0) {
-              const studentName = parts[0];
-              if (studentName && studentName.trim().length > 0) {
-                studentFolders.add(studentName);
+              const potentialStudentName = parts[0];
+              // Filter out known subject/vak names - these are not student names
+              if (potentialStudentName && 
+                  potentialStudentName.trim().length > 0 &&
+                  !knownSubjectNames.has(potentialStudentName.toLowerCase())) {
+                studentFolders.add(potentialStudentName);
               }
             }
           }
@@ -512,8 +523,8 @@ class DatalakeService {
       }
 
       // Try to list some objects to see what's there
-      let sampleObjects: string[] = [];
-      let allPaths: string[] = [];
+      const sampleObjects: string[] = [];
+      const allPaths: string[] = [];
       try {
         const objectsStream = this.minioClient.listObjects(BUCKET_NAME, '', true);
         let count = 0;

@@ -65,10 +65,12 @@ export const auth = new Proxy({} as ReturnType<typeof getAuth>, {
   }
 });
 
-export default new Proxy({} as ReturnType<typeof initializeApp>, {
+const firebaseApp = new Proxy({} as ReturnType<typeof initializeApp>, {
   get(_target, prop) {
     const { app: appInst } = initializeFirebase();
     return (appInst as any)[prop];
   }
 });
+
+export default firebaseApp;
 
