@@ -8,6 +8,7 @@ import {
   detectIdType, 
   FirestoreStudentId, 
   DriveFolderId,
+  createDriveFolderId,
   isOk,
   isErr
 } from '@/lib/types';
@@ -15,10 +16,11 @@ import { createErrorResponse, handleUnknownError, InvalidStudentIdError } from '
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string[] }> }
 ) {
   try {
-    const { id: studentId } = await params;
+    const { id: idArray } = await params;
+    const studentId = idArray.join('/'); // Join array segments back into path
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
@@ -124,22 +126,33 @@ export async function GET(
         } else {
           // Check if it's a datalake path (contains slashes)
           if (studentId.includes('/')) {
-            // It's a datalake path, extract student name directly
-            driveFolderId = studentId as DriveFolderId;
-            const pathParts = studentId.split('/');
-            const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
-            if (studentNameFromPath) {
-              studentName = studentNameFromPath;
-            }
-            
-            // Try to get from Firestore if available (for metadata)
+            // It's a datalake path, validate and create DriveFolderId
             try {
-              const studentResult = await getStudentByDriveFolderId(driveFolderId);
-              if (isOk(studentResult)) {
-                studentName = studentResult.data.displayName;
+              driveFolderId = createDriveFolderId(studentId);
+              const pathParts = studentId.split('/');
+              const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
+              if (studentNameFromPath) {
+                studentName = studentNameFromPath;
+              }
+              
+              // Try to get from Firestore if available (for metadata)
+              try {
+                const studentResult = await getStudentByDriveFolderId(driveFolderId);
+                if (isOk(studentResult)) {
+                  studentName = studentResult.data.displayName;
+                }
+              } catch (error) {
+                // Ignore Firestore errors, use extracted name
               }
             } catch (error) {
-              // Ignore Firestore errors, use extracted name
+              // If validation fails, still use the path but log the error
+              console.error('Error validating datalake path:', error);
+              driveFolderId = studentId as DriveFolderId; // Fallback to type assertion
+              const pathParts = studentId.split('/');
+              const studentNameFromPath = pathParts[pathParts.length - 2];
+              if (studentNameFromPath) {
+                studentName = studentNameFromPath;
+              }
             }
           } else {
             // It's a Google Drive ID (legacy support)
@@ -282,3 +295,6 @@ export async function GET(
     );
   }
 }
+
+
+

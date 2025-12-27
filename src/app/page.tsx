@@ -147,6 +147,9 @@ export default function AantekeningenPage() {
 
   const handleStudentSelect = async (student: MainPageStudent) => {
     console.log('🔄 Loading student:', student.displayName, 'ID:', student.id);
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:148',message:'handleStudentSelect called',data:{studentId:student.id,studentDisplayName:student.displayName,studentIdLength:student.id.length,hasSlashes:student.id.includes('/'),encodedId:encodeURIComponent(student.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,E'})}).catch(()=>{});
+    // #endregion
     setSelectedStudent(student);
     setLoading(true);
     setCacheLoading(false);
@@ -156,7 +159,14 @@ export default function AantekeningenPage() {
     try {
       console.log('📊 Fetching overview for student:', student.id);
       // Get overview first
-      const overviewResponse = await fetch(`/api/students/${student.id}/overview`);
+      const apiUrl = `/api/students/overview/${student.id}`;
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:160',message:'Before fetch overview',data:{rawId:student.id,encodedId:encodeURIComponent(student.id),apiUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,E'})}).catch(()=>{});
+      // #endregion
+      const overviewResponse = await fetch(apiUrl);
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:162',message:'After fetch overview',data:{status:overviewResponse.status,statusText:overviewResponse.statusText,ok:overviewResponse.ok,url:overviewResponse.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       const overviewData = await overviewResponse.json();
 
       if (overviewData.success) {
@@ -181,7 +191,11 @@ export default function AantekeningenPage() {
       
       console.log('📁 Fetching files for student:', student.id);
       // Get files (this is where AI analysis happens)
-      const filesResponse = await fetch(`/api/students/${student.id}/files`);
+      const filesApiUrl = `/api/students/files/${student.id}`;
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:185',message:'Before fetch files',data:{rawId:student.id,encodedId:encodeURIComponent(student.id),filesApiUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,E'})}).catch(()=>{});
+      // #endregion
+      const filesResponse = await fetch(filesApiUrl);
       const filesData = await filesResponse.json();
 
       console.log('📁 Files response:', filesData);
@@ -226,7 +240,13 @@ export default function AantekeningenPage() {
       }
     } catch (err) {
       console.error('❌ Student select error:', err);
-      setError('Er is een fout opgetreden bij het laden van studentgegevens');
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:228',message:'Student select error caught',data:{error:err instanceof Error?err.message:String(err),errorName:err instanceof Error?err.name:undefined,errorStack:err instanceof Error?err.stack:undefined,studentId:student.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      const errorMessage = err instanceof Error 
+        ? `Er is een fout opgetreden: ${err.message}` 
+        : 'Er is een fout opgetreden bij het laden van studentgegevens';
+      setError(errorMessage);
       setLoading(false);
       setCacheLoading(false);
     }

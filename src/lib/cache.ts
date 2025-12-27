@@ -1,5 +1,9 @@
 import { db } from './firebase-admin';
 import { DocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
+import { datalakeService } from './datalake-simple';
+import { datalakeMetadataService } from './datalake-metadata';
+import { getStudent } from './firestore';
+import { isOk } from './types';
 import { 
   createFirestoreStudentId,
   createDriveFolderId
@@ -112,10 +116,48 @@ export async function setCachedFiles(
 }
 
 /**
- * Get file metadata from optimized collection
+ * Get file metadata - tries datalake first, falls back to Firestore
  */
 export async function getFileMetadata(studentId: string): Promise<FileMetadata[]> {
   try {
+    // Try datalake first
+    let studentPath: string | null = null;
+    let studentName: string | undefined;
+
+    // Check if studentId is a datalake path (contains slashes)
+    if (studentId.includes('/')) {
+      // It's already a datalake path
+      studentPath = studentId;
+      const pathParts = studentId.split('/');
+      studentName = pathParts[pathParts.length - 2]; // Second to last part
+    } else {
+      // It's a Firestore ID, try to get student info
+      try {
+        const studentResult = await getStudent(studentId as any);
+        if (isOk(studentResult)) {
+          studentName = studentResult.data.displayName;
+          // Get datalake path from student name
+          studentPath = await datalakeService.getStudentPath(studentName);
+        }
+      } catch (error) {
+        // Fall through to Firestore
+      }
+    }
+
+    // Try to get metadata from datalake
+    if (studentPath) {
+      try {
+        const metadata = await datalakeMetadataService.getStudentFileMetadata(studentPath);
+        if (metadata.length > 0) {
+          console.log(`✅ Got ${metadata.length} files from datalake for ${studentName || studentId}`);
+          return metadata;
+        }
+      } catch (error) {
+        console.log(`⚠️ Failed to get metadata from datalake, falling back to Firestore:`, error);
+      }
+    }
+
+    // Fallback to Firestore
     if (!db) {
       console.error('❌ Firestore database not initialized');
       return [];
@@ -163,25 +205,51 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
 }
 
 /**
- * Set file metadata in optimized collection
+ * Set file metadata - writes to datalake, also updates Firestore as fallback
  */
 export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
-  try {
-    const batch = db.batch();
-    
-    for (const file of files) {
-      const docRef = db.collection('fileMetadata').doc(file.id);
-      batch.set(docRef, {
-        ...file,
-        aiAnalyzedAt: file.aiAnalyzedAt || null, // Convert undefined to null
-        updatedAt: new Date().toISOString(),
-      });
-    }
+  // Write to datalake (primary)
+  let datalakeSuccess = 0;
+  let datalakeFailed = 0;
 
-    await batch.commit();
-    console.log(`Updated ${files.length} file metadata entries`);
-  } catch (error) {
-    console.error('Error setting file metadata:', error);
+  for (const file of files) {
+    try {
+      // file.id contains the full datalake path (e.g., "notability/Priveles/VO/StudentName/file.pdf")
+      await datalakeMetadataService.setFileMetadata(file.id, file);
+      datalakeSuccess++;
+    } catch (error) {
+      console.error(`Error writing metadata to datalake for ${file.id}:`, error);
+      datalakeFailed++;
+    }
+  }
+
+  if (datalakeSuccess > 0) {
+    console.log(`✅ Wrote ${datalakeSuccess} file metadata entries to datalake`);
+  }
+  if (datalakeFailed > 0) {
+    console.warn(`⚠️ Failed to write ${datalakeFailed} file metadata entries to datalake`);
+  }
+
+  // Also write to Firestore as fallback/backup
+  if (db) {
+    try {
+      const batch = db.batch();
+      
+      for (const file of files) {
+        const docRef = db.collection('fileMetadata').doc(file.id);
+        batch.set(docRef, {
+          ...file,
+          aiAnalyzedAt: file.aiAnalyzedAt || null, // Convert undefined to null
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      await batch.commit();
+      console.log(`✅ Also updated ${files.length} file metadata entries in Firestore (backup)`);
+    } catch (error) {
+      console.error('Error setting file metadata in Firestore:', error);
+      // Don't throw - datalake is primary
+    }
   }
 }
 

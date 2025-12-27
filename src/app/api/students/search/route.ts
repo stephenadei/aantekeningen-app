@@ -40,10 +40,16 @@ export async function GET(request: NextRequest) {
       
       console.log(`✅ Found ${datalakeStudents.length} students in Datalake`);
       
+      // Map datalake students to MainPageStudent format (name -> displayName)
+      const mappedStudents = datalakeStudents.map(student => ({
+        ...student,
+        displayName: student.name, // Map name to displayName for frontend
+      }));
+      
       return NextResponse.json({
         success: true,
-        students: datalakeStudents,
-        count: datalakeStudents.length,
+        students: mappedStudents,
+        count: mappedStudents.length,
         fromDatalake: true
       });
     } catch (datalakeError) {

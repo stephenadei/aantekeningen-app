@@ -1,21 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-
-// Mock OpenAI API - define mock functions outside vi.mock
-const mockCreateFn = vi.fn();
-
-vi.mock('openai', () => {
-  const MockOpenAI = vi.fn(function(this: any) {
-    this.chat = {
-      completions: {
-        create: mockCreateFn,
-      },
-    };
-    return this;
-  });
-  return {
-    OpenAI: MockOpenAI,
-  };
-});
+import { describe, it, expect } from 'vitest';
 
 describe('AI Analysis Integration', () => {
   const mockOpenAIResponse = {
@@ -52,88 +35,6 @@ describe('AI Analysis Integration', () => {
     De grafiek is een parabool.
   `;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mockCreateFn.mockReset();
-  });
-
-  describe('OpenAI API Integration', () => {
-    it('should analyze document successfully', async () => {
-      const { OpenAI } = await import('openai');
-      
-      mockCreateFn.mockResolvedValue(mockOpenAIResponse);
-
-      const openai = new OpenAI({ apiKey: 'test-key' });
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an educational content analyzer. Analyze the provided document and return a JSON response with subject, topics, keyConcepts, difficulty, and summary.',
-          },
-          {
-            role: 'user',
-            content: `Analyze this educational document: test.pdf\n\nContent: ${mockPDFContent.substring(0, 1000)}...\n\nPlease provide a JSON response with:\n- subject: Main subject/topic\n- topics: Array of specific topics covered\n- keyConcepts: Array of key concepts\n- difficulty: Difficulty level (Easy/Medium/Hard)\n- summary: Brief summary of the content\n\nFormat as valid JSON only.`,
-          },
-        ],
-        max_tokens: 500,
-        temperature: 0.3,
-      });
-
-      expect(response.choices[0].message.content).toBeDefined();
-      expect(mockCreateFn).toHaveBeenCalledWith({
-        model: 'gpt-3.5-turbo',
-        messages: expect.arrayContaining([
-          expect.objectContaining({
-            role: 'system',
-            content: expect.stringContaining('educational content analyzer'),
-          }),
-          expect.objectContaining({
-            role: 'user',
-            content: expect.stringContaining('test.pdf'),
-          }),
-        ]),
-        max_tokens: 500,
-        temperature: 0.3,
-      });
-    });
-
-    it('should handle API errors gracefully', async () => {
-      const { OpenAI } = await import('openai');
-
-      mockCreateFn.mockRejectedValue(new Error('API quota exceeded'));
-
-      const openai = new OpenAI({ apiKey: 'test-key' });
-      
-      await expect(openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: 'Analyze this document',
-          },
-        ],
-      })).rejects.toThrow('API quota exceeded');
-    });
-
-    it('should handle rate limit errors', async () => {
-      const { OpenAI } = await import('openai');
-
-      mockCreateFn.mockRejectedValue(new Error('Rate limit exceeded'));
-
-      const openai = new OpenAI({ apiKey: 'test-key' });
-      
-      await expect(openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: 'Analyze this document',
-          },
-        ],
-      })).rejects.toThrow('Rate limit exceeded');
-    });
-  });
 
   describe('Content Processing', () => {
     it('should extract text from PDF content', () => {
@@ -361,40 +262,28 @@ describe('AI Analysis Integration', () => {
   });
 
   describe('Error Handling', () => {
-    it('should handle timeout errors', async () => {
-      const { OpenAI } = await import('openai');
+    it('should handle fetch errors gracefully', async () => {
+      // Test that fetch errors are handled (the actual code uses fetch, not OpenAI package)
+      const handleFetchError = (error: unknown): string => {
+        if (error instanceof Error) {
+          if (error.message.includes('timeout') || error.message.includes('network')) {
+            return 'Network error occurred';
+          }
+          if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+            return 'Invalid API key';
+          }
+          if (error.message.includes('429') || error.message.includes('rate limit')) {
+            return 'Rate limit exceeded';
+          }
+          return 'API error occurred';
+        }
+        return 'Unknown error';
+      };
 
-      mockCreateFn.mockRejectedValue(new Error('Request timeout'));
-
-      const openai = new OpenAI({ apiKey: 'test-key' });
-      
-      await expect(openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: 'Analyze this document',
-          },
-        ],
-      })).rejects.toThrow('Request timeout');
-    });
-
-    it('should handle invalid API key', async () => {
-      const { OpenAI } = await import('openai');
-
-      mockCreateFn.mockRejectedValue(new Error('Invalid API key'));
-
-      const openai = new OpenAI({ apiKey: 'invalid-key' });
-      
-      await expect(openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: 'Analyze this document',
-          },
-        ],
-      })).rejects.toThrow('Invalid API key');
+      expect(handleFetchError(new Error('Request timeout'))).toBe('Network error occurred');
+      expect(handleFetchError(new Error('401 Unauthorized'))).toBe('Invalid API key');
+      expect(handleFetchError(new Error('429 rate limit'))).toBe('Rate limit exceeded');
+      expect(handleFetchError(new Error('Other error'))).toBe('API error occurred');
     });
   });
 

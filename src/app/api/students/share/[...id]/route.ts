@@ -15,10 +15,11 @@ import { createErrorResponse, handleUnknownError, InvalidStudentIdError } from '
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string[] }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: idArray } = await params;
+    const id = idArray.join('/'); // Join array segments back into path
     const { searchParams } = new URL(request.url);
     const idType = searchParams.get('idType') as StudentIdType | null;
     
@@ -108,17 +109,50 @@ export async function GET(
             student = null;
           }
         } else {
-          const studentResult = await getStudentByDriveFolderId(createDriveFolderId(id));
-          if (isOk(studentResult)) {
-            student = { 
-              id: studentResult.data.id, 
-              displayName: studentResult.data.displayName,
-              subject: studentResult.data.subject,
-              driveFolderId: studentResult.data.driveFolderId
-            };
-            actualId = id;
+          // Handle datalake paths with slashes
+          if (id.includes('/')) {
+            try {
+              const driveFolderId = createDriveFolderId(id);
+              const studentResult = await getStudentByDriveFolderId(driveFolderId);
+              if (isOk(studentResult)) {
+                student = { 
+                  id: studentResult.data.id, 
+                  displayName: studentResult.data.displayName,
+                  subject: studentResult.data.subject,
+                  driveFolderId: studentResult.data.driveFolderId
+                };
+                actualId = id;
+              } else {
+                student = null;
+              }
+            } catch (error) {
+              // If validation fails, try without validation
+              const studentResult = await getStudentByDriveFolderId(id as DriveFolderId);
+              if (isOk(studentResult)) {
+                student = { 
+                  id: studentResult.data.id, 
+                  displayName: studentResult.data.displayName,
+                  subject: studentResult.data.subject,
+                  driveFolderId: studentResult.data.driveFolderId
+                };
+                actualId = id;
+              } else {
+                student = null;
+              }
+            }
           } else {
-            student = null;
+            const studentResult = await getStudentByDriveFolderId(createDriveFolderId(id));
+            if (isOk(studentResult)) {
+              student = { 
+                id: studentResult.data.id, 
+                displayName: studentResult.data.displayName,
+                subject: studentResult.data.subject,
+                driveFolderId: studentResult.data.driveFolderId
+              };
+              actualId = id;
+            } else {
+              student = null;
+            }
           }
         }
       } catch (error) {
@@ -164,3 +198,6 @@ export async function GET(
     );
   }
 }
+
+
+

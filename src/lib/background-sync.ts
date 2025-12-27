@@ -1,5 +1,6 @@
 import { db } from './firebase-admin';
 import { datalakeService } from './datalake-simple';
+import { datalakeMetadataService } from './datalake-metadata';
 import { 
   getFileMetadata, 
   setFileMetadata, 
@@ -7,7 +8,7 @@ import {
   cleanupExpiredCache 
 } from './cache';
 import type { FileMetadata } from './interfaces';
-import { getAllStudents } from './firestore';
+import { getAllStudents, getStudentByDriveFolderId } from './firestore';
 import { 
   createDriveFileId,
   createFirestoreStudentId,
@@ -15,8 +16,11 @@ import {
   createThumbnailUrl,
   createDownloadUrl,
   createViewUrl,
-  isErr
+  isErr,
+  isOk,
+  type FirestoreStudentId
 } from './types';
+import crypto from 'crypto';
 
 /**
  * Background sync job to keep Firestore cache fresh
@@ -24,6 +28,46 @@ import {
 export class BackgroundSyncService {
   private isRunning = false;
   private lastSyncTime: Date | null = null;
+
+  /**
+   * Generate a consistent FirestoreStudentId from a datalake path
+   * Uses SHA-256 hash and takes first 20 alphanumeric characters
+   */
+  private generateStudentIdFromPath(datalakePath: string): FirestoreStudentId {
+    // Generate consistent hash from path
+    const hash = crypto.createHash('sha256').update(datalakePath).digest('hex');
+    // Take first 20 alphanumeric characters
+    let studentId = hash.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20);
+    
+    // Ensure it's exactly 20 characters (pad if needed)
+    if (studentId.length < 20) {
+      const moreChars = hash.substring(20).replace(/[^a-zA-Z0-9]/g, '');
+      studentId = (studentId + moreChars).substring(0, 20);
+    }
+    
+    return createFirestoreStudentId(studentId);
+  }
+
+  /**
+   * Get FirestoreStudentId from datalake path, trying Firestore mapping first
+   */
+  private async getStudentIdFromPath(datalakePath: string): Promise<FirestoreStudentId> {
+    try {
+      // Try to get from Firestore if mapping exists
+      const driveFolderId = createDriveFolderId(datalakePath);
+      const studentResult = await getStudentByDriveFolderId(driveFolderId);
+      
+      if (isOk(studentResult)) {
+        // Use existing Firestore ID
+        return createFirestoreStudentId(studentResult.data.id);
+      }
+    } catch (error) {
+      // Fall through to hash generation
+    }
+    
+    // Generate consistent hash-based ID
+    return this.generateStudentIdFromPath(datalakePath);
+  }
 
   /**
    * Run full sync for all students
@@ -111,34 +155,36 @@ export class BackgroundSyncService {
 
     try {
       // Check if we need to sync (files are fresh) - unless force re-analyze is requested
-      if (!forceReanalyze) {
-        const isFresh = await isFileMetadataFresh(student.id, 6); // 6 hours
-        if (isFresh) {
-          console.log(`📋 Files for ${student.displayName} are fresh, skipping sync`);
-          return { files: 0, updated: 0 };
-        }
-      } else {
+      // Note: We skip freshness check for now since we're migrating to datalake
+      // The freshness will be determined by checking individual file metadata timestamps
+      if (forceReanalyze) {
         console.log(`🔄 Force re-analyzing files for ${student.displayName} (ignoring cache freshness)`);
       }
 
-      // Get current files from Firestore
-      const currentFiles = await getFileMetadata(student.id);
-      const currentFileMap = new Map(currentFiles.map(f => [f.id, f]));
+      // Get student path in datalake
+      const studentPath = await datalakeService.getStudentPath(student.displayName);
+      if (!studentPath) {
+        console.error(`Student path not found for: ${student.displayName}`);
+        return { files: 0, updated: 0 };
+      }
 
       // Get latest files from Datalake
       const driveFiles = await datalakeService.listFilesInFolder('', student.displayName);
       
       let updatedCount = 0;
-      const fileMetadata: FileMetadata[] = [];
 
       for (const driveFile of driveFiles) {
-        const existingFile = currentFileMap.get(driveFile.id);
+        // driveFile.id contains the full path (e.g., "notability/Priveles/VO/StudentName/file.pdf")
+        const fullFilePath = driveFile.id;
+        
+        // Check if metadata exists and is fresh
+        const existingMetadata = await datalakeMetadataService.getFileMetadata(fullFilePath);
         const driveModifiedTime = new Date(driveFile.modifiedTime);
         
         // Check if file needs update
         let needsUpdate = true;
-        if (existingFile) {
-          const existingModifiedTime = new Date(existingFile.modifiedTime);
+        if (existingMetadata && !forceReanalyze) {
+          const existingModifiedTime = new Date(existingMetadata.modifiedTime);
           needsUpdate = driveModifiedTime > existingModifiedTime;
         }
 
@@ -147,10 +193,9 @@ export class BackgroundSyncService {
           let aiAnalysis: any = null;
           try {
             // Get file path for AI analysis
-            const filePath = driveFile.id; // driveFile.id contains the full path
             aiAnalysis = await datalakeService.analyzeDocumentWithAI(
               driveFile.name,
-              filePath,
+              fullFilePath,
               forceReanalyze
             );
           } catch (error) {
@@ -158,45 +203,32 @@ export class BackgroundSyncService {
             // Continue with basic metadata even if AI analysis fails
           }
 
-          // Convert to FileMetadata format
-          const fileMeta: FileMetadata = {
-            id: createDriveFileId(driveFile.id),
-            studentId: createFirestoreStudentId(student.id),
-            folderId: student.driveFolderId ? createDriveFolderId(student.driveFolderId) : createDriveFolderId(''),
-            name: driveFile.name,
-            title: driveFile.title,
-            modifiedTime: driveModifiedTime.toISOString(),
-            size: driveFile.size ?? 0,
-            thumbnailUrl: driveFile.thumbnailUrl ? createThumbnailUrl(driveFile.thumbnailUrl) : createThumbnailUrl(''),
-            downloadUrl: driveFile.downloadUrl ? createDownloadUrl(driveFile.downloadUrl) : createDownloadUrl(''),
-            viewUrl: driveFile.viewUrl ? createViewUrl(driveFile.viewUrl) : createViewUrl(''),
-            subject: aiAnalysis?.subject || driveFile.subject,
-            topic: aiAnalysis?.topic || driveFile.topic,
-            level: aiAnalysis?.level || driveFile.level,
-            schoolYear: aiAnalysis?.schoolYear || driveFile.schoolYear,
-            keywords: aiAnalysis?.keywords || driveFile.keywords || [],
-            summary: aiAnalysis?.summary || driveFile.summary,
-            summaryEn: aiAnalysis?.summaryEn || driveFile.summaryEn,
-            topicEn: aiAnalysis?.topicEn || driveFile.topicEn,
-            keywordsEn: aiAnalysis?.keywordsEn || driveFile.keywordsEn || [],
-            aiAnalyzedAt: aiAnalysis ? new Date().toISOString() : (existingFile?.aiAnalyzedAt || undefined),
-            createdAt: existingFile?.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
+          // Get or generate FirestoreStudentId from datalake path
+          const firestoreStudentId = await this.getStudentIdFromPath(student.id);
 
-          fileMetadata.push(fileMeta);
+          // Create FileMetadata using the service helper
+          const fileMeta = datalakeMetadataService.createFileMetadata(
+            {
+              id: driveFile.id,
+              name: driveFile.name,
+              modifiedTime: driveModifiedTime.toISOString(),
+              size: driveFile.size ?? 0,
+              downloadUrl: driveFile.downloadUrl,
+              viewUrl: driveFile.viewUrl,
+              thumbnailUrl: driveFile.thumbnailUrl,
+            },
+            firestoreStudentId,
+            student.driveFolderId || '',
+            aiAnalysis || undefined
+          );
+
+          // Write metadata to datalake
+          await datalakeMetadataService.setFileMetadata(fullFilePath, fileMeta);
           updatedCount++;
-        } else {
-          // Keep existing file metadata
-          fileMetadata.push(existingFile!);
         }
       }
 
-      // Update Firestore with all file metadata
-      if (fileMetadata.length > 0) {
-        await setFileMetadata(fileMetadata);
-      }
-
+      console.log(`✅ Synced ${student.displayName}: ${updatedCount}/${driveFiles.length} files updated`);
       return { files: driveFiles.length, updated: updatedCount };
 
     } catch (error) {
@@ -365,3 +397,4 @@ export class BackgroundSyncService {
 
 // Export singleton instance
 export const backgroundSyncService = new BackgroundSyncService();
+
