@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { backgroundSyncService } from '@/lib/background-sync';
 import { getAllStudents } from '@/lib/firestore';
 import { invalidateCache } from '@/lib/cache';
@@ -7,7 +7,7 @@ import { isErr } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { getAllStudents } from '@/lib/firestore';
 import { datalakeService } from '@/lib/datalake-simple';
 import { isErr, createStudentName } from '@/lib/types';
@@ -7,7 +7,7 @@ import type { FoldersListResponse } from '@/lib/interfaces';
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

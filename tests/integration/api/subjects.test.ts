@@ -39,9 +39,14 @@ vi.mock('@/lib/firebase-admin', () => {
   };
 });
 
-vi.mock('@/lib/firebase-auth', () => ({
-  verifyFirebaseTokenFromCookie: vi.fn(),
+vi.mock('@/lib/auth', () => ({
+  getAuthSession: vi.fn(),
   isAuthorizedAdmin: vi.fn(),
+}));
+
+// Mock NextAuth
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn(),
 }));
 
 describe('Subjects API Integration', () => {
@@ -74,6 +79,9 @@ describe('Subjects API Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock responses
+    mockGetAuthSession.mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
+    mockIsAuthorizedAdmin.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -83,10 +91,7 @@ describe('Subjects API Integration', () => {
   describe('GET /api/admin/subjects', () => {
     it('should retrieve all subjects', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockSnapshot = {
         docs: [
@@ -112,10 +117,7 @@ describe('Subjects API Integration', () => {
   describe('POST /api/admin/subjects', () => {
     it('should create a new subject', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockRef = {
         set: vi.fn().mockResolvedValue(undefined)
@@ -141,10 +143,7 @@ describe('Subjects API Integration', () => {
     });
 
     it('should reject subject without name', async () => {
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects', {
         method: 'POST',
@@ -164,10 +163,7 @@ describe('Subjects API Integration', () => {
   describe('PUT /api/admin/subjects/[subjectId]', () => {
     it('should update subject', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockRef = {
         update: vi.fn().mockResolvedValue(undefined)
@@ -195,10 +191,7 @@ describe('Subjects API Integration', () => {
   describe('DELETE /api/admin/subjects/[subjectId]', () => {
     it('should delete subject with all topics', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockRef = {
         delete: vi.fn().mockResolvedValue(undefined)
@@ -249,10 +242,7 @@ describe('Subjects API Integration', () => {
 
     it('POST /api/admin/subjects/[subjectId]/topics > should create new topic', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockRef = {
         add: vi.fn().mockResolvedValue({ id: 'new-topic-id' })

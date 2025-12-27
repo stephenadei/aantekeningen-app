@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { getStudent, updateStudent } from '@/lib/firestore';
 import { getFileMetadata } from '@/lib/cache';
 import { isErr, isFirestoreStudentId, createFirestoreStudentId, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -69,7 +69,7 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -140,7 +140,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFirebaseTokenFromCookie } from '@/lib/firebase-auth';
+import { getAuthSession } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         name: user.name,
         picture: user.picture,
         emailVerified: user.emailVerified,
-        role: user.customClaims?.role || 'admin',
+        role: 'admin', // NextAuth doesn't have custom claims by default
       }
     });
 

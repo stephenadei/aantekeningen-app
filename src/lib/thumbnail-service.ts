@@ -5,15 +5,14 @@
 
 import type { ThumbnailOptions } from './interfaces';
 
-// Import Firebase Storage service only on server-side
-let firebaseStorageService: { getThumbnailUrl: (fileId: string, size?: 'small' | 'medium' | 'large') => Promise<string | null> } | null = null;
+// Import Datalake Thumbnail service only on server-side
+let datalakeThumbnailService: { getThumbnailUrl: (fileId: string, size?: 'small' | 'medium' | 'large') => Promise<string | null> } | null = null;
 if (typeof window === 'undefined') {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { firebaseStorageService: service } = require('./firebase-storage');
-    firebaseStorageService = service;
+    const { datalakeThumbnailService: service } = require('./datalake-thumbnails');
+    datalakeThumbnailService = service;
   } catch (error) {
-    console.log('⚠️ Firebase Storage not available in ThumbnailService:', error);
+    console.log('⚠️ Datalake Thumbnail Service not available:', error);
   }
 }
 
@@ -48,21 +47,21 @@ export class ThumbnailService {
       return this.getPlaceholderUrl(fileId);
     }
 
-    // Check if this is a PDF file and try Firebase Storage first
+    // Check if this is a PDF file and try datalake first
     if (fileType && fileType.toLowerCase().includes('pdf')) {
       try {
-        // First check Firebase Storage if available
-        if (firebaseStorageService) {
-          console.log('🔍 Checking Firebase Storage for PDF thumbnail:', fileId, size);
-          const firebaseUrl = await firebaseStorageService.getThumbnailUrl(fileId, size);
-          if (firebaseUrl) {
-            console.log('✅ Found PDF thumbnail in Firebase Storage');
-            this.cache.set(cacheKey, firebaseUrl);
-            return firebaseUrl;
+        // First check datalake if available
+        if (datalakeThumbnailService) {
+          console.log('🔍 Checking datalake for PDF thumbnail:', fileId, size);
+          const datalakeUrl = await datalakeThumbnailService.getThumbnailUrl(fileId, size);
+          if (datalakeUrl) {
+            console.log('✅ Found PDF thumbnail in datalake');
+            this.cache.set(cacheKey, datalakeUrl);
+            return datalakeUrl;
           }
         }
         
-        // If not in Firebase Storage, try our custom PDF thumbnail API
+        // If not in datalake, try our custom PDF thumbnail API
         console.log('🖼️ Trying custom PDF thumbnail API for:', fileId);
         const pdfThumbnailUrl = `/api/thumbnail/${fileId}?size=${size}`;
         const isValid = await this.testThumbnailUrl(pdfThumbnailUrl);
@@ -74,11 +73,11 @@ export class ThumbnailService {
           console.log('❌ Custom PDF thumbnail API failed');
         }
       } catch (error) {
-        console.log('🚫 PDF thumbnail services failed, skipping Google Drive due to rate limits:', error);
+        console.log('🚫 PDF thumbnail services failed:', error);
       }
     } else {
-      // For non-PDF files, skip Google Drive entirely to avoid 429 errors
-      console.log('📄 Non-PDF file, skipping Google Drive to avoid rate limits');
+      // For non-PDF files, use placeholder
+      console.log('📄 Non-PDF file, using placeholder');
     }
 
     // Mark as failed and use placeholder

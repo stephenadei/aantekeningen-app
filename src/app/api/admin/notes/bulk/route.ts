@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
+import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { db } from '@/lib/firebase-admin';
 import { backgroundSyncService } from '@/lib/background-sync';
 import type { BulkOperationRequest, BulkOperationResponse } from '@/lib/interfaces';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await verifyFirebaseTokenFromCookie(request);
+    const { user, error } = await getAuthSession();
     
     if (error || !user || !isAuthorizedAdmin(user)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

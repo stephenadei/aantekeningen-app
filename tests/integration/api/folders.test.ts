@@ -39,9 +39,14 @@ vi.mock('@/lib/firebase-admin', () => {
   };
 });
 
-vi.mock('@/lib/firebase-auth', () => ({
-  verifyFirebaseTokenFromCookie: vi.fn(),
+vi.mock('@/lib/auth', () => ({
+  getAuthSession: vi.fn(),
   isAuthorizedAdmin: vi.fn(),
+}));
+
+// Mock NextAuth
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn(),
 }));
 
 vi.mock('@/lib/google-drive-simple', () => ({
@@ -62,6 +67,9 @@ describe('Folder Management API Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock responses
+    mockGetAuthSession.mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
+    mockIsAuthorizedAdmin.mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -70,10 +78,7 @@ describe('Folder Management API Integration', () => {
 
   describe('POST /api/admin/folders/sync', () => {
     it('should sync folders successfully', async () => {
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const request = new NextRequest('http://localhost:3000/api/admin/folders/sync', {
         method: 'POST',
@@ -88,10 +93,7 @@ describe('Folder Management API Integration', () => {
     });
 
     it('should handle sync errors gracefully', async () => {
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const request = new NextRequest('http://localhost:3000/api/admin/folders/sync', {
         method: 'POST',
@@ -104,9 +106,7 @@ describe('Folder Management API Integration', () => {
     });
 
     it('should reject unauthorized users', async () => {
-      const { verifyFirebaseTokenFromCookie } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
+      mockGetAuthSession.mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
 
       const request = new NextRequest('http://localhost:3000/api/admin/folders/sync', {
         method: 'POST',
@@ -122,10 +122,7 @@ describe('Folder Management API Integration', () => {
   describe('POST /api/admin/folders/[folderId]/link', () => {
     it('should link folder to student', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockRef = {
         set: vi.fn().mockResolvedValue(undefined),
@@ -157,10 +154,7 @@ describe('Folder Management API Integration', () => {
   describe('POST /api/admin/folders/[folderId]/confirm', () => {
     it('should confirm folder-student link', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockRef = {
         update: vi.fn().mockResolvedValue(undefined)
@@ -184,10 +178,7 @@ describe('Folder Management API Integration', () => {
   describe('POST /api/admin/folders/[folderId]/reject', () => {
     it('should reject folder-student link', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockRef = {
         delete: vi.fn().mockResolvedValue(undefined)

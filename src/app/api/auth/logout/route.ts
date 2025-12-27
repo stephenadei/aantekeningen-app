@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyFirebaseTokenFromCookie } from '@/lib/firebase-auth';
+import { getAuthSession } from '@/lib/auth';
 import { createLoginAudit } from '@/lib/firestore';
 import { getClientIP, getUserAgent } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
     // Get user info before logout for audit logging
-    const { user } = await verifyFirebaseTokenFromCookie(request);
+    const { user } = await getAuthSession();
     
     // Log sign-out
     if (user?.email) {
@@ -22,17 +22,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Clear the Firebase token cookie
-    const response = NextResponse.json({ success: true });
-    response.cookies.set('firebase-token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 0, // Expire immediately
-      path: '/',
-    });
-
-    return response;
+    // NextAuth handles session clearing automatically
+    // This endpoint is kept for audit logging
+    return NextResponse.json({ success: true });
 
   } catch (error) {
     console.error('Logout failed:', error);

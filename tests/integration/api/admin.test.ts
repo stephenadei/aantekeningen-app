@@ -40,9 +40,22 @@ vi.mock('@/lib/firebase-admin', () => {
   };
 });
 
-vi.mock('@/lib/firebase-auth', () => ({
-  verifyFirebaseTokenFromCookie: vi.fn(),
-  isAuthorizedAdmin: vi.fn(),
+// Mock Auth (NextAuth)
+const mockGetAuthSession = vi.fn();
+const mockIsAuthorizedAdmin = vi.fn();
+
+vi.mock('@/lib/auth', async () => {
+  const actual = await vi.importActual('@/lib/auth');
+  return {
+    ...actual,
+    getAuthSession: mockGetAuthSession,
+    isAuthorizedAdmin: mockIsAuthorizedAdmin,
+  };
+});
+
+// Mock NextAuth
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn(),
 }));
 
 describe('Admin Management API Integration', () => {
@@ -66,11 +79,7 @@ describe('Admin Management API Integration', () => {
   describe('GET /api/admin/drive-data', () => {
     it('should get drive data statistics', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      // Setup mocks
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockSnapshot = {
         docs: [
@@ -107,11 +116,7 @@ describe('Admin Management API Integration', () => {
   describe('POST /api/admin/clear-cache', () => {
     it('should clear cache successfully', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      // Setup mocks
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockSnapshot = {
         docs: []
@@ -135,11 +140,7 @@ describe('Admin Management API Integration', () => {
 
     it('should handle cache type parameter', async () => {
       const { db } = await import('@/lib/firebase-admin');
-      const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
-
-      // Setup mocks
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-      vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
+      // Mocks are set up in beforeEach
 
       const mockSnapshot = {
         docs: []
@@ -168,9 +169,7 @@ describe('Admin Management API Integration', () => {
     });
 
     it('should reject unauthorized users', async () => {
-      const { verifyFirebaseTokenFromCookie } = await import('@/lib/firebase-auth');
-
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
+      mockGetAuthSession.mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
 
       const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', {
         method: 'POST',

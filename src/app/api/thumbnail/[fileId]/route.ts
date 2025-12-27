@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pdf2pic from 'pdf2pic';
 import { datalakeService } from '@/lib/datalake-simple';
+import { datalakeThumbnailService } from '@/lib/datalake-thumbnails';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
-
-// Import Firebase Storage service only on server-side
-let firebaseStorageService: { getThumbnailUrl: (fileId: string, size?: 'small' | 'medium' | 'large') => Promise<string | null>; storeThumbnail: (fileId: string, buffer: Buffer, size?: 'small' | 'medium' | 'large') => Promise<string> } | null = null;
-if (typeof window === 'undefined') {
-  try {
-    const { firebaseStorageService: service } = await import('@/lib/firebase-storage');
-    firebaseStorageService = service;
-  } catch (error) {
-    console.log('⚠️ Firebase Storage not available:', error);
-  }
-}
 
 const writeFile = promisify(fs.writeFile);
 const unlink = promisify(fs.unlink);
@@ -40,17 +30,15 @@ export async function GET(
       );
     }
 
-    // First, check if thumbnail already exists in Firebase Storage
-    if (firebaseStorageService) {
-      try {
-        const existingThumbnailUrl = await firebaseStorageService.getThumbnailUrl(fileId, size);
-        if (existingThumbnailUrl) {
-          console.log('✅ Thumbnail found in Firebase Storage, redirecting to:', existingThumbnailUrl);
-          return NextResponse.redirect(existingThumbnailUrl);
-        }
-      } catch {
-        console.log('📭 Thumbnail not found in Firebase Storage, will generate new one');
+    // First, check if thumbnail already exists in datalake
+    try {
+      const existingThumbnailUrl = await datalakeThumbnailService.getThumbnailUrl(fileId, size);
+      if (existingThumbnailUrl) {
+        console.log('✅ Thumbnail found in datalake, redirecting to:', existingThumbnailUrl);
+        return NextResponse.redirect(existingThumbnailUrl);
       }
+    } catch {
+      console.log('📭 Thumbnail not found in datalake, will generate new one');
     }
 
     // Get file info from datalake
@@ -138,17 +126,16 @@ export async function GET(
     // Convert to image buffer
     const imageBuffer = Buffer.from(result.base64, 'base64');
     
-    // Store thumbnail in Firebase Storage if available
-    if (firebaseStorageService) {
-      try {
-        const firebaseUrl = await firebaseStorageService.storeThumbnail(fileId, imageBuffer, size);
-        console.log('✅ Thumbnail stored in Firebase Storage:', firebaseUrl);
-        
-        // Redirect to the Firebase Storage URL
-        return NextResponse.redirect(firebaseUrl);
-      } catch (storageError) {
-        console.error('❌ Failed to store thumbnail in Firebase Storage:', storageError);
-      }
+    // Store thumbnail in datalake
+    try {
+      const datalakeUrl = await datalakeThumbnailService.storeThumbnail(fileId, imageBuffer, size);
+      console.log('✅ Thumbnail stored in datalake:', datalakeUrl);
+      
+      // Redirect to the datalake URL
+      return NextResponse.redirect(datalakeUrl);
+    } catch (storageError) {
+      console.error('❌ Failed to store thumbnail in datalake:', storageError);
+      // Fallback: return the image directly
     }
     
     // Fallback: return the image directly

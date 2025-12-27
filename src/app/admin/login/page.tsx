@@ -5,8 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Shield, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, type User, type Auth } from 'firebase/auth';
-import { authClient } from '@/lib/firebase-client';
+import { signIn } from 'next-auth/react';
 
 export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
@@ -16,85 +15,39 @@ export default function AdminLoginPage() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Check if Firebase auth is available
-    if (!authClient) {
-      setError('Firebase is niet correct geconfigureerd. Controleer je omgevingsvariabelen.');
-      setIsInitialized(true);
-      return;
-    }
-
-    // Check if user is already logged in
-    const unsubscribe = onAuthStateChanged(authClient as Auth, (user: User | null) => {
-      if (user && user.email?.endsWith('@stephensprivelessen.nl')) {
-        router.push('/admin');
-      }
-      setIsInitialized(true);
-    });
-
+    setIsInitialized(true);
+    
     // Check for error in URL params
     const errorParam = searchParams.get('error');
-    if (errorParam === 'AccessDenied') {
+    if (errorParam === 'AccessDenied' || errorParam === 'Configuration') {
       setError('Toegang geweigerd. Alleen docenten van stephensprivelessen.nl kunnen inloggen.');
     }
-
-    return () => unsubscribe();
-  }, [router, searchParams]);
+  }, [searchParams]);
 
   const handleGoogleSignIn = async () => {
-    if (!authClient) {
-      setError('Firebase is niet correct geconfigureerd.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
     
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(authClient, provider);
-      
-      // Check if user email is from allowed domain
-      if (!result.user.email?.endsWith('@stephensprivelessen.nl')) {
-        setError('Toegang geweigerd. Alleen docenten van stephensprivelessen.nl kunnen inloggen.');
-        await authClient.signOut();
-        return;
-      }
-      
-      // Send the ID token to our backend to create a session
-      const idToken = await result.user.getIdToken();
-      const response = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ idToken }),
+      const result = await signIn('google', {
+        callbackUrl: '/admin',
+        redirect: false,
       });
       
-      if (response.ok) {
-        router.push('/admin');
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || 'Inloggen mislukt. Controleer je Google Workspace account.';
-        setError(errorMessage);
-        console.error('Backend error:', errorData);
-      }
-    } catch (err: unknown) {
-      console.error('Login error:', err);
-      
-      // Handle specific Firebase errors
-      if (err instanceof Error) {
-        if (err.message.includes('auth/configuration-not-found')) {
-          setError('Firebase is niet correct geconfigureerd. Controleer de omgevingsvariabelen.');
-        } else if (err.message.includes('auth/popup-blocked')) {
-          setError('Pop-up werd geblokkeerd. Sta pop-ups toe en probeer opnieuw.');
-        } else if (err.message.includes('auth/cancelled-popup-request')) {
-          setError('Login geannuleerd. Probeer opnieuw.');
+      if (result?.error) {
+        if (result.error === 'AccessDenied') {
+          setError('Toegang geweigerd. Alleen docenten van stephensprivelessen.nl kunnen inloggen.');
+        } else if (result.error === 'Configuration') {
+          setError('Authenticatie is niet correct geconfigureerd. Controleer de omgevingsvariabelen.');
         } else {
           setError('Er is een fout opgetreden bij het inloggen.');
         }
-      } else {
-        setError('Er is een fout opgetreden bij het inloggen.');
+      } else if (result?.ok) {
+        router.push('/admin');
       }
+    } catch (err: unknown) {
+      console.error('Login error:', err);
+      setError('Er is een fout opgetreden bij het inloggen.');
     } finally {
       setLoading(false);
     }
@@ -154,7 +107,7 @@ export default function AdminLoginPage() {
 
             <button
               onClick={handleGoogleSignIn}
-              disabled={loading || !authClient}
+              disabled={loading}
               className="w-full flex justify-center items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm font-medium rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
             >
               {loading ? (
