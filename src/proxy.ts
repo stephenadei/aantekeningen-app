@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Admin routes - let client-side handle authentication
@@ -48,3 +48,5 @@ export const config = {
     '/student/:path*',
   ],
 };
+
+

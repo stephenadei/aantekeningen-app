@@ -230,7 +230,7 @@ describe('Critical Smoke Tests', () => {
     });
   });
 
-  describe('Middleware & Edge Runtime', () => {
+  describe('Proxy & Edge Runtime', () => {
     it('should not have Edge Runtime errors', async () => {
       // Mock successful response
       mockFetch.mockResolvedValueOnce({
@@ -238,7 +238,7 @@ describe('Critical Smoke Tests', () => {
         text: async () => '<html>Admin login page</html>'
       });
 
-      // This test ensures our middleware fix worked
+      // This test ensures our proxy fix worked
       const response = await fetch(`${BASE_URL}/admin/login`);
       expect(response.status).toBe(200);
       
