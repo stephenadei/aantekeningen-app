@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import SkeletonLoader from '@/components/ui/SkeletonLoader';
+import StudentPinManager from '@/components/admin/StudentPinManager';
 import type { Student, FileInfo } from '@/lib/interfaces';
 import { createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
 
@@ -570,6 +571,15 @@ export default function StudentDetailPage({ params }: { params: { id: string } }
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* PIN Manager */}
+          <StudentPinManager
+            studentId={studentId}
+            studentName={student.displayName}
+            studentEmail={student.email}
+            studentPhone={student.phone}
+            onPinUpdated={fetchStudent}
+          />
+
           {/* Activity Card */}
           <div className="bg-white rounded-lg border border-gray-200 p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">

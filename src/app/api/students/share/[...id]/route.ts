@@ -12,6 +12,8 @@ import {
   createDriveFolderId
 } from '@/lib/types';
 import { createErrorResponse, handleUnknownError, InvalidStudentIdError } from '@/lib/errors';
+import { getOrCreateShareToken } from '@/lib/share-token';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
@@ -171,10 +173,94 @@ export async function GET(
       );
     }
 
-    // Generate shareable link using proper domain configuration
+    // Get or create share token for this student
+    // First, try to find student in database by datalakePath or ID
+    let dbStudent = null;
+    let datalakePath: string | null = null;
+    
+    // Determine datalakePath from actualId
+    if (actualId.includes('/')) {
+      // It's a datalake path
+      datalakePath = actualId;
+      dbStudent = await prisma.student.findFirst({
+        where: { datalakePath: actualId }
+      });
+    } else {
+      // Try to find by Firestore ID or Drive folder ID
+      dbStudent = await prisma.student.findFirst({
+        where: {
+          OR: [
+            { id: actualId },
+            // Note: We don't store Drive folder IDs in the database, so we'll use datalakePath
+          ]
+        }
+      });
+      
+      if (dbStudent) {
+        datalakePath = dbStudent.datalakePath;
+      } else {
+        // Try to find by datalakePath that matches the student name
+        // This is a fallback if the student isn't found by ID
+        const studentName = student.displayName;
+        if (studentName) {
+          dbStudent = await prisma.student.findFirst({
+            where: {
+              name: {
+                equals: studentName,
+                mode: 'insensitive'
+              }
+            }
+          });
+          if (dbStudent) {
+            datalakePath = dbStudent.datalakePath;
+          }
+        }
+      }
+    }
+
+    // Generate or get share token
+    let shareToken: string;
+    try {
+      if (datalakePath) {
+        const tokenResult = await getOrCreateShareToken({ datalakePath });
+        shareToken = tokenResult.token;
+      } else if (dbStudent?.id) {
+        const tokenResult = await getOrCreateShareToken({ studentId: dbStudent.id });
+        shareToken = tokenResult.token;
+      } else {
+        // Fallback: create a token based on student ID hash
+        // This is not ideal but ensures we always have a shareable link
+        console.warn('⚠️ Could not find student in database, using fallback token generation');
+        const crypto = await import('crypto');
+        const hash = crypto.createHash('sha256').update(actualId).digest('hex').substring(0, 12);
+        shareToken = hash;
+      }
+    } catch (error) {
+      console.error('❌ Error generating share token:', error);
+      // Fallback to old method if token generation fails
+      ensureConfigValidated();
+      const baseUrl = config.baseUrl;
+      const shareableUrl = `${baseUrl}/student/${actualId}`;
+      
+      return NextResponse.json({
+        success: true,
+        student: {
+          id: student.id,
+          displayName: student.displayName,
+          subject: student.subject,
+          driveFolderId: student.driveFolderId
+        },
+        shareableUrl: shareableUrl,
+        directDriveUrl: student.driveFolderId ? `https://drive.google.com/drive/folders/${student.driveFolderId}` : null,
+        message: 'Shareable link generated successfully (fallback)',
+        idType: idType || detectIdType(id)
+      });
+    }
+
+    // Generate shareable link using share token
     ensureConfigValidated();
     const baseUrl = config.baseUrl;
-    const shareableUrl = `${baseUrl}/student/${actualId}`;
+    const shareableUrl = `${baseUrl}/share/${shareToken}`;
     
     return NextResponse.json({
       success: true,
@@ -185,6 +271,7 @@ export async function GET(
         driveFolderId: student.driveFolderId
       },
       shareableUrl: shareableUrl,
+      shareToken: shareToken,
       directDriveUrl: student.driveFolderId ? `https://drive.google.com/drive/folders/${student.driveFolderId}` : null,
       message: 'Shareable link generated successfully',
       idType: idType || detectIdType(id)

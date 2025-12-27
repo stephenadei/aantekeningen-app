@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     // Search directly in Datalake
     try {
       // Check if we have MinIO credentials
+      // MINIO_ENDPOINT has a default of 'localhost', so only check for access keys
       const hasMinIOCredentials = !!(
-        process.env.MINIO_ENDPOINT && 
         process.env.MINIO_ACCESS_KEY && 
         process.env.MINIO_SECRET_KEY
       );

@@ -124,8 +124,8 @@ export async function GET(
             // It's a datalake path, validate and create DriveFolderId
             try {
               driveFolderId = createDriveFolderId(studentId);
-              const pathParts = studentId.split('/');
-              const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
+              const pathParts = studentId.split('/').filter(p => p); // Filter out empty parts
+              const studentNameFromPath = pathParts[pathParts.length - 1]; // Last part is student name
               if (studentNameFromPath) {
                 studentName = studentNameFromPath;
               }
@@ -143,8 +143,8 @@ export async function GET(
               // If validation fails, still use the path but log the error
               console.error('Error validating datalake path:', error);
               driveFolderId = studentId as DriveFolderId; // Fallback to type assertion
-              const pathParts = studentId.split('/');
-              const studentNameFromPath = pathParts[pathParts.length - 2];
+              const pathParts = studentId.split('/').filter(p => p); // Filter out empty parts
+              const studentNameFromPath = pathParts[pathParts.length - 1]; // Last part is student name
               if (studentNameFromPath) {
                 studentName = studentNameFromPath;
               }
@@ -176,13 +176,26 @@ export async function GET(
     }
 
     console.log('🔄 Fetching student overview from Datalake...');
-    if (!studentName) {
+    
+    // Use the full datalake path if available, otherwise use studentName
+    let datalakePath: string = '';
+    if (studentId.includes('/')) {
+      // It's already a full datalake path
+      datalakePath = studentId;
+    } else if (studentName) {
+      // Try to find the path for this student
+      datalakePath = await datalakeService.getStudentPath(studentName) || '';
+    }
+    
+    if (!datalakePath && !studentName) {
       return NextResponse.json(
         createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
         { status: 400 }
       );
     }
-    const overview = await datalakeService.getStudentOverview('', studentName);
+    
+    // Use datalakePath if available, otherwise fall back to studentName
+    const overview = await datalakeService.getStudentOverview(datalakePath || '', studentName || undefined);
     console.log('✅ Overview fetched:', overview);
 
     return NextResponse.json({

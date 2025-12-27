@@ -221,3 +221,10 @@ describe('Security Helpers', () => {
     });
   });
 });
+
+      const result = validateTeacherEmail(longEmail);
+      expect(isOk(result)).toBe(true); // Email can be long
+      if (isOk(result)) expect(result.data).toBe(longEmail);
+    });
+  });
+});

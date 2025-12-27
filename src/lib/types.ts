@@ -403,7 +403,7 @@ export const isCleanFileName = createValidator<CleanFileName>('CleanFileName', T
 export const isFolderName = createValidator<FolderName>('FolderName', TYPE_METADATA.FolderName.validate);
 
 // Import validation functions from taxonomy.ts
-import { isValidSubject, isValidTopicGroup, isValidLevel } from '../data/taxonomy';
+import { isValidSubject, isValidTopicGroup, isValidLevel, subjectSynonyms } from '../data/taxonomy';
 
 export const isSubject = isValidSubject;
 export const isTopicGroup = isValidTopicGroup;
@@ -447,10 +447,13 @@ export const createStudentName = createFactory<StudentName>('StudentName', isStu
 export const createTeacherName = createFactory<TeacherName>('TeacherName', isTeacherName);
 
 export const createSubject = (value: string): Subject => {
-  if (!isSubject(value)) {
+  // Normalize subject using synonyms (e.g., "rekenen" -> "rekenen-basis")
+  const normalized = subjectSynonyms[value.toLowerCase()] || value;
+  
+  if (!isSubject(normalized)) {
     throw new Error(`Invalid subject: ${value}. Must be one of the valid subjects from taxonomy.`);
   }
-  return value as Subject;
+  return normalized as Subject;
 };
 
 export const createTopicGroup = (value: string): TopicGroup => {

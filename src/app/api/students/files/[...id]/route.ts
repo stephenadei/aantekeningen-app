@@ -129,8 +129,9 @@ export async function GET(
             // It's a datalake path, validate and create DriveFolderId
             try {
               driveFolderId = createDriveFolderId(studentId);
-              const pathParts = studentId.split('/');
-              const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
+              const pathParts = studentId.split('/').filter(p => p); // Remove empty parts
+              // Student name is the last non-empty part of the path
+              const studentNameFromPath = pathParts[pathParts.length - 1];
               if (studentNameFromPath) {
                 studentName = studentNameFromPath;
               }
@@ -148,8 +149,8 @@ export async function GET(
               // If validation fails, still use the path but log the error
               console.error('Error validating datalake path:', error);
               driveFolderId = studentId as DriveFolderId; // Fallback to type assertion
-              const pathParts = studentId.split('/');
-              const studentNameFromPath = pathParts[pathParts.length - 2];
+              const pathParts = studentId.split('/').filter(p => p); // Remove empty parts
+              const studentNameFromPath = pathParts[pathParts.length - 1]; // Last part is student name
               if (studentNameFromPath) {
                 studentName = studentNameFromPath;
               }
@@ -182,13 +183,25 @@ export async function GET(
 
     // Always fetch from Datalake first (primary source)
     console.log('🔄 Fetching files from Datalake...');
-    if (!studentName) {
-      // Try to extract student name from driveFolderId if it's a path
-      if (driveFolderId.includes('/')) {
-        const pathParts = driveFolderId.split('/');
-        const studentNameFromPath = pathParts[pathParts.length - 2]; // Second to last part
-        if (studentNameFromPath) {
-          studentName = studentNameFromPath;
+    
+    // If studentId is already a datalake path, use it directly
+    let datalakePath: string;
+    if (studentId.includes('/')) {
+      // It's already a full datalake path (e.g., "notability/Priveles/VO/Teresa")
+      datalakePath = studentId;
+      if (!studentName) {
+        const pathParts = studentId.split('/').filter(p => p); // Filter out empty parts
+        studentName = pathParts[pathParts.length - 1]; // Last part is student name
+      }
+    } else {
+      // It's just a student name, need to find the path
+      if (!studentName) {
+        // Try to extract student name from driveFolderId if it's a path
+        if (driveFolderId.includes('/')) {
+          const pathParts = driveFolderId.split('/');
+          studentName = pathParts[pathParts.length - 1];
+        } else {
+          studentName = driveFolderId;
         }
       }
       
@@ -198,9 +211,25 @@ export async function GET(
           { status: 400 }
         );
       }
+      
+      // Find the datalake path for this student
+      datalakePath = await datalakeService.getStudentPath(studentName) || '';
+      if (!datalakePath) {
+        return NextResponse.json(
+          createErrorResponse(new InvalidStudentIdError(`Student folder not found: ${studentName}`, 'firestore')),
+          { status: 404 }
+        );
+      }
     }
     
-    const allFiles = await datalakeService.listFilesInFolder('', studentName);
+    // Extract student name from path if not already set
+    if (!studentName && datalakePath) {
+      const pathParts = datalakePath.split('/').filter(p => p); // Filter out empty parts
+      studentName = pathParts[pathParts.length - 1];
+    }
+    
+    // List files using the full datalake path (pass path as first param, empty string as second)
+    const allFiles = await datalakeService.listFilesInFolder(datalakePath, '');
     
     // Optionally enrich with Firestore cache metadata (AI analysis, etc.)
     if (!forceRefresh) {
@@ -271,10 +300,15 @@ export async function GET(
     
     console.log('✅ Files fetched from Datalake:', files.length, 'files (total:', allFiles.length, ')');
 
-    // Trigger background sync to update Firestore cache
-    backgroundSyncService.forceSyncStudent(studentId).catch(error => {
-      console.error('Background sync failed:', error);
-    });
+    // Trigger background sync to update datalake metadata (non-blocking, optional)
+    // Only if Firebase credentials are available (for student lookup)
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+      backgroundSyncService.forceSyncStudent(studentId).catch(error => {
+        console.error('Background sync failed (non-critical):', error);
+      });
+    } else {
+      console.log('⚠️ Background sync skipped: Firebase credentials not configured');
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 import { db } from './firebase-admin';
 import { datalakeService } from './datalake-simple';
 import { datalakeMetadataService } from './datalake-metadata';
+import { thumbnailGeneratorService } from './thumbnail-generator';
 import { 
   getFileMetadata, 
   setFileMetadata, 
@@ -210,9 +211,9 @@ export class BackgroundSyncService {
           const fileMeta = datalakeMetadataService.createFileMetadata(
             {
               id: driveFile.id,
-              name: driveFile.name,
-              modifiedTime: driveModifiedTime.toISOString(),
-              size: driveFile.size ?? 0,
+            name: driveFile.name,
+            modifiedTime: driveModifiedTime.toISOString(),
+            size: driveFile.size ?? 0,
               downloadUrl: driveFile.downloadUrl,
               viewUrl: driveFile.viewUrl,
               thumbnailUrl: driveFile.thumbnailUrl,
@@ -229,10 +230,49 @@ export class BackgroundSyncService {
       }
 
       console.log(`✅ Synced ${student.displayName}: ${updatedCount}/${driveFiles.length} files updated`);
+      
+      // Generate thumbnails for PDFs (non-blocking, in background)
+      try {
+        console.log(`🖼️  Generating thumbnails for ${student.displayName}...`);
+        await thumbnailGeneratorService.generateThumbnailsForStudent(
+          studentPath,
+          'medium',
+          false, // Don't force regeneration
+          (progress) => {
+            if (progress.processed % 10 === 0 || progress.processed === progress.total) {
+              console.log(`   Thumbnails: ${progress.processed}/${progress.total} (${progress.successful} successful, ${progress.failed} failed, ${progress.skipped} skipped)`);
+            }
+          }
+        );
+        console.log(`✅ Thumbnails generated for ${student.displayName}`);
+      } catch (thumbnailError) {
+        // Don't fail the sync if thumbnail generation fails
+        console.error(`⚠️  Thumbnail generation failed for ${student.displayName}:`, thumbnailError);
+      }
+      
       return { files: driveFiles.length, updated: updatedCount };
 
     } catch (error) {
       console.error(`Error syncing files for student ${student.id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate thumbnails for a specific student
+   */
+  async generateThumbnailsForStudent(studentPath: string, force: boolean = false): Promise<void> {
+    try {
+      await thumbnailGeneratorService.generateThumbnailsForStudent(
+        studentPath,
+        'medium',
+        force,
+        (progress) => {
+          console.log(`📊 Thumbnail progress for ${studentPath}: ${progress.processed}/${progress.total} (${progress.successful} successful, ${progress.failed} failed, ${progress.skipped} skipped)`);
+        }
+      );
+    } catch (error) {
+      console.error(`Error generating thumbnails for student ${studentPath}:`, error);
       throw error;
     }
   }

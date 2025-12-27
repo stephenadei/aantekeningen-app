@@ -1,19 +1,80 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
-import GoogleProvider from 'next-auth/providers/google';
-import { validateTeacherEmail } from '@/lib/security';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import { prisma } from '@/lib/prisma';
+import { compare } from 'bcrypt';
 import { createLoginAudit } from '@/lib/firestore';
+import { createIPAddress, createUserAgent } from '@/lib/types';
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      authorization: {
-        params: {
-          prompt: 'consent',
-          access_type: 'offline',
-          response_type: 'code',
-        },
+    CredentialsProvider({
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          console.log('[AUTH] Missing credentials');
+          return null;
+        }
+
+        try {
+          console.log('[AUTH] Attempting to find user:', credentials.email.trim().toLowerCase());
+          
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email.trim().toLowerCase(),
+            },
+          });
+
+          if (!user) {
+            console.log(`[AUTH] User not found: ${credentials.email}`);
+            return null;
+          }
+
+          console.log(`[AUTH] User found: ${user.email}, has password: ${!!user.password}`);
+
+          // Check password if it exists (for users with password)
+          if (user.password) {
+            const isPasswordValid = await compare(
+              credentials.password.trim(),
+              user.password
+            );
+
+            if (!isPasswordValid) {
+              console.log(`[AUTH] Invalid password for user: ${credentials.email}`);
+              return null;
+            }
+            console.log(`[AUTH] Password validated for user: ${credentials.email}`);
+          } else {
+            // Fallback: temporary password check for backward compatibility
+            // TODO: Remove this after all users have passwords set
+            const passwordTrimmed = credentials.password.trim();
+            const isPasswordValid = passwordTrimmed === 'admin123'; // Temporary
+
+            if (!isPasswordValid) {
+              console.log(`[AUTH] Invalid password for user: ${credentials.email}`);
+              return null;
+            }
+            console.log(`[AUTH] Temporary password validated for user: ${credentials.email}`);
+          }
+
+          console.log(`[AUTH] Successfully authenticated user: ${user.email}`);
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+        } catch (error) {
+          console.error('[AUTH] Error during authentication:', error);
+          if (error instanceof Error) {
+            console.error('[AUTH] Error message:', error.message);
+            console.error('[AUTH] Error stack:', error.stack);
+          }
+          return null;
+        }
       },
     }),
   ],
@@ -22,52 +83,17 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      // Check if email is from allowed domain
-      if (!user.email) {
-        return false;
-      }
-
-      const emailValidation = validateTeacherEmail(user.email);
-      if (!emailValidation.success) {
-        // Log failed attempt (IP/userAgent not available in callback)
-        try {
-          const { createIPAddress, createUserAgent } = await import('@/lib/types');
-          await createLoginAudit({
-            who: `teacher:${user.email}`,
-            action: 'login_fail',
-            ip: createIPAddress('unknown'),
-            userAgent: createUserAgent('unknown'),
-            metadata: {
-              provider: 'google',
-              error: 'Unauthorized domain',
-            },
-          });
-        } catch (error) {
-          console.error('Failed to log sign-in attempt:', error);
-        }
-        return false; // Reject sign-in, NextAuth will redirect to error page
-      }
-
-      return true;
-    },
-    async jwt({ token, user, account }) {
-      // Initial sign in
-      if (account && user) {
-        token.accessToken = account.access_token;
-        token.email = user.email || undefined;
-        token.name = user.name || undefined;
-        token.picture = user.image || undefined;
-        token.uid = user.id || user.email?.split('@')[0] || 'unknown';
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = (user as { role?: string }).role;
+        token.uid = user.id;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.uid || token.email?.split('@')[0] || 'unknown';
-        session.user.email = token.email || '';
-        session.user.name = token.name || null;
-        session.user.image = token.picture || null;
+      if (token) {
+        session.user.id = token.sub!;
+        session.user.role = (token.role as string) || 'ADMIN';
       }
       return session;
     },
@@ -78,17 +104,16 @@ export const authOptions: NextAuthOptions = {
   },
   events: {
     async signIn({ user, isNewUser }) {
-      // Log successful sign-in (IP/userAgent not available in event)
+      // Log successful sign-in
       if (user.email) {
         try {
-          const { createIPAddress, createUserAgent } = await import('@/lib/types');
           await createLoginAudit({
             who: `teacher:${user.email}`,
             action: 'login_ok',
             ip: createIPAddress('unknown'),
             userAgent: createUserAgent('unknown'),
             metadata: {
-              provider: 'google',
+              provider: 'credentials',
               email: user.email,
               isNewUser: isNewUser || false,
             },

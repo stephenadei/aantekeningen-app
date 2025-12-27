@@ -1,0 +1,236 @@
+// Prisma schema for aantekeningen-app
+// Uses the same database as privelessen-dashboard
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for admin authentication
+// Same as privelessen-dashboard
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String?  // bcrypt hash (optional for backward compatibility)
+  role      UserRole @default(TUTOR)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  lessons   Lesson[]
+  notes     Note[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  TUTOR
+  STUDENT
+}
+
+// The following models are from the privelessen-dashboard and are included
+// to allow the aantekeningen-app to share the same database schema.
+// They are not directly used by the aantekeningen-app but are necessary
+// for Prisma to manage the shared database.
+
+enum SchoolLevel {
+  BASISSCHOOL
+  VMBO
+  HAVO
+  VWO
+  MBO
+  HBO
+  WO
+  OVERIG
+}
+
+enum Segment {
+  NEW
+  EXISTING
+  WEEKEND
+  INACTIVE
+}
+
+enum Language {
+  DUTCH
+  ENGLISH
+}
+
+model Student {
+  id                 String       @id @default(cuid())
+  name               String
+  email              String?
+  phone              String?
+  schoolLevel        SchoolLevel?
+  postcode           String?
+  distanceKm         Int?
+  segment            Segment?
+  customerSince      DateTime?
+  weekendWhitelisted Boolean      @default(false)
+  language           Language?    @default(DUTCH)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  // Chatwoot integration
+  chatwootContactId String? @unique
+  chatwootAccountId String?
+
+  // Aantekeningen-app integration
+  pinHash      String? // bcrypt hash for PIN login
+  datalakePath String? // Path to student folder in MinIO datalake (e.g., "notability/Priveles/VO/Amirah")
+  shareToken   String? @unique // Unique token for sharing student page (e.g., "a3f9k2m8p1q")
+
+  // Relations
+  guardians     Guardian[]
+  notes         Note[]
+  lessons       Lesson[]
+  payments      Payment[]
+  packages      Package[]
+  conversations Conversation[]
+  appointments  Appointment[]
+
+  @@map("students")
+}
+
+model Guardian {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student   Student  @relation(fields: [studentId], references: [id])
+  studentId String
+
+  @@map("guardians")
+}
+
+enum LessonStatus {
+  PLANNED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Lesson {
+  id          String       @id @default(cuid())
+  date        DateTime
+  duration    Int          // in minutes
+  status      LessonStatus @default(PLANNED)
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  student     Student      @relation(fields: [studentId], references: [id])
+  studentId   String
+  user        User         @relation(fields: [userId], references: [id])
+  userId      String
+
+  @@map("lessons")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student   Student  @relation(fields: [studentId], references: [id])
+  studentId String
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+
+  @@map("notes")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  amount      Float
+  status      PaymentStatus @default(PENDING)
+  stripeId    String?       @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  student     Student       @relation(fields: [studentId], references: [id])
+  studentId   String
+  package     Package?      @relation(fields: [packageId], references: [id])
+  packageId   String?
+
+  @@map("payments")
+}
+
+enum PackageType {
+  HOURLY
+  SUBSCRIPTION
+  BUNDLE
+}
+
+model Package {
+  id          String      @id @default(cuid())
+  name        String
+  type        PackageType
+  price       Float
+  lessonsLeft Int?
+  expiresAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  student     Student     @relation(fields: [studentId], references: [id])
+  studentId   String
+  payments    Payment[]
+
+  @@map("packages")
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  channel   String   // e.g., "whatsapp", "email", "chatwoot"
+  content   String
+  sender    String
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student   Student  @relation(fields: [studentId], references: [id])
+  studentId String
+
+  @@map("conversations")
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  title     String
+  startTime DateTime
+  endTime   DateTime
+  location  String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student   Student  @relation(fields: [studentId], references: [id])
+  studentId String
+
+  @@map("appointments")
+}

@@ -137,13 +137,13 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
 
     // Try to get metadata from datalake
     if (studentPath) {
-      try {
+    try {
         const metadata = await datalakeMetadataService.getStudentFileMetadata(studentPath);
         if (metadata.length > 0) {
           console.log(`✅ Got ${metadata.length} files from datalake for ${studentName || studentId}`);
           return metadata;
         }
-      } catch (error) {
+    } catch (error) {
         console.log(`⚠️ Failed to get metadata from datalake, falling back to Firestore:`, error);
       }
     }
@@ -164,8 +164,8 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
   // Write to datalake (primary)
   let datalakeSuccess = 0;
   let datalakeFailed = 0;
-
-  for (const file of files) {
+    
+    for (const file of files) {
     try {
       // file.id contains the full datalake path (e.g., "notability/Priveles/VO/StudentName/file.pdf")
       await datalakeMetadataService.setFileMetadata(file.id, file);
@@ -193,18 +193,18 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
 export async function invalidateCache(pattern: string): Promise<void> {
   try {
     // Invalidate memory cache entries matching pattern
-    let invalidatedCount = 0;
+      let invalidatedCount = 0;
     for (const [key] of memoryCacheMap.entries()) {
       if (key.includes(pattern) || key.startsWith(pattern)) {
         memoryCacheMap.delete(key);
-        invalidatedCount++;
-      }
+          invalidatedCount++;
+        }
     }
-    
-    if (invalidatedCount > 0) {
+
+      if (invalidatedCount > 0) {
       console.log(`Invalidated ${invalidatedCount} cache entries matching ${pattern}`);
     }
-    
+
     // Note: File metadata invalidation is handled by datalake metadata service
     // No Firestore invalidation needed anymore
   } catch (error) {
@@ -312,7 +312,7 @@ export async function isFileMetadataFresh(
     if (metadata.length === 0) {
       return false;
     }
-    
+
     // Find most recent update
     const mostRecent = metadata.reduce((latest, file) => {
       const fileTime = new Date(file.updatedAt || file.modifiedTime).getTime();
@@ -323,7 +323,7 @@ export async function isFileMetadataFresh(
     const latestUpdate = new Date(mostRecent.updatedAt || mostRecent.modifiedTime);
     const now = new Date();
     const ageHours = (now.getTime() - latestUpdate.getTime()) / (1000 * 60 * 60);
-    
+
     return ageHours < maxAgeHours;
   } catch (error) {
     console.error(`Error checking file metadata freshness for ${studentId}:`, error);

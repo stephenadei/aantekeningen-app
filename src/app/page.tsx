@@ -8,6 +8,8 @@ import Sidebar from '@/components/ui/Sidebar';
 import FilterSidebarContent from '@/components/ui/FilterSidebarContent';
 import FilterPills from '@/components/ui/FilterPill';
 import Thumbnail from '@/components/ui/Thumbnail';
+import { FileCardSkeleton, FileListSkeleton } from '@/components/ui/Skeleton';
+import FileDetailModal from '@/components/ui/FileDetailModal';
 import { 
   applyFilters, 
   extractUniqueValues, 
@@ -30,6 +32,8 @@ export default function AantekeningenPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [hasSearched, setHasSearched] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Native share functionality
   const { isSupported: isNativeShareSupported, share: nativeShare, isSharing } = useNativeShare();
@@ -943,9 +947,20 @@ export default function AantekeningenPage() {
             </Sidebar>
 
             {loading ? (
-              <div className="flex items-center justify-center py-12" role="status" aria-live="polite" aria-label="Loading files">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                <span className="ml-2 text-gray-600">Bestanden laden...</span>
+              <div className="space-y-6">
+                <div className="flex items-center justify-center py-4" role="status" aria-live="polite" aria-label="Loading files">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600 dark:text-blue-400" />
+                  <span className="ml-2 text-gray-600 dark:text-gray-400 font-medium">Bestanden laden...</span>
+                </div>
+                <section className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    viewMode === 'grid' ? (
+                      <FileCardSkeleton key={index} />
+                    ) : (
+                      <FileListSkeleton key={index} />
+                    )
+                  ))}
+                </section>
               </div>
             ) : (
               /* Files Display */
@@ -953,70 +968,103 @@ export default function AantekeningenPage() {
                 {filteredAndSortedFiles.map((file) => (
                   <div
                     key={file.id}
-                    className={`bg-blue-800/90 backdrop-blur-sm rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow ${
-                      viewMode === 'list' ? 'flex items-center p-4' : 'p-4'
-                    }`}
+                    className={`
+                      group relative
+                      bg-gradient-to-br from-blue-800/95 via-blue-900/90 to-indigo-900/95 
+                      backdrop-blur-sm rounded-xl shadow-lg overflow-hidden
+                      border border-blue-700/50 dark:border-blue-600/30
+                      transition-all duration-300 ease-out
+                      hover:shadow-2xl hover:scale-[1.02] hover:border-blue-500/70
+                      ${viewMode === 'list' ? 'flex items-center p-4' : ''}
+                    `}
                   >
                     {viewMode === 'grid' ? (
-                      <div>
-                        <div className="relative group">
+                      <div className="p-5">
+                        <div className="relative mb-4 rounded-lg overflow-hidden">
                           <Thumbnail
-                              src={file.thumbnailUrl} 
-                              alt={file.title}
+                            src={file.thumbnailUrl} 
+                            alt={file.title}
                             fileId={file.id}
                             fileType={file.mimeType}
-                            className="mb-3 rounded-lg cursor-pointer"
-                            onClick={() => window.open(file.viewUrl as string, '_blank')}
+                            className="rounded-lg cursor-pointer"
+                            onClick={() => {
+                              setSelectedFile(file);
+                              setIsModalOpen(true);
+                            }}
                           />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center pointer-events-none">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="bg-white bg-opacity-90 rounded-full p-2">
-                                <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </div>
-                            </div>
-                          </div>
                         </div>
-                        <h3 className="font-medium text-lg mb-2 line-clamp-2 text-yellow-100">{file.title}</h3>
-                        <p className="text-sm text-yellow-200 mb-2">{file.name}</p>
-                        <div className="flex items-center justify-between text-xs text-yellow-300 mb-3">
-                          <span>{formatDate(file.modifiedTime)}</span>
-                          <span>{formatFileSize(file.size ?? 0)}</span>
+                        <h3 className="font-semibold text-lg mb-2 line-clamp-2 text-yellow-50 group-hover:text-yellow-100 transition-colors">
+                          {file.title}
+                        </h3>
+                        <p className="text-sm text-yellow-200/80 mb-3 font-medium">{file.name}</p>
+                        <div className="flex items-center justify-between text-xs text-yellow-300/70 mb-4">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {formatDate(file.modifiedTime)}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-3 h-3" />
+                            {formatFileSize(file.size ?? 0)}
+                          </span>
                         </div>
-                        <div className="flex flex-wrap gap-1 mb-3">
-                          {file.subject && <span className="bg-yellow-100 text-blue-900 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
-                          {file.topic && <span className="bg-yellow-200 text-blue-900 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
-                          {file.level && <span className="bg-yellow-300 text-blue-900 px-2 py-1 rounded-full text-xs">{file.level}</span>}
-                          {file.schoolYear && <span className="bg-yellow-400 text-blue-900 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
+                        <div className="flex flex-wrap gap-1.5 mb-4">
+                          {file.subject && (
+                            <span className="bg-yellow-100/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                              {file.subject}
+                            </span>
+                          )}
+                          {file.topic && (
+                            <span className="bg-yellow-200/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                              {file.topic}
+                            </span>
+                          )}
+                          {file.level && (
+                            <span className="bg-yellow-300/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                              {file.level}
+                            </span>
+                          )}
+                          {file.schoolYear && (
+                            <span className="bg-yellow-400/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                              {file.schoolYear}
+                            </span>
+                          )}
                         </div>
                         {file.keywords && file.keywords.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-3">
+                          <div className="flex flex-wrap gap-1 mb-4">
                             {file.keywords.slice(0, 3).map((keyword, index) => (
-                              <span key={index} className="bg-yellow-100 text-blue-900 px-2 py-1 rounded text-xs">
+                              <span key={index} className="bg-yellow-100/70 text-blue-900 px-2 py-0.5 rounded-md text-xs">
                                 {keyword}
                               </span>
                             ))}
                           </div>
                         )}
                         {file.summary && (
-                          <p className="text-xs text-yellow-200 bg-yellow-100/20 p-2 rounded mb-3">{file.summary}</p>
+                          <p className="text-xs text-yellow-200/90 bg-yellow-100/10 backdrop-blur-sm p-3 rounded-lg mb-4 line-clamp-2 border border-yellow-200/20">
+                            {file.summary}
+                          </p>
                         )}
                         <div className="flex gap-2">
                           <a
                             href={file.downloadUrl}
-                            className="flex-1 bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 text-center py-2 px-3 rounded text-sm hover:shadow-lg transition-all duration-200"
+                            className="flex-1 bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-blue-900 text-center py-2.5 px-4 rounded-lg text-sm font-semibold hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
                             aria-label={`Download ${file.name}`}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Download className="h-4 w-4 inline mr-1" />
+                            <Download className="h-4 w-4" />
                             Downloaden
                           </a>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex-1 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-12 rounded-lg overflow-hidden relative group cursor-pointer" onClick={() => window.open(file.viewUrl, '_blank')}>
+                      <div className="flex-1 flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <div 
+                            className="w-20 h-14 rounded-lg overflow-hidden relative group cursor-pointer flex-shrink-0" 
+                            onClick={() => {
+                              setSelectedFile(file);
+                              setIsModalOpen(true);
+                            }}
+                          >
                             <Thumbnail
                               src={file.thumbnailUrl} 
                               alt={file.title}
@@ -1024,50 +1072,68 @@ export default function AantekeningenPage() {
                               fileType={file.mimeType}
                               className="w-full h-full"
                             />
-                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="bg-white bg-opacity-90 rounded-full p-1">
-                                  <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </div>
-                              </div>
-                            </div>
                           </div>
-                          <div>
-                            <h3 className="font-medium text-lg text-yellow-100">{file.title}</h3>
-                            <p className="text-sm text-yellow-200">{file.name}</p>
-                            <div className="flex items-center gap-4 text-xs text-yellow-300 mt-1">
-                              <span>{formatDate(file.modifiedTime)}</span>
-                              <span>{formatFileSize(file.size ?? 0)}</span>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-lg text-yellow-50 line-clamp-1 group-hover:text-yellow-100 transition-colors">
+                              {file.title}
+                            </h3>
+                            <p className="text-sm text-yellow-200/80 font-medium mt-0.5">{file.name}</p>
+                            <div className="flex items-center gap-4 text-xs text-yellow-300/70 mt-2">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(file.modifiedTime)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <FileText className="w-3 h-3" />
+                                {formatFileSize(file.size ?? 0)}
+                              </span>
                             </div>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {file.subject && <span className="bg-yellow-100 text-blue-900 px-2 py-1 rounded-full text-xs">{file.subject}</span>}
-                              {file.topic && <span className="bg-yellow-200 text-blue-900 px-2 py-1 rounded-full text-xs">{file.topic}</span>}
-                              {file.level && <span className="bg-yellow-300 text-blue-900 px-2 py-1 rounded-full text-xs">{file.level}</span>}
-                              {file.schoolYear && <span className="bg-yellow-400 text-blue-900 px-2 py-1 rounded-full text-xs">{file.schoolYear}</span>}
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {file.subject && (
+                                <span className="bg-yellow-100/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                                  {file.subject}
+                                </span>
+                              )}
+                              {file.topic && (
+                                <span className="bg-yellow-200/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                                  {file.topic}
+                                </span>
+                              )}
+                              {file.level && (
+                                <span className="bg-yellow-300/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                                  {file.level}
+                                </span>
+                              )}
+                              {file.schoolYear && (
+                                <span className="bg-yellow-400/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                                  {file.schoolYear}
+                                </span>
+                              )}
                             </div>
                             {file.keywords && file.keywords.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="flex flex-wrap gap-1 mt-2">
                                 {file.keywords.slice(0, 4).map((keyword, index) => (
-                                  <span key={index} className="bg-yellow-100 text-blue-900 px-2 py-1 rounded text-xs">
+                                  <span key={index} className="bg-yellow-100/70 text-blue-900 px-2 py-0.5 rounded-md text-xs">
                                     {keyword}
                                   </span>
                                 ))}
                               </div>
                             )}
                             {file.summary && (
-                              <p className="text-xs text-yellow-200 bg-yellow-100/20 p-2 rounded mt-2 max-w-md">{file.summary}</p>
+                              <p className="text-xs text-yellow-200/90 bg-yellow-100/10 backdrop-blur-sm p-2 rounded-lg mt-2 max-w-md line-clamp-2 border border-yellow-200/20">
+                                {file.summary}
+                              </p>
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-shrink-0">
                           <a
                             href={file.downloadUrl}
-                            className="bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 py-2 px-4 rounded text-sm hover:shadow-lg transition-all duration-200"
+                            className="bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-blue-900 py-2.5 px-4 rounded-lg text-sm font-semibold hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
                             aria-label={`Download ${file.name}`}
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            <Download className="h-4 w-4 inline mr-2" />
+                            <Download className="h-4 w-4" />
                             Downloaden
                           </a>
                         </div>
@@ -1080,6 +1146,19 @@ export default function AantekeningenPage() {
           </div>
         )}
       </div>
+
+      {/* File Detail Modal */}
+      {selectedFile && selectedStudent && (
+        <FileDetailModal
+          file={selectedFile}
+          studentId={selectedStudent.id}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedFile(null);
+          }}
+        />
+      )}
     </div>
   );
 }

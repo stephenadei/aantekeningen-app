@@ -425,7 +425,6 @@ class DatalakeService {
         subject = createSubject("wiskunde-a");
       } else if (filePath.includes("/Rekenen/")) {
         subject = createSubject("rekenen");
-        subject = createSubject('rekenen');
       }
 
       const fileInfo: FileInfo = {

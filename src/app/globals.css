@@ -47,6 +47,20 @@ body {
   color: #f1f5f9;
 }
 
+/* Shimmer animation for loading states */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
 /* Ensure proper contrast for dark mode */
 .dark .bg-white {
   background-color: #1e293b !important;

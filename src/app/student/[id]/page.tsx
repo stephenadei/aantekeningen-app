@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { FileText, User, Share2, Download, ArrowLeft, Loader2, GraduationCap } from 'lucide-react';
+import { FileText, User, Share2, Download, ArrowLeft, Loader2, GraduationCap, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import FileDetailModal from '@/components/ui/FileDetailModal';
 import DarkModeToggle from '@/components/ui/DarkModeToggle';
 import { useNativeShare } from '@/hooks/useNativeShare';
 import Thumbnail from '@/components/ui/Thumbnail';
+import { FileCardSkeleton } from '@/components/ui/Skeleton';
 import { useStudentFiles } from '@/hooks/useStudentFiles';
 import { 
   getSubjectDisplayNameFromString, 
@@ -622,14 +623,8 @@ export default function StudentPage() {
         {/* Modern Card-Based Files Grid */}
         {filesLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden shadow-lg animate-pulse">
-                <div className="aspect-video bg-slate-200 dark:bg-slate-700"></div>
-                <div className="p-4 space-y-3">
-                  <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
-                  <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
-                </div>
-              </div>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <FileCardSkeleton key={i} />
             ))}
           </div>
         ) : (
@@ -638,56 +633,59 @@ export default function StudentPage() {
               <div
                 key={file.id}
                 onClick={() => handleFileClick(file)}
-                className="bg-blue-800/90 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 cursor-pointer group"
+                className="
+                  group relative
+                  bg-gradient-to-br from-blue-800/95 via-blue-900/90 to-indigo-900/95 
+                  backdrop-blur-sm rounded-xl overflow-hidden
+                  border border-blue-700/50 dark:border-blue-600/30
+                  shadow-lg hover:shadow-2xl 
+                  transition-all duration-300 ease-out
+                  hover:scale-[1.02] hover:border-blue-500/70
+                  cursor-pointer
+                "
                 role="listitem"
                 aria-label={`Open ${file.name}`}
               >
                 {/* Thumbnail */}
-                <div className="relative group">
+                <div className="relative">
                   <Thumbnail
                     src={file.thumbnailUrl}
                     alt={file.title}
                     fileId={file.id}
                     fileType={file.mimeType}
-                    className="group-hover:scale-110 transition-transform duration-300"
+                    className="rounded-t-xl"
+                    onClick={() => handleFileClick(file)}
                   />
-                  {/* Overlay on Hover */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none">
-                    <div className="bg-white/90 dark:bg-slate-900/90 rounded-full p-3">
-                      <svg className="w-6 h-6 text-slate-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </div>
-                  </div>
                 </div>
 
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg text-yellow-100 line-clamp-2 mb-2">
+                <div className="p-5">
+                  <h3 className="font-semibold text-lg text-yellow-50 line-clamp-2 mb-2 group-hover:text-yellow-100 transition-colors">
                     {file.title}
                   </h3>
-                  <p className="text-xs text-yellow-200 mb-3">
+                  <p className="text-xs text-yellow-200/80 mb-3 font-medium flex items-center gap-2">
+                    <Calendar className="w-3 h-3" />
                     {formatDate(file.modifiedTime)} • {formatFileSize(file.size || 0)}
                   </p>
 
                   {/* Hierarchical Taxonomy Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {file.subject && (
-                      <span className="inline-block px-2 py-1 bg-yellow-100 text-blue-900 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2.5 py-1 bg-yellow-100/90 text-blue-900 text-xs rounded-full font-medium shadow-sm">
                         {getSubjectDisplayNameFromString(file.subject)}
                       </span>
                     )}
                     {file.topicGroup && (
-                      <span className="inline-block px-2 py-1 bg-yellow-200 text-blue-900 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2.5 py-1 bg-yellow-200/90 text-blue-900 text-xs rounded-full font-medium shadow-sm">
                         {getTopicGroupDisplayNameFromString(file.topicGroup)}
                       </span>
                     )}
                     {file.topic && (
-                      <span className="inline-block px-2 py-1 bg-yellow-300 text-blue-900 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2.5 py-1 bg-yellow-300/90 text-blue-900 text-xs rounded-full font-medium shadow-sm">
                         {file.topic}
                       </span>
                     )}
                     {file.level && (
-                      <span className="inline-block px-2 py-1 bg-yellow-400 text-blue-900 text-xs rounded-full font-medium">
+                      <span className="inline-block px-2.5 py-1 bg-yellow-400/90 text-blue-900 text-xs rounded-full font-medium shadow-sm">
                         {file.level}
                       </span>
                     )}
@@ -695,7 +693,7 @@ export default function StudentPage() {
 
                   {/* Summary */}
                   {file.summary && (
-                    <p className="text-sm text-yellow-200 line-clamp-2 mb-3">
+                    <p className="text-sm text-yellow-200/90 bg-yellow-100/10 backdrop-blur-sm p-3 rounded-lg line-clamp-2 mb-4 border border-yellow-200/20">
                       {file.summary}
                     </p>
                   )}
@@ -704,9 +702,9 @@ export default function StudentPage() {
                   <a
                     href={file.downloadUrl}
                     onClick={(e) => e.stopPropagation()}
-                    className="block w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 font-medium py-2 px-3 rounded-lg text-center hover:shadow-lg transition-all duration-200 text-sm"
+                    className="block w-full bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-blue-900 font-semibold py-2.5 px-4 rounded-lg text-center hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 text-sm flex items-center justify-center gap-2"
                   >
-                    <Download className="h-4 w-4 inline mr-1" />
+                    <Download className="h-4 w-4" />
                     Downloaden
                   </a>
                 </div>

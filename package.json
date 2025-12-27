@@ -40,11 +40,14 @@
     "seed-subjects": "node scripts/seed-subjects.mjs"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-toast": "^1.2.15",
     "@tanstack/react-query": "^5.90.12",
+    "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -58,6 +61,7 @@
     "next-auth": "^4.24.13",
     "openai": "^6.15.0",
     "pdf2pic": "^3.2.0",
+    "prisma": "^6.19.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "tailwind-merge": "^3.4.0",
