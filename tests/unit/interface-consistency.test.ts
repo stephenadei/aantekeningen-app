@@ -1,4 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
+import {
+  createDriveFileId,
+  createFirestoreStudentId,
+  createDriveFolderId,
+  createFileName,
+  createCleanFileName,
+  createDriveUrl,
+  createDownloadUrl,
+  createViewUrl,
+  createThumbnailUrl,
+  createLevel,
+  createSchoolYear,
+  createIPAddress,
+  createUserAgent,
+} from '@/lib/types';
 
 // Mock Firebase Admin before importing
 vi.mock('@/lib/firebase-admin', () => ({
@@ -52,20 +67,20 @@ describe('Interface Consistency', () => {
   describe('FileInfo Interface', () => {
     it('should have all required properties', () => {
       const fileInfo: FileInfo = {
-        id: 'test-file-id',
-        name: 'test-file.pdf',
-        title: 'Test File',
-        url: 'https://example.com/file',
-        downloadUrl: 'https://example.com/download',
-        viewUrl: 'https://example.com/view',
-        thumbnailUrl: 'https://example.com/thumb',
+        id: createDriveFileId('test-file-id'),
+        name: createFileName('test-file.pdf'),
+        title: createCleanFileName('Test File'),
+        url: createDriveUrl('https://example.com/file'),
+        downloadUrl: createDownloadUrl('https://example.com/download'),
+        viewUrl: createViewUrl('https://example.com/view'),
+        thumbnailUrl: createThumbnailUrl('https://example.com/thumb'),
         modifiedTime: '2024-01-15T10:30:00Z',
         size: 1024,
         subject: 'wiskunde-a',
         topicGroup: 'algebra-vergelijkingen',
         topic: 'kwadratische-vergelijkingen',
-        level: 'vwo-5',
-        schoolYear: '2023-2024',
+        level: createLevel('vwo-5'),
+        schoolYear: createSchoolYear('2023-2024'),
         keywords: ['algebra', 'vergelijkingen'],
         summary: 'Test summary',
         summaryEn: 'Test summary in English',
@@ -80,13 +95,13 @@ describe('Interface Consistency', () => {
 
     it('should allow optional properties to be undefined', () => {
       const minimalFileInfo: FileInfo = {
-        id: 'test-file-id',
-        name: 'test-file.pdf',
-        title: 'Test File',
-        url: 'https://example.com/file',
-        downloadUrl: 'https://example.com/download',
-        viewUrl: 'https://example.com/view',
-        thumbnailUrl: 'https://example.com/thumb',
+        id: createDriveFileId('test-file-id'),
+        name: createFileName('test-file.pdf'),
+        title: createCleanFileName('Test File'),
+        url: createDriveUrl('https://example.com/file'),
+        downloadUrl: createDownloadUrl('https://example.com/download'),
+        viewUrl: createViewUrl('https://example.com/view'),
+        thumbnailUrl: createThumbnailUrl('https://example.com/thumb'),
         modifiedTime: '2024-01-15T10:30:00Z',
         size: 1024
       };
@@ -140,20 +155,20 @@ describe('Interface Consistency', () => {
   describe('FileMetadata Interface', () => {
     it('should have all required properties with string timestamps', () => {
       const fileMetadata: FileMetadata = {
-        id: 'test-file-id',
-        studentId: 'test-student-id',
-        folderId: 'test-folder-id',
-        name: 'test-file.pdf',
-        title: 'Test File',
+        id: createDriveFileId('test-file-id'),
+        studentId: createFirestoreStudentId('test-student-id-1234567890'),
+        folderId: createDriveFolderId('test-folder-id'),
+        name: createFileName('test-file.pdf'),
+        title: createCleanFileName('Test File'),
         modifiedTime: '2024-01-15T10:30:00Z',
         size: 1024,
-        thumbnailUrl: 'https://example.com/thumb',
-        downloadUrl: 'https://example.com/download',
-        viewUrl: 'https://example.com/view',
+        thumbnailUrl: createThumbnailUrl('https://example.com/thumb'),
+        downloadUrl: createDownloadUrl('https://example.com/download'),
+        viewUrl: createViewUrl('https://example.com/view'),
         subject: 'wiskunde-a',
         topic: 'kwadratische-vergelijkingen',
-        level: 'vwo-5',
-        schoolYear: '2023-2024',
+        level: createLevel('vwo-5'),
+        schoolYear: createSchoolYear('2023-2024'),
         keywords: ['algebra'],
         summary: 'Test summary',
         summaryEn: 'Test summary in English',
@@ -180,8 +195,8 @@ describe('Interface Consistency', () => {
         data: { files: [] },
         createdAt: '2024-01-15T10:30:00Z',
         expiresAt: '2024-01-16T10:30:00Z',
-        studentId: 'test-student-id',
-        folderId: 'test-folder-id',
+        studentId: createFirestoreStudentId('test-student-id-1234567890'),
+        folderId: createDriveFolderId('test-folder-id'),
         lastModified: '2024-01-15T10:30:00Z'
       };
 
@@ -191,8 +206,8 @@ describe('Interface Consistency', () => {
         data: { files: [] },
         createdAt: new Date('2024-01-15T10:30:00Z'),
         expiresAt: new Date('2024-01-16T10:30:00Z'),
-        studentId: 'test-student-id',
-        folderId: 'test-folder-id',
+        studentId: createFirestoreStudentId('test-student-id-1234567890'),
+        folderId: createDriveFolderId('test-folder-id'),
         lastModified: new Date('2024-01-15T10:30:00Z')
       };
 
@@ -255,10 +270,10 @@ describe('Interface Consistency', () => {
       const auditInput: CreateLoginAuditInput = {
         who: 'teacher:test@example.com',
         action: 'login_ok',
-        ip: '192.168.1.1',
-        userAgent: 'Mozilla/5.0...',
+        ip: createIPAddress('192.168.1.1'),
+        userAgent: createUserAgent('Mozilla/5.0...'),
         metadata: {
-          studentId: 'test-student-id',
+          studentId: createFirestoreStudentId('test-student-id-1234567890'),
           timestamp: '2024-01-15T10:30:00Z'
         }
       };
@@ -305,22 +320,12 @@ describe('Interface Consistency', () => {
   describe('StudentApiParams Interface', () => {
     it('should handle different parameter combinations', () => {
       const params: StudentApiParams = {
+        id: 'test-id',
         idType: 'firestore',
-        limit: 10,
-        offset: 0,
-        subject: 'wiskunde-a',
-        level: 'vwo-5',
-        schoolYear: '2023-2024',
-        sortBy: 'date',
-        sortOrder: 'desc',
-        searchText: 'algebra'
       };
 
       expect(params.idType).toBe('firestore');
-      expect(params.limit).toBe(10);
-      expect(params.offset).toBe(0);
-      expect(params.sortBy).toBe('date');
-      expect(params.sortOrder).toBe('desc');
+      expect(params.id).toBe('test-id');
     });
   });
 });

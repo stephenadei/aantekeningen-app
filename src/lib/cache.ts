@@ -1,5 +1,3 @@
-import { db } from './firebase-admin';
-import { DocumentSnapshot, DocumentData } from 'firebase-admin/firestore';
 import { datalakeService } from './datalake-simple';
 import { datalakeMetadataService } from './datalake-metadata';
 import { getStudent } from './firestore';
@@ -22,34 +20,34 @@ const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
 // File metadata schema for optimized queries
 // FileMetadata interface is now imported from ./interfaces
 
+// In-memory cache (replaces Firestore cache)
+const memoryCacheMap = new Map<string, { data: Record<string, unknown>; expiresAt: number }>();
+
 /**
- * Get cached data from Firestore
+ * Get cached data from memory cache
  */
 export async function getCachedData(
   cacheKey: string
 ): Promise<Record<string, unknown> | null> {
   try {
-    const doc = await db.collection('driveCache').doc(cacheKey).get();
+    const cached = memoryCacheMap.get(cacheKey);
     
-    if (!doc.exists) {
+    if (!cached) {
       console.log(`Cache miss: ${cacheKey}`);
       return null;
     }
 
-    const cacheData = doc.data() as DriveCache;
-    const now = new Date();
-    const expiresAt = new Date(cacheData.expiresAt);
+    const now = Date.now();
 
     // Check if cache is expired
-    if (now > expiresAt) {
+    if (now > cached.expiresAt) {
       console.log(`Cache expired: ${cacheKey}`);
-      // Delete expired cache entry
-      await db.collection('driveCache').doc(cacheKey).delete();
+      memoryCacheMap.delete(cacheKey);
       return null;
     }
 
     console.log(`Cache hit: ${cacheKey}`);
-    return cacheData.data;
+    return cached.data;
   } catch (error) {
     console.error(`Error getting cache for ${cacheKey}:`, error);
     return null;
@@ -57,7 +55,7 @@ export async function getCachedData(
 }
 
 /**
- * Set cached data in Firestore
+ * Set cached data in memory cache
  */
 export async function setCachedData(
   cacheKey: string,
@@ -69,21 +67,14 @@ export async function setCachedData(
   lastModified?: Date
 ): Promise<void> {
   try {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + (ttlHours * 60 * 60 * 1000));
+    const now = Date.now();
+    const expiresAt = now + (ttlHours * 60 * 60 * 1000);
 
-    const cacheEntry: DriveCache = {
-      id: cacheKey,
-      type,
+    memoryCacheMap.set(cacheKey, {
       data,
-      createdAt: now.toISOString(),
-      expiresAt: expiresAt.toISOString(),
-      studentId: studentId ? createFirestoreStudentId(studentId) : undefined,
-      folderId: folderId ? createDriveFolderId(folderId) : undefined,
-      lastModified: lastModified ? lastModified.toISOString() : undefined,
-    };
-
-    await db.collection('driveCache').doc(cacheKey).set(cacheEntry);
+      expiresAt
+    });
+    
     console.log(`Cache set: ${cacheKey} (expires in ${ttlHours}h)`);
   } catch (error) {
     console.error(`Error setting cache for ${cacheKey}:`, error);
@@ -157,47 +148,9 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
       }
     }
 
-    // Fallback to Firestore
-    if (!db) {
-      console.error('❌ Firestore database not initialized');
-      return [];
-    }
-    
-    // Try the full query first, fall back to simple query if index is still building
-    let snapshot: DocumentSnapshot<DocumentData>[];
-    try {
-      const querySnapshot = await db.collection('fileMetadata')
-        .where('studentId', '==', studentId)
-        .orderBy('modifiedTime', 'desc')
-        .get();
-      snapshot = querySnapshot.docs;
-    } catch (error) {
-      const firebaseError = error as { code?: number };
-      if (firebaseError.code === 9) {
-        console.log('🔄 Index still building, using simple query...');
-        // Fall back to simple query without orderBy
-        const querySnapshot = await db.collection('fileMetadata')
-          .where('studentId', '==', studentId)
-          .get();
-        
-        // Sort manually in JavaScript
-        const docs = querySnapshot.docs.sort((a, b) => {
-          const aTime = a.data().modifiedTime?.toDate?.() || new Date(0);
-          const bTime = b.data().modifiedTime?.toDate?.() || new Date(0);
-          return bTime.getTime() - aTime.getTime();
-        });
-        
-        snapshot = docs;
-      } else {
-        throw error;
-      }
-    }
-
-    const docs = snapshot;
-    return docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as FileMetadata));
+    // No fallback to Firestore - datalake is the only source now
+    console.log(`⚠️ No metadata found in datalake for ${studentName || studentId}`);
+    return [];
   } catch (error) {
     console.error(`Error getting file metadata for student ${studentId}:`, error);
     return [];
@@ -230,27 +183,8 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
     console.warn(`⚠️ Failed to write ${datalakeFailed} file metadata entries to datalake`);
   }
 
-  // Also write to Firestore as fallback/backup
-  if (db) {
-    try {
-      const batch = db.batch();
-      
-      for (const file of files) {
-        const docRef = db.collection('fileMetadata').doc(file.id);
-        batch.set(docRef, {
-          ...file,
-          aiAnalyzedAt: file.aiAnalyzedAt || null, // Convert undefined to null
-          updatedAt: new Date().toISOString(),
-        });
-      }
-
-      await batch.commit();
-      console.log(`✅ Also updated ${files.length} file metadata entries in Firestore (backup)`);
-    } catch (error) {
-      console.error('Error setting file metadata in Firestore:', error);
-      // Don't throw - datalake is primary
-    }
-  }
+  // Firestore backup removed - datalake is now the only source
+  // If you need backup, consider implementing a separate backup service
 }
 
 /**
@@ -258,57 +192,21 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
  */
 export async function invalidateCache(pattern: string): Promise<void> {
   try {
-    // Invalidate drive cache
-    const driveSnapshot = await db.collection('driveCache')
-      .where('id', '>=', pattern)
-      .where('id', '<=', pattern + '\uf8ff')
-      .get();
-
-    const driveBatch = db.batch();
-    driveSnapshot.docs.forEach(doc => {
-      driveBatch.delete(doc.ref);
-    });
-
-    if (driveSnapshot.docs.length > 0) {
-      await driveBatch.commit();
-      console.log(`Invalidated ${driveSnapshot.docs.length} drive cache entries matching ${pattern}`);
-    }
-
-    // Invalidate file metadata cache if pattern matches
-    if (pattern === 'ai-analysis' || pattern.startsWith('student-')) {
-      const fileMetadataSnapshot = await db.collection('fileMetadata')
-        .get();
-
-      const metadataBatch = db.batch();
-      let invalidatedCount = 0;
-
-      fileMetadataSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        
-        // For 'ai-analysis' pattern, invalidate all files
-        if (pattern === 'ai-analysis') {
-          metadataBatch.update(doc.ref, {
-            aiAnalyzedAt: null,
-            updatedAt: new Date().toISOString(),
-          });
-          invalidatedCount++;
-        }
-        // For 'student-X' pattern, invalidate files for that student
-        else if (pattern.startsWith('student-') && data.studentId === pattern.replace('student-', '')) {
-          metadataBatch.update(doc.ref, {
-            aiAnalyzedAt: null,
-            updatedAt: new Date().toISOString(),
-          });
-          invalidatedCount++;
-        }
-      });
-
-      if (invalidatedCount > 0) {
-        await metadataBatch.commit();
-        console.log(`Invalidated AI analysis for ${invalidatedCount} file metadata entries`);
+    // Invalidate memory cache entries matching pattern
+    let invalidatedCount = 0;
+    for (const [key] of memoryCacheMap.entries()) {
+      if (key.includes(pattern) || key.startsWith(pattern)) {
+        memoryCacheMap.delete(key);
+        invalidatedCount++;
       }
     }
-
+    
+    if (invalidatedCount > 0) {
+      console.log(`Invalidated ${invalidatedCount} cache entries matching ${pattern}`);
+    }
+    
+    // Note: File metadata invalidation is handled by datalake metadata service
+    // No Firestore invalidation needed anymore
   } catch (error) {
     console.error(`Error invalidating cache for pattern ${pattern}:`, error);
   }
@@ -319,24 +217,21 @@ export async function invalidateCache(pattern: string): Promise<void> {
  */
 export async function cleanupExpiredCache(): Promise<void> {
   try {
-    const now = new Date().toISOString();
-    const snapshot = await db.collection('driveCache')
-      .where('expiresAt', '<', now)
-      .limit(100) // Process in batches
-      .get();
-
-    if (snapshot.empty) {
-      console.log('No expired cache entries found');
-      return;
+    const now = Date.now();
+    let cleanedCount = 0;
+    
+    for (const [key, value] of memoryCacheMap.entries()) {
+      if (now > value.expiresAt) {
+        memoryCacheMap.delete(key);
+        cleanedCount++;
+      }
     }
-
-    const batch = db.batch();
-    snapshot.docs.forEach(doc => {
-      batch.delete(doc.ref);
-    });
-
-    await batch.commit();
-    console.log(`Cleaned up ${snapshot.docs.length} expired cache entries`);
+    
+    if (cleanedCount > 0) {
+      console.log(`Cleaned up ${cleanedCount} expired cache entries`);
+    } else {
+      console.log('No expired cache entries found');
+    }
   } catch (error) {
     console.error('Error cleaning up expired cache:', error);
   }
@@ -351,20 +246,26 @@ export async function getCacheStats(): Promise<{
   byType: Record<string, number>;
 }> {
   try {
-    const [allSnapshot, expiredSnapshot] = await Promise.all([
-      db.collection('driveCache').get(),
-      db.collection('driveCache').where('expiresAt', '<', new Date().toISOString()).get()
-    ]);
-
+    const now = Date.now();
+    let expiredCount = 0;
     const byType: Record<string, number> = {};
-    allSnapshot.docs.forEach(doc => {
-      const data = doc.data() as DriveCache;
-      byType[data.type] = (byType[data.type] || 0) + 1;
-    });
+    
+    for (const [key, value] of memoryCacheMap.entries()) {
+      // Try to infer type from key
+      const type = key.includes('files') ? 'files' : 
+                   key.includes('metadata') ? 'metadata' : 
+                   key.includes('students') ? 'students' : 
+                   'fileMetadata';
+      byType[type] = (byType[type] || 0) + 1;
+      
+      if (now > value.expiresAt) {
+        expiredCount++;
+      }
+    }
 
     return {
-      totalEntries: allSnapshot.docs.length,
-      expiredEntries: expiredSnapshot.docs.length,
+      totalEntries: memoryCacheMap.size,
+      expiredEntries: expiredCount,
       byType,
     };
   } catch (error) {
@@ -379,26 +280,50 @@ export async function getCacheStats(): Promise<{
 
 /**
  * Check if file metadata is fresh (less than specified hours old)
+ * Checks datalake metadata instead of Firestore
  */
 export async function isFileMetadataFresh(
   studentId: string, 
   maxAgeHours: number = 6
 ): Promise<boolean> {
   try {
-    const snapshot = await db.collection('fileMetadata')
-      .where('studentId', '==', studentId)
-      .orderBy('updatedAt', 'desc')
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
+    // Get student name from studentId (could be path or Firestore ID)
+    let studentPath: string | null = null;
+    let studentName: string | undefined;
+    
+    if (studentId.includes('/')) {
+      studentPath = studentId;
+      const pathParts = studentId.split('/');
+      studentName = pathParts[pathParts.length - 2];
+    } else {
+      const studentResult = await getStudent(studentId as any);
+      if (isOk(studentResult)) {
+        studentName = studentResult.data.displayName;
+        studentPath = await datalakeService.getStudentPath(studentName);
+      }
+    }
+    
+    if (!studentPath) {
       return false;
     }
-
-    const latestUpdate = new Date(snapshot.docs[0].data().updatedAt);
+    
+    // Get metadata from datalake and check most recent update
+    const metadata = await datalakeMetadataService.getStudentFileMetadata(studentPath);
+    if (metadata.length === 0) {
+      return false;
+    }
+    
+    // Find most recent update
+    const mostRecent = metadata.reduce((latest, file) => {
+      const fileTime = new Date(file.updatedAt || file.modifiedTime).getTime();
+      const latestTime = new Date(latest.updatedAt || latest.modifiedTime).getTime();
+      return fileTime > latestTime ? file : latest;
+    });
+    
+    const latestUpdate = new Date(mostRecent.updatedAt || mostRecent.modifiedTime);
     const now = new Date();
     const ageHours = (now.getTime() - latestUpdate.getTime()) / (1000 * 60 * 60);
-
+    
     return ageHours < maxAgeHours;
   } catch (error) {
     console.error(`Error checking file metadata freshness for ${studentId}:`, error);

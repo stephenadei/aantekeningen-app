@@ -1,24 +1,18 @@
 import { NextResponse } from 'next/server';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { backgroundSyncService } from '@/lib/background-sync';
 
 export async function GET() {
   try {
     console.log('🔄 Starting metadata preload via GET...');
     
-    const result = await googleDriveService.preloadMetadata();
+    // Use background sync service to sync all students
+    await backgroundSyncService.runFullSync();
     
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: result.message,
-        data: result.data
-      });
-    } else {
-      return NextResponse.json({
-        success: false,
-        message: result.message
-      }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: true,
+      message: 'Metadata preload started successfully',
+      data: { status: 'running' }
+    });
   } catch (error) {
     console.error('❌ Error in metadata preload endpoint:', error);
     return NextResponse.json({
@@ -32,20 +26,14 @@ export async function POST() {
   try {
     console.log('🔄 Starting metadata preload...');
     
-    const result = await googleDriveService.preloadMetadata();
+    // Use background sync service to sync all students
+    await backgroundSyncService.runFullSync();
     
-    if (result.success) {
-      return NextResponse.json({
-        success: true,
-        message: result.message,
-        data: result.data
-      });
-    } else {
-      return NextResponse.json({
-        success: false,
-        message: result.message
-      }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: true,
+      message: 'Metadata preload started successfully',
+      data: { status: 'running' }
+    });
   } catch (error) {
     console.error('❌ Error in metadata preload endpoint:', error);
     return NextResponse.json({

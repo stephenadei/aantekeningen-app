@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } from '@/lib/firebase-auth';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { invalidateCache } from '@/lib/cache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,20 +10,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Clear the cache
-    const result = googleDriveService.clearCache();
+    // Clear all cache entries
+    await invalidateCache('');
     
-    if (result.success) {
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Cache cleared successfully' 
-      });
-    } else {
-      return NextResponse.json({ 
-        success: false, 
-        message: result.message 
-      }, { status: 500 });
-    }
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Cache cleared successfully' 
+    });
 
   } catch (error) {
     console.error('Error clearing cache:', error);

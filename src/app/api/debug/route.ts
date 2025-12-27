@@ -1,41 +1,35 @@
 import { NextResponse } from 'next/server';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { datalakeService } from '@/lib/datalake-simple';
 
 export async function GET() {
   try {
-    console.log('🔍 Debug endpoint called - checking Google Drive API status...');
+    console.log('🔍 Debug endpoint called - checking Datalake status...');
 
     // Check environment variables
     const envCheck = {
-      GOOGLE_CLIENT_ID: !!process.env.GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET: !!process.env.GOOGLE_CLIENT_SECRET,
-      GOOGLE_REDIRECT_URI: !!process.env.GOOGLE_REDIRECT_URI,
-      GOOGLE_REFRESH_TOKEN: !!process.env.GOOGLE_REFRESH_TOKEN,
+      MINIO_ENDPOINT: !!process.env.MINIO_ENDPOINT,
+      MINIO_PORT: !!process.env.MINIO_PORT,
+      MINIO_ACCESS_KEY: !!process.env.MINIO_ACCESS_KEY,
+      MINIO_SECRET_KEY: !!process.env.MINIO_SECRET_KEY,
     };
 
     console.log('📋 Environment variables status:', envCheck);
 
-    // Try to initialize and test Google Drive API
+    // Try to access datalake
     let apiStatus = 'unknown';
     let errorMessage = null;
     let studentCount = 0;
 
     try {
-      // Test if we can access the Google Drive API
-      const testResult = await googleDriveService.testDriveAccess();
-      if (testResult.success) {
-        studentCount = testResult.folderCount || 0;
-        apiStatus = 'working';
-        console.log('✅ Google Drive API is working, found', studentCount, 'students');
-      } else {
-        apiStatus = 'error';
-        errorMessage = testResult.message;
-        console.error('❌ Google Drive API error:', errorMessage);
-      }
+      // Test if we can access the datalake
+      const students = await datalakeService.getAllStudentFolders();
+      studentCount = students.length;
+      apiStatus = 'working';
+      console.log('✅ Datalake is working, found', studentCount, 'students');
     } catch (error) {
       apiStatus = 'error';
       errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('❌ Google Drive API error:', errorMessage);
+      console.error('❌ Datalake error:', errorMessage);
     }
 
     return NextResponse.json({

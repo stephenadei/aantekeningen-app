@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pdf2pic from 'pdf2pic';
-import { googleDriveService } from '@/lib/google-drive-simple';
+import { datalakeService } from '@/lib/datalake-simple';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
@@ -53,37 +53,51 @@ export async function GET(
       }
     }
 
-    // Get file info from Google Drive to verify it's a PDF
-    const driveFileId = fileId.replace('drive-file-', '');
-    const fileInfo = await googleDriveService.getFileInfo(driveFileId);
+    // Get file info from datalake
+    // fileId can be either a datalake path or a legacy Google Drive ID
+    let filePath: string;
+    let downloadUrl: string;
     
-    if (!fileInfo.success || !fileInfo.data) {
-      console.log('❌ File not found or access denied:', fileId);
+    if (fileId.includes('/')) {
+      // It's a datalake path
+      filePath = fileId;
+      const fileInfo = await datalakeService.getFileInfo(filePath);
+      if (!fileInfo.success || !fileInfo.data) {
+        console.log('❌ File not found in datalake:', fileId);
+        return NextResponse.json(
+          { error: 'File not found in datalake' },
+          { status: 404 }
+        );
+      }
+      
+      // Check if file is a PDF
+      if (!fileInfo.data.mimeType || !fileInfo.data.mimeType.includes('pdf')) {
+        console.log('❌ File is not a PDF:', fileInfo.data.mimeType);
+        return NextResponse.json(
+          { error: 'File is not a PDF' },
+          { status: 400 }
+        );
+      }
+      
+      downloadUrl = typeof fileInfo.data.downloadUrl === 'string' 
+        ? fileInfo.data.downloadUrl 
+        : String(fileInfo.data.downloadUrl);
+    } else {
+      // Legacy Google Drive ID - try to find in datalake by searching
+      console.log('⚠️ Legacy Google Drive ID detected, searching datalake...');
       return NextResponse.json(
-        { error: 'File not found or access denied' },
-        { status: 404 }
-      );
-    }
-
-    const file = fileInfo.data;
-    
-    // Check if file is a PDF
-    if (!file.mimeType || !file.mimeType.includes('pdf')) {
-      console.log('❌ File is not a PDF:', file.mimeType);
-      return NextResponse.json(
-        { error: 'File is not a PDF' },
+        { error: 'Legacy Google Drive IDs are no longer supported. Please use datalake paths.' },
         { status: 400 }
       );
     }
 
-    // Download the PDF file to a temporary location
-    const downloadUrl = `https://drive.google.com/uc?export=download&id=${driveFileId}`;
+    // Download the PDF file from datalake
     const response = await fetch(downloadUrl);
     
     if (!response.ok) {
-      console.log('❌ Failed to download PDF:', response.status);
+      console.log('❌ Failed to download PDF from datalake:', response.status);
       return NextResponse.json(
-        { error: 'Failed to download PDF' },
+        { error: 'Failed to download PDF from datalake' },
         { status: 500 }
       );
     }

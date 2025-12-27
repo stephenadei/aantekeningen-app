@@ -69,7 +69,7 @@ describe('Admin Management API Integration', () => {
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
       // Setup mocks
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockSnapshot = {
@@ -110,7 +110,7 @@ describe('Admin Management API Integration', () => {
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
       // Setup mocks
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockSnapshot = {
@@ -138,7 +138,7 @@ describe('Admin Management API Integration', () => {
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
       // Setup mocks
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockSnapshot = {
@@ -170,7 +170,7 @@ describe('Admin Management API Integration', () => {
     it('should reject unauthorized users', async () => {
       const { verifyFirebaseTokenFromCookie } = await import('@/lib/firebase-auth');
 
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: null, error: 'Unauthorized' });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
 
       const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', {
         method: 'POST',

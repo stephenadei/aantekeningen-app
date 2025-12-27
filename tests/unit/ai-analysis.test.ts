@@ -234,7 +234,7 @@ Format as valid JSON only.`;
     };
 
     it('should handle rate limit errors', () => {
-      const error = { message: 'rate limit exceeded' }; // lowercase
+      const error = new Error('rate limit exceeded'); // lowercase
       const result = handleAIError(error);
       
       expect(result.success).toBe(false);
@@ -242,7 +242,7 @@ Format as valid JSON only.`;
     });
 
     it('should handle quota errors', () => {
-      const error = { message: 'quota exceeded' }; // lowercase
+      const error = new Error('quota exceeded'); // lowercase
       const result = handleAIError(error);
       
       expect(result.success).toBe(false);
@@ -250,7 +250,7 @@ Format as valid JSON only.`;
     });
 
     it('should handle timeout errors', () => {
-      const error = { message: 'Request timeout' };
+      const error = new Error('Request timeout');
       const result = handleAIError(error);
       
       expect(result.success).toBe(false);
@@ -258,7 +258,7 @@ Format as valid JSON only.`;
     });
 
     it('should handle unknown errors', () => {
-      const error = { message: 'Something went wrong' };
+      const error = new Error('Something went wrong');
       const result = handleAIError(error);
       
       expect(result.success).toBe(false);

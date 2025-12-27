@@ -1,5 +1,20 @@
 import { test, expect } from '@playwright/test';
 
+// Extend Window interface for Firebase Auth state
+declare global {
+  interface Window {
+    firebaseAuthState?: {
+      user?: {
+        uid: string;
+        email: string;
+        displayName: string;
+        photoURL: string | null;
+        emailVerified: boolean;
+      };
+    };
+  }
+}
+
 test.describe('Admin Portal E2E', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to admin login page

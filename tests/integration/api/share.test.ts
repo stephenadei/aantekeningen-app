@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { Timestamp } from 'firebase-admin/firestore';
+import { Ok, Err } from '@/lib/types';
 
 // Mock Firebase Admin
 vi.mock('@/lib/firebase-admin', () => {
@@ -52,18 +53,13 @@ vi.mock('@/lib/security', () => ({
 
 describe('Share API Integration', () => {
   const mockStudent = {
-    id: 'student-123',
-    displayName: 'Rachel',
-    driveFolderId: 'drive-folder-123',
-    driveFolderName: 'Rachel Folder',
-    subject: 'Wiskunde',
-    pinHash: 'hashed-pin',
-    pinUpdatedAt: new Date() as unknown as Timestamp,
-    folderConfirmed: true,
-    folderLinkedAt: new Date() as unknown as Timestamp,
-    folderConfirmedAt: new Date() as unknown as Timestamp,
-    createdAt: new Date() as unknown as Timestamp,
-    updatedAt: new Date() as unknown as Timestamp,
+    id: 'student-12345678901234567890' as any,
+    displayName: 'Rachel' as any,
+    driveFolderId: 'drive-folder-123' as any,
+    subject: 'wiskunde-a' as any,
+    pinHash: 'hashed-pin' as any,
+    createdAt: new Date().toISOString(),
+    isActive: true,
   };
 
   beforeEach(() => {
@@ -77,13 +73,13 @@ describe('Share API Integration', () => {
   describe('GET /api/students/[id]/share', () => {
     it('should generate shareable link for student', async () => {
       const { getStudent } = await import('@/lib/firestore');
-      vi.mocked(getStudent).mockResolvedValue(mockStudent);
+      vi.mocked(getStudent).mockResolvedValue(Ok(mockStudent));
 
       const request = new NextRequest('http://localhost:3000/api/students/student-123/share');
 
       try {
-        const { GET } = await import('@/app/api/students/[id]/share/route');
-        const response = await GET(request, { params: Promise.resolve({ id: 'student-123' }) });
+        const { GET } = await import('@/app/api/students/share/[...id]/route');
+        const response = await GET(request, { params: Promise.resolve({ id: ['student-123'] }) });
 
         expect([200, 400, 500]).toContain(response.status);
       } catch (error: unknown) {
@@ -94,12 +90,12 @@ describe('Share API Integration', () => {
 
     it('should handle non-existent student', async () => {
       const { getStudent } = await import('@/lib/firestore');
-      vi.mocked(getStudent).mockResolvedValue(null);
+      vi.mocked(getStudent).mockResolvedValue(Err(new Error('Student not found')));
 
       const request = new NextRequest('http://localhost:3000/api/students/nonexistent/share');
 
-      const { GET } = await import('@/app/api/students/[id]/share/route');
-      const response = await GET(request, { params: Promise.resolve({ id: 'nonexistent' }) });
+      const { GET } = await import('@/app/api/students/share/[...id]/route');
+      const response = await GET(request, { params: Promise.resolve({ id: ['nonexistent'] }) });
 
       expect([400, 404, 500]).toContain(response.status);
     });
@@ -111,8 +107,8 @@ describe('Share API Integration', () => {
       const request = new NextRequest('http://localhost:3000/api/students/student-123/share');
 
       try {
-        const { GET } = await import('@/app/api/students/[id]/share/route');
-        const response = await GET(request, { params: Promise.resolve({ id: 'student-123' }) });
+        const { GET } = await import('@/app/api/students/share/[...id]/route');
+        const response = await GET(request, { params: Promise.resolve({ id: ['student-123'] }) });
 
         expect([500, 400]).toContain(response.status);
       } catch (error: unknown) {
@@ -124,8 +120,8 @@ describe('Share API Integration', () => {
       const request = new NextRequest('http://localhost:3000/api/students/invalid/share');
 
       try {
-        const { GET } = await import('@/app/api/students/[id]/share/route');
-        const response = await GET(request, { params: Promise.resolve({ id: 'invalid' }) });
+        const { GET } = await import('@/app/api/students/share/[...id]/route');
+        const response = await GET(request, { params: Promise.resolve({ id: ['invalid'] }) });
 
         expect([200, 400, 404, 500]).toContain(response.status);
       } catch (error: unknown) {

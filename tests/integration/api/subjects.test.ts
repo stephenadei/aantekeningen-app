@@ -68,6 +68,7 @@ describe('Subjects API Integration', () => {
     uid: 'admin-uid',
     email: 'admin@stephensprivelessen.nl',
     name: 'Admin User',
+    emailVerified: true,
     customClaims: { role: 'admin' }
   };
 
@@ -84,7 +85,7 @@ describe('Subjects API Integration', () => {
       const { db } = await import('@/lib/firebase-admin');
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockSnapshot = {
@@ -99,9 +100,8 @@ describe('Subjects API Integration', () => {
         })
       } as unknown as ReturnType<typeof db.collection>);
 
-      const request = new NextRequest('http://localhost:3000/api/admin/subjects');
       const { GET } = await import('@/app/api/admin/subjects/route');
-      const response = await GET(request);
+      const response = await GET();
       const data = await response.json();
 
       expect([200, 400, 500]).toContain(response.status);
@@ -114,7 +114,7 @@ describe('Subjects API Integration', () => {
       const { db } = await import('@/lib/firebase-admin');
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockRef = {
@@ -143,7 +143,7 @@ describe('Subjects API Integration', () => {
     it('should reject subject without name', async () => {
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const request = new NextRequest('http://localhost:3000/api/admin/subjects', {
@@ -166,7 +166,7 @@ describe('Subjects API Integration', () => {
       const { db } = await import('@/lib/firebase-admin');
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockRef = {
@@ -197,7 +197,7 @@ describe('Subjects API Integration', () => {
       const { db } = await import('@/lib/firebase-admin');
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockRef = {
@@ -251,7 +251,7 @@ describe('Subjects API Integration', () => {
       const { db } = await import('@/lib/firebase-admin');
       const { verifyFirebaseTokenFromCookie, isAuthorizedAdmin } = await import('@/lib/firebase-auth');
 
-      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ user: mockAdminUser, error: null });
+      vi.mocked(verifyFirebaseTokenFromCookie).mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
       vi.mocked(isAuthorizedAdmin).mockReturnValue(true);
 
       const mockRef = {

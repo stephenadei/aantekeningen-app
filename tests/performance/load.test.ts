@@ -394,7 +394,9 @@ describe('Performance Tests', () => {
         const timeoutDuration = endTime - startTime;
         
         expect(timeoutDuration).toBeLessThan(6000);
-        expect(error.message).toBe('Request timeout');
+        if (error instanceof Error) {
+          expect(error.message).toBe('Request timeout');
+        }
       }
     });
   });
@@ -445,7 +447,10 @@ describe('Performance Tests', () => {
       const endTime = Date.now();
       const totalTime = endTime - startTime;
       
-      const avgResponseTime = results.reduce((sum, result: { responseTime: number }) => sum + result.responseTime, 0) / results.length;
+      const avgResponseTime = results.reduce((sum: number, result: unknown) => {
+        const r = result as { responseTime: number };
+        return sum + r.responseTime;
+      }, 0) / results.length;
       
       expect(totalTime).toBeLessThan(3000); // Should complete within 3 seconds
       expect(avgResponseTime).toBeLessThan(200); // Average response time under 200ms

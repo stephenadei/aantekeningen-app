@@ -11,8 +11,10 @@ vi.mock('@/lib/firebase-admin', () => ({
   }
 }));
 
+import type { FirebaseUser } from '@/lib/interfaces';
+
 describe('Firebase Auth Helpers', () => {
-  const mockUser = {
+  const mockUser: FirebaseUser = {
     uid: 'test-uid',
     email: 'teacher@stephensprivelessen.nl',
     name: 'Test Teacher',
@@ -21,11 +23,11 @@ describe('Firebase Auth Helpers', () => {
     customClaims: { role: 'admin' }
   };
 
-  const mockInvalidUser = {
+  const mockInvalidUser: FirebaseUser = {
     uid: 'test-uid',
     email: 'student@gmail.com',
     name: 'Test Student',
-    picture: null,
+    picture: undefined,
     emailVerified: false,
     customClaims: {}
   };
@@ -44,7 +46,7 @@ describe('Firebase Auth Helpers', () => {
     });
 
     it('should reject user without email', () => {
-      const userWithoutEmail = { ...mockUser, email: null };
+      const userWithoutEmail: FirebaseUser = { ...mockUser, email: undefined };
       expect(isAuthorizedAdmin(userWithoutEmail)).toBe(false);
     });
 
@@ -133,25 +135,25 @@ describe('Firebase Auth Helpers', () => {
     });
 
     it('should handle token with missing fields', () => {
-      const partialToken = {
+      const partialToken: Record<string, unknown> = {
         uid: 'test-uid',
         email: 'teacher@stephensprivelessen.nl',
         // Missing other fields
       };
 
-      const user = {
-        uid: partialToken.uid,
-        email: partialToken.email || null,
-        name: partialToken.name || null,
-        picture: partialToken.picture || null,
-        emailVerified: partialToken.email_verified || false,
-        customClaims: partialToken.customClaims as Record<string, unknown> | undefined,
+      const user: FirebaseUser = {
+        uid: partialToken.uid as string,
+        email: (partialToken.email as string) || undefined,
+        name: (partialToken.name as string) || undefined,
+        picture: (partialToken.picture as string) || undefined,
+        emailVerified: (partialToken.email_verified as boolean) || false,
+        customClaims: (partialToken.customClaims as Record<string, unknown>) || undefined,
       };
 
       expect(user.uid).toBe('test-uid');
       expect(user.email).toBe('teacher@stephensprivelessen.nl');
-      expect(user.name).toBe(null);
-      expect(user.picture).toBe(null);
+      expect(user.name).toBeUndefined();
+      expect(user.picture).toBeUndefined();
       expect(user.emailVerified).toBe(false);
       expect(user.customClaims).toBeUndefined();
     });
@@ -177,10 +179,10 @@ describe('Firebase Auth Helpers', () => {
         cookies: {
           get: () => null
         }
-      } as unknown as { cookies: { get: (name: string) => null } };
+      } as unknown as { cookies: { get: (name: string) => { value: string } | null } };
 
-      const cookie = mockRequest.cookies.get('__session')?.value;
-      expect(cookie).toBeUndefined();
+      const cookie = mockRequest.cookies.get('__session');
+      expect(cookie).toBeNull();
     });
   });
 
@@ -236,7 +238,7 @@ describe('Firebase Auth Helpers', () => {
     });
 
     it('should handle null custom claims', () => {
-      const userWithNullClaims = { ...mockUser, customClaims: null };
+      const userWithNullClaims: FirebaseUser = { ...mockUser, customClaims: undefined };
       expect(isAuthorizedAdmin(userWithNullClaims)).toBe(true);
     });
   });

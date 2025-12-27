@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 
 // Get base URL from environment variable or default to localhost
 const BASE_URL = process.env.SMOKE_TEST_URL || 'http://localhost:3000';

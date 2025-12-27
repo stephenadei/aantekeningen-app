@@ -30,9 +30,11 @@ describe('Placeholder API Integration', () => {
 
     it('should handle invalid file IDs gracefully', async () => {
       const request = new NextRequest('http://localhost:3000/api/placeholder/');
+      const { GET } = await import('@/app/api/placeholder/[fileId]/route');
+      const response = await GET(request, { params: Promise.resolve({ fileId: '' }) });
 
       // Should still generate a placeholder
-      expect([200, 404]).toContain(request.status || 200);
+      expect([200, 404]).toContain(response.status);
     });
 
     it('should cache placeholder images', async () => {
