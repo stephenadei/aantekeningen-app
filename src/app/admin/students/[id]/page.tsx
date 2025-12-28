@@ -16,6 +16,7 @@ interface StudentDetail extends Omit<Student, 'lastLoginAt'> {
   fileCount: number;
   lastActivity: string | null;
   lastLoginAt: string | null;
+  phone?: string | null;
 }
 
 export default function StudentDetailPage({ params }: { params: { id: string } }) {

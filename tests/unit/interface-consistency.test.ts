@@ -67,7 +67,7 @@ describe('Interface Consistency', () => {
   describe('FileInfo Interface', () => {
     it('should have all required properties', () => {
       const fileInfo: FileInfo = {
-        id: createDriveFileId('test-file-id'),
+        id: createDriveFileId('notability/Priveles/VO/Student/test-file.pdf'),
         name: createFileName('test-file.pdf'),
         title: createCleanFileName('Test File'),
         url: createDriveUrl('https://example.com/file'),
@@ -95,7 +95,7 @@ describe('Interface Consistency', () => {
 
     it('should allow optional properties to be undefined', () => {
       const minimalFileInfo: FileInfo = {
-        id: createDriveFileId('test-file-id'),
+        id: createDriveFileId('notability/Priveles/VO/Student/test-file.pdf'),
         name: createFileName('test-file.pdf'),
         title: createCleanFileName('Test File'),
         url: createDriveUrl('https://example.com/file'),
@@ -155,9 +155,9 @@ describe('Interface Consistency', () => {
   describe('FileMetadata Interface', () => {
     it('should have all required properties with string timestamps', () => {
       const fileMetadata: FileMetadata = {
-        id: createDriveFileId('test-file-id'),
-        studentId: createFirestoreStudentId('test-student-id-1234567890'),
-        folderId: createDriveFolderId('test-folder-id'),
+        id: createDriveFileId('notability/Priveles/VO/Student/test-file.pdf'),
+        studentId: createFirestoreStudentId('12345678901234567890'),
+        folderId: createDriveFolderId('notability/Priveles/VO/Student'),
         name: createFileName('test-file.pdf'),
         title: createCleanFileName('Test File'),
         modifiedTime: '2024-01-15T10:30:00Z',
@@ -195,8 +195,8 @@ describe('Interface Consistency', () => {
         data: { files: [] },
         createdAt: '2024-01-15T10:30:00Z',
         expiresAt: '2024-01-16T10:30:00Z',
-        studentId: createFirestoreStudentId('test-student-id-1234567890'),
-        folderId: createDriveFolderId('test-folder-id'),
+        studentId: createFirestoreStudentId('12345678901234567890'),
+        folderId: createDriveFolderId('notability/Priveles/VO/Student'),
         lastModified: '2024-01-15T10:30:00Z'
       };
 
@@ -206,8 +206,8 @@ describe('Interface Consistency', () => {
         data: { files: [] },
         createdAt: new Date('2024-01-15T10:30:00Z'),
         expiresAt: new Date('2024-01-16T10:30:00Z'),
-        studentId: createFirestoreStudentId('test-student-id-1234567890'),
-        folderId: createDriveFolderId('test-folder-id'),
+        studentId: createFirestoreStudentId('12345678901234567890'),
+        folderId: createDriveFolderId('notability/Priveles/VO/Student'),
         lastModified: new Date('2024-01-15T10:30:00Z')
       };
 

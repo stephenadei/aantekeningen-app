@@ -39,9 +39,12 @@ vi.mock('@/lib/firebase-admin', () => {
   };
 });
 
+const mockGetAuthSession = vi.fn();
+const mockIsAuthorizedAdmin = vi.fn();
+
 vi.mock('@/lib/auth', () => ({
-  getAuthSession: vi.fn(),
-  isAuthorizedAdmin: vi.fn(),
+  getAuthSession: mockGetAuthSession,
+  isAuthorizedAdmin: mockIsAuthorizedAdmin,
 }));
 
 // Mock NextAuth

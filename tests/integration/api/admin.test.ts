@@ -54,9 +54,14 @@ vi.mock('@/lib/auth', async () => {
 });
 
 // Mock NextAuth
-vi.mock('next-auth', () => ({
-  getServerSession: vi.fn(),
-}));
+vi.mock('next-auth', async () => {
+  const actual = await vi.importActual('next-auth');
+  return {
+    ...actual,
+    getServerSession: vi.fn(),
+    default: vi.fn(),
+  };
+});
 
 describe('Admin Management API Integration', () => {
   const mockAdminUser = {

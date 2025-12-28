@@ -14,17 +14,21 @@ export async function GET(
   { params }: { params: Promise<{ fileId: string; pageNumber: string }> }
 ) {
   let tempPdfPath: string | null = null;
+  let pageNumber = '1';
+  let page = 1;
   
   try {
-    const { fileId, pageNumber } = await params;
+    const resolvedParams = await params;
+    const { fileId } = resolvedParams;
+    pageNumber = resolvedParams.pageNumber;
     const { searchParams } = new URL(request.url);
     const size = (searchParams.get('size') || 'medium') as 'small' | 'medium' | 'large';
-    const page = parseInt(pageNumber) || 1;
+    page = parseInt(pageNumber) || 1;
     
-    console.log('🖼️ Generating PDF thumbnail for fileId:', fileId, 'page:', page, 'size:', size);
+    console.log('🖼️ Generating PDF thumbnail for fileId:', resolvedParams.fileId, 'page:', page, 'size:', size);
 
     // Validate fileId
-    if (!fileId) {
+    if (!resolvedParams.fileId) {
       return NextResponse.json(
         { error: 'File ID is required' },
         { status: 400 }
@@ -40,7 +44,7 @@ export async function GET(
     }
 
     // Check if thumbnail already exists in datalake (with page-specific key)
-    const pageSpecificFileId = `${fileId}_page${page}`;
+    const pageSpecificFileId = `${resolvedParams.fileId}_page${page}`;
     try {
       const existingThumbnailUrl = await datalakeThumbnailService.getThumbnailUrl(pageSpecificFileId, size);
       if (existingThumbnailUrl) {
@@ -56,7 +60,7 @@ export async function GET(
     }
 
     // Validate fileId format (must be a datalake path)
-    if (!fileId.includes('/')) {
+    if (!resolvedParams.fileId.includes('/')) {
       return NextResponse.json(
         { error: 'Invalid file ID format. Expected datalake path.' },
         { status: 400 }
@@ -64,7 +68,7 @@ export async function GET(
     }
 
     // Get file info from datalake
-    const filePath = fileId;
+    const filePath = resolvedParams.fileId;
     const fileInfo = await datalakeService.getFileInfo(filePath);
     if (!fileInfo.success || !fileInfo.data) {
       return NextResponse.json(
@@ -95,7 +99,7 @@ export async function GET(
     }
 
     const pdfBuffer = await response.arrayBuffer();
-    tempPdfPath = path.join('/tmp', `temp_${fileId.replace(/\//g, '_')}_page${page}_${Date.now()}.pdf`);
+    tempPdfPath = path.join('/tmp', `temp_${resolvedParams.fileId.replace(/\//g, '_')}_page${page}_${Date.now()}.pdf`);
     await writeFile(tempPdfPath, Buffer.from(pdfBuffer));
     
     // Configure pdf2pic based on size
@@ -121,7 +125,7 @@ export async function GET(
       const result = await convert(page, { responseType: 'base64' });
       
       if (!result || !result.base64) {
-        console.error(`❌ pdf2pic returned empty result for page ${page} of ${fileId}`);
+        console.error(`❌ pdf2pic returned empty result for page ${page} of ${resolvedParams.fileId}`);
         throw new Error(`Failed to generate thumbnail: pdf2pic returned empty result`);
       }
 
@@ -129,6 +133,7 @@ export async function GET(
       const imageBuffer = Buffer.from(result.base64, 'base64');
       
       // Store thumbnail in datalake with page-specific key
+      const pageSpecificFileId = `${resolvedParams.fileId}_page${page}`;
       try {
         const datalakeUrl = await datalakeThumbnailService.storeThumbnail(pageSpecificFileId, imageBuffer, size);
         console.log('✅ Thumbnail stored in datalake:', datalakeUrl);

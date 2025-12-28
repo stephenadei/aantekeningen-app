@@ -300,3 +300,4 @@ export class ThumbnailGeneratorService {
 // Export singleton instance
 export const thumbnailGeneratorService = new ThumbnailGeneratorService();
 
+

@@ -138,6 +138,7 @@ export default function StudentPinManager({
       // Always use POST if we have a PIN to share, otherwise GET
       const method = includePin && pin ? 'POST' : 'GET';
       const body = includePin && pin ? JSON.stringify({ pin }) : undefined;
+      const endpoint = `/api/admin/students/${studentId}/share-login`;
 
       const response = await fetch(endpoint, {
         method,
@@ -380,7 +381,7 @@ export default function StudentPinManager({
             <Copy className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Kopiëren</span>
           </button>
-          {navigator.share && (
+          {typeof navigator !== 'undefined' && 'share' in navigator && (
             <button
               onClick={handleNativeShare}
               disabled={sharing}
