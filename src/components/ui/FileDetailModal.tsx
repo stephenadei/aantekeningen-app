@@ -278,7 +278,7 @@ export default function FileDetailModal({ file, studentId, isOpen, onClose }: Fi
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                     <BookOpen className="h-5 w-5" />
-                    Preview - Eerste 2 Pagina's
+                    Preview - Eerste 2 Pagina&apos;s
                   </h3>
                   <button
                     onClick={() => setShowConceptsPanel(!showConceptsPanel)}
