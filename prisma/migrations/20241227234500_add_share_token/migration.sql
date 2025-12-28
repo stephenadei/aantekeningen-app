@@ -5,3 +5,4 @@ ALTER TABLE "students" ADD COLUMN "shareToken" TEXT;
 CREATE UNIQUE INDEX "students_shareToken_key" ON "students"("shareToken");
 
 
+

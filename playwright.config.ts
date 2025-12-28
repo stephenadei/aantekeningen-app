@@ -19,7 +19,7 @@ export default defineConfig({
     timeout: 10 * 1000, // 10 seconds for assertions
   },
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3001',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -73,9 +73,11 @@ export default defineConfig({
     ]),
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
+    command: 'PORT=3001 npm run dev',
+    url: process.env.PLAYWRIGHT_TEST_BASE_URL || 'http://localhost:3001',
     reuseExistingServer: !process.env.CI,
-    timeout: 60 * 1000, // Reduced timeout
+    timeout: 120 * 1000, // Increased timeout for server startup
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 });

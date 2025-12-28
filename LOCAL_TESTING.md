@@ -66,3 +66,4 @@ chmod +x .git/hooks/pre-push
 - Check of je dezelfde test command gebruikt
 - Check CI logs voor specifieke errors
 
+
