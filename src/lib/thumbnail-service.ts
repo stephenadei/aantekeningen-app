@@ -8,12 +8,14 @@ import type { ThumbnailOptions } from './interfaces';
 // Import Datalake Thumbnail service only on server-side
 let datalakeThumbnailService: { getThumbnailUrl: (fileId: string, size?: 'small' | 'medium' | 'large') => Promise<string | null> } | null = null;
 if (typeof window === 'undefined') {
-  try {
-    const { datalakeThumbnailService: service } = require('./datalake-thumbnails');
-    datalakeThumbnailService = service;
-  } catch (error) {
-    console.log('⚠️ Datalake Thumbnail Service not available:', error);
-  }
+  // Dynamically import to avoid client-side bundling
+  import('./datalake-thumbnails')
+    .then((module) => {
+      datalakeThumbnailService = module.datalakeThumbnailService;
+    })
+    .catch((error) => {
+      console.log('⚠️ Datalake Thumbnail Service not available:', error);
+    });
 }
 
 export class ThumbnailService {
