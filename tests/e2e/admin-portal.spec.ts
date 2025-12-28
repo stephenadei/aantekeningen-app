@@ -35,7 +35,8 @@ test.describe('Admin Portal E2E', () => {
     await expect(page.locator('button:has-text("Inloggen")')).toBeVisible();
     
     // Check domain restriction notice (text is "Stephen's Privelessen", not "stephensprivelessen.nl")
-    await expect(page.locator('text=Stephen\'s Privelessen')).toBeVisible();
+    // Use a more flexible selector that handles the apostrophe
+    await expect(page.locator('text=/Stephen.*Privelessen/')).toBeVisible();
   });
 
   test('should redirect to login when accessing admin without authentication', async ({ page }) => {

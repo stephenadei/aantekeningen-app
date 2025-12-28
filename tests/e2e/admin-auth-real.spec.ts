@@ -19,39 +19,17 @@ test.describe('Admin Portal Real Authentication E2E', () => {
     await expect(page).toHaveTitle(/Aantekeningen - Stephen's Privelessen/);
     await expect(page.locator('h2')).toContainText('Docentenportaal');
     
-    // Click the Google sign-in button
-    await page.click('button:has-text("Inloggen met Google")');
+    // Click the login button (credentials-based, not Google OAuth)
+    // Note: This test needs to be updated for credentials-based auth
+    await page.fill('input[type="email"]', process.env.REAL_AUTH_EMAIL || '');
+    await page.fill('input[type="password"]', process.env.REAL_AUTH_PASSWORD || '');
+    await page.click('button:has-text("Inloggen")');
     
-    // Wait for Google OAuth popup or redirect
-    // This will open Google's OAuth flow
+    // Wait for form submission and redirect
     await page.waitForLoadState('networkidle');
     
-    // If redirected to Google OAuth, fill in credentials
-    if (page.url().includes('accounts.google.com')) {
-      // Fill in email (requires REAL_AUTH_EMAIL env var)
-      const email = process.env.REAL_AUTH_EMAIL;
-      if (!email) {
-        throw new Error('REAL_AUTH_EMAIL environment variable is required for real auth testing');
-      }
-      
-      await page.fill('input[type="email"]', email);
-      await page.click('#identifierNext');
-      
-      // Wait for password field
-      await page.waitForSelector('input[type="password"]', { timeout: 10000 });
-      
-      // Fill in password (requires REAL_AUTH_PASSWORD env var)
-      const password = process.env.REAL_AUTH_PASSWORD;
-      if (!password) {
-        throw new Error('REAL_AUTH_PASSWORD environment variable is required for real auth testing');
-      }
-      
-      await page.fill('input[type="password"]', password);
-      await page.click('#passwordNext');
-      
-      // Wait for redirect back to our app
-      await page.waitForURL(/\/admin/, { timeout: 30000 });
-    }
+    // Wait for redirect to admin dashboard after successful login
+    await page.waitForURL(/\/admin/, { timeout: 30000 });
     
     // Verify we're authenticated and on admin dashboard
     await expect(page).toHaveURL(/\/admin/);
