@@ -75,6 +75,9 @@ describe('Admin Management API Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock responses for auth
+    mockGetAuthSession.mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
+    mockIsAuthorizedAdmin.mockReturnValue(true);
   });
 
   afterEach(() => {
