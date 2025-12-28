@@ -79,7 +79,7 @@ describe('Interface Consistency', () => {
         subject: 'wiskunde-a',
         topicGroup: 'algebra-vergelijkingen',
         topic: 'kwadratische-vergelijkingen',
-        level: createLevel('vwo-5'),
+        level: createLevel('vo-vwo-bovenbouw'),
         schoolYear: createSchoolYear('2023-2024'),
         keywords: ['algebra', 'vergelijkingen'],
         summary: 'Test summary',
@@ -88,7 +88,7 @@ describe('Interface Consistency', () => {
         keywordsEn: ['algebra', 'equations']
       };
 
-      expect(fileInfo.id).toBe('test-file-id');
+      expect(fileInfo.id).toBe('notability/Priveles/VO/Student/test-file.pdf');
       expect(fileInfo.name).toBe('test-file.pdf');
       expect(fileInfo.topicGroup).toBe('algebra-vergelijkingen');
     });
@@ -167,7 +167,7 @@ describe('Interface Consistency', () => {
         viewUrl: createViewUrl('https://example.com/view'),
         subject: 'wiskunde-a',
         topic: 'kwadratische-vergelijkingen',
-        level: createLevel('vwo-5'),
+        level: createLevel('vo-vwo-bovenbouw'),
         schoolYear: createSchoolYear('2023-2024'),
         keywords: ['algebra'],
         summary: 'Test summary',
@@ -273,7 +273,7 @@ describe('Interface Consistency', () => {
         ip: createIPAddress('192.168.1.1'),
         userAgent: createUserAgent('Mozilla/5.0...'),
         metadata: {
-          studentId: createFirestoreStudentId('test-student-id-1234567890'),
+          studentId: createFirestoreStudentId('12345678901234567890'),
           timestamp: '2024-01-15T10:30:00Z'
         }
       };
