@@ -205,20 +205,25 @@ test.describe('Student Portal E2E', () => {
     // Check if files are available
     const hasFiles = await page.locator('[role="list"][aria-label*="files"]').isVisible();
     if (hasFiles) {
-      // Click on first file link if available
-      const fileLink = page.locator('[role="listitem"]').first();
-      const isVisible = await fileLink.isVisible();
+      // Click on first file card/thumbnail if available
+      const fileCard = page.locator('[role="listitem"]').first();
+      const isVisible = await fileCard.isVisible();
       
       if (isVisible) {
         // Click the file to open modal
-        await fileLink.click();
+        await fileCard.click();
         
-        // Wait for modal to open (look for modal content or iframe)
-        await page.waitForSelector('iframe, [role="dialog"], .modal', { timeout: 5000 });
+        // Wait for modal to open - FileDetailModal shows file details with preview
+        // Look for modal content (header with file title, preview section, etc.)
+        await page.waitForSelector('h2:has-text("Preview"), button:has-text("Downloaden"), button:has-text("Delen")', { timeout: 10000 });
         
-        // Check that modal opened (iframe should be visible)
-        const iframe = page.locator('iframe');
-        await expect(iframe).toBeVisible();
+        // Check that modal opened - verify modal content is visible
+        const modalHeader = page.locator('h2').first();
+        await expect(modalHeader).toBeVisible();
+        
+        // Check for action buttons
+        const downloadButton = page.locator('button:has-text("Downloaden")');
+        await expect(downloadButton).toBeVisible();
       }
     } else {
       // Skip test if no files available

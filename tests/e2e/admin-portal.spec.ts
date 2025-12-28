@@ -28,8 +28,11 @@ test.describe('Admin Portal E2E', () => {
     // Check main heading
     await expect(page.locator('h2')).toContainText('Docentenportaal');
     
-    // Check Google sign-in button
-    await expect(page.locator('button:has-text("Inloggen met Google")')).toBeVisible();
+    // Check login form (credentials-based, not Google OAuth)
+    await expect(page.locator('form')).toBeVisible();
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.locator('button:has-text("Inloggen")')).toBeVisible();
     
     // Check domain restriction notice
     await expect(page.locator('text=stephensprivelessen.nl')).toBeVisible();
