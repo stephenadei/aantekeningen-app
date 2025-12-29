@@ -62,14 +62,16 @@ class DatalakeService {
       // Create separate client for presigned URLs with public endpoint
       // This ensures presigned URLs have correct signature for public domain
       if (endpoint !== 'localhost' && !endpoint.includes('127.0.0.1')) {
+        // Extract hostname from endpoint (remove protocol if present)
+        const endpointHostname = endpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
         const protocol = useSSL ? 'https' : 'http';
         const publicPort = port === 80 || port === 443 ? '' : `:${port}`;
-        this.presignedEndpoint = `${protocol}://${endpoint}${publicPort}`;
+        this.presignedEndpoint = `${protocol}://${endpointHostname}${publicPort}`;
         
         // Create presigned client pointing to public endpoint
         // But still connect to localhost internally (nginx will proxy)
         this.presignedClient = new MinIO.Client({
-          endPoint: endpoint,
+          endPoint: endpointHostname,
           port: port,
           useSSL: useSSL,
           accessKey: accessKey,
