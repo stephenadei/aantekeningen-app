@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
           // Map fields
           if (metadata.subject) updateData.subject = metadata.subject;
-          if (metadata.topicGroup) updateData.topicGroup = metadata.topicGroup;
+          if ('topicGroup' in metadata && metadata.topicGroup) updateData.topicGroup = metadata.topicGroup;
           if (metadata.topic) updateData.topic = metadata.topic;
           if (metadata.level) updateData.level = metadata.level;
           if (metadata.schoolYear) updateData.schoolYear = metadata.schoolYear;

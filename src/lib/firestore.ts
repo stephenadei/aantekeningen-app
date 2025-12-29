@@ -8,6 +8,7 @@ import {
   LoginAuditId,
   DriveFileId,
   TeacherEmail,
+  TeacherName,
   StudentName,
   isFirestoreStudentId, 
   isDriveFolderId,
@@ -240,15 +241,25 @@ export const getAllStudents = async (): Promise<Result<Student[]>> => {
   }
 };
 
-export const createStudent = async (input: CreateStudentInput, studentId?: string): Promise<Result<FirestoreStudentId>> => {
+export const createStudent = async (input: CreateStudentInput & { pinHash?: string }, studentId?: string): Promise<Result<FirestoreStudentId>> => {
   try {
-    const data = {
+    const data: {
+      name: string;
+      email?: string | null;
+      datalakePath?: string | null;
+      pinHash?: string | null;
+      subject?: string | null;
+    } = {
       name: input.displayName,
       email: input.email,
       datalakePath: input.driveFolderId,
-      pinHash: input.pinHash,
       subject: input.subject?.toString()
     };
+    
+    // Only add pinHash if provided (should be set by caller)
+    if ('pinHash' in input && input.pinHash) {
+      data.pinHash = input.pinHash;
+    }
 
     if (studentId) {
       const student = await prisma.student.create({
@@ -269,25 +280,36 @@ export const createStudent = async (input: CreateStudentInput, studentId?: strin
   }
 };
 
-export const updateStudent = async (id: FirestoreStudentId, data: Partial<CreateStudentInput>): Promise<Result<void>> => {
+export const updateStudent = async (id: FirestoreStudentId, data: Partial<CreateStudentInput> & { pinHash?: string }): Promise<Result<void>> => {
   try {
-    const updateData: any = {
+    const updateData: {
+      name?: string;
+      email?: string | null;
+      datalakePath?: string | null;
+      subject?: string | null;
+      pinHash?: string | null;
+    } = {
       name: data.displayName,
       email: data.email,
       datalakePath: data.driveFolderId,
       subject: data.subject?.toString()
     };
     
-    if (data.pinHash) {
+    if ('pinHash' in data && data.pinHash) {
         updateData.pinHash = data.pinHash;
     }
 
     // Remove undefined fields
-    Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
+    const cleanedData: Record<string, unknown> = {};
+    Object.entries(updateData).forEach(([key, value]) => {
+      if (value !== undefined) {
+        cleanedData[key] = value;
+      }
+    });
 
     await prisma.student.update({
       where: { id },
-      data: updateData
+      data: cleanedData
     });
     return Ok(undefined);
   } catch (error) {

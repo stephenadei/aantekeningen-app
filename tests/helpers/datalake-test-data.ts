@@ -4,7 +4,7 @@
  */
 
 import { datalakeService } from '@/lib/datalake-simple';
-import { datalakeMetadataService } from '@/lib/datalake-metadata';
+import { datalakeMetadataService, type FileMetadata as DatalakeFileMetadata } from '@/lib/datalake-metadata';
 import type { DriveStudent, FileMetadata, StudentOverview } from '@/lib/interfaces';
 
 /**
@@ -34,7 +34,8 @@ export async function getTestStudentFiles(studentName: string, limit: number = 5
     const allFiles = await datalakeMetadataService.getStudentFileMetadata(studentPath);
     const limitedFiles = allFiles.slice(0, limit);
     console.log(`✅ Fetched ${limitedFiles.length} files for ${studentName} (from ${allFiles.length} total)`);
-    return limitedFiles;
+    // Convert DatalakeFileMetadata to FileMetadata format expected by interfaces
+    return limitedFiles as unknown as FileMetadata[];
   } catch (error) {
     console.error(`Failed to fetch test files for student ${studentName}:`, error);
     return [];

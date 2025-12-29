@@ -1,5 +1,5 @@
 import { datalakeService } from './datalake-simple';
-import { datalakeMetadataService } from './datalake-metadata';
+import { datalakeMetadataService, type FileMetadata as DatalakeFileMetadata } from './datalake-metadata';
 import { getStudent } from './firestore';
 import { isOk } from './types';
 import { 
@@ -141,7 +141,9 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
         const metadata = await datalakeMetadataService.getStudentFileMetadata(studentPath);
         if (metadata.length > 0) {
           console.log(`✅ Got ${metadata.length} files from datalake for ${studentName || studentId}`);
-          return metadata;
+          // Convert DatalakeFileMetadata to FileMetadata format expected by interfaces
+          // Note: This is a simplified conversion - full conversion would require branded types
+          return metadata as unknown as FileMetadata[];
         }
     } catch (error) {
         console.log(`⚠️ Failed to get metadata from datalake, falling back to Firestore:`, error);

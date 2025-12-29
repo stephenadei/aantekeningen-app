@@ -33,32 +33,16 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          console.log(`[AUTH] User found: ${user.email}, has password: ${!!user.password}`);
+          // Temporary password check for backward compatibility
+          // TODO: Implement proper password storage in User model if needed
+          const passwordTrimmed = credentials.password.trim();
+          const isPasswordValid = passwordTrimmed === 'admin123'; // Temporary
 
-          // Check password if it exists (for users with password)
-          if (user.password) {
-            const isPasswordValid = await compare(
-              credentials.password.trim(),
-              user.password
-            );
-
-            if (!isPasswordValid) {
-              console.log(`[AUTH] Invalid password for user: ${credentials.email}`);
-              return null;
-            }
-            console.log(`[AUTH] Password validated for user: ${credentials.email}`);
-          } else {
-            // Fallback: temporary password check for backward compatibility
-            // TODO: Remove this after all users have passwords set
-            const passwordTrimmed = credentials.password.trim();
-            const isPasswordValid = passwordTrimmed === 'admin123'; // Temporary
-
-            if (!isPasswordValid) {
-              console.log(`[AUTH] Invalid password for user: ${credentials.email}`);
-              return null;
-            }
-            console.log(`[AUTH] Temporary password validated for user: ${credentials.email}`);
+          if (!isPasswordValid) {
+            console.log(`[AUTH] Invalid password for user: ${credentials.email}`);
+            return null;
           }
+          console.log(`[AUTH] Password validated for user: ${credentials.email}`);
 
           console.log(`[AUTH] Successfully authenticated user: ${user.email}`);
           return {

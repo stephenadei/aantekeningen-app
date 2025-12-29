@@ -116,10 +116,42 @@ export interface FirestoreNote {
 }
 
 // Unified Note interface
-export interface Note extends Partial<FirestoreNote>, Partial<PrismaNote> {
+export interface Note {
   id: string;
   studentId: string;
-  // Common fields can be made required if consistent
+  // FirestoreNote fields
+  driveFileId?: DriveFileId;
+  fileName?: FileName;
+  title?: CleanFileName;
+  subject?: Subject;
+  topicGroup?: string;
+  topic?: Topic;
+  level?: Level;
+  schoolYear?: SchoolYear;
+  keywords?: string[];
+  summary?: string;
+  summaryEn?: string;
+  topicEn?: string;
+  keywordsEn?: string[];
+  skills?: string[];
+  tools?: string[];
+  theme?: string;
+  aiAnalyzedAt?: string;
+  // PrismaNote fields
+  lessonId?: string | null;
+  authorId?: string | null;
+  userId?: string | null;
+  type?: NoteType;
+  body?: string | null;
+  content?: string | null;
+  datalakePath?: string | null;
+  status?: NoteStatus;
+  tags?: string[];
+  isPrivate?: boolean;
+  lessonDate?: string | Date | null;
+  // Common timestamp fields (accept both string and Date)
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface KeyConcept {
@@ -937,7 +969,25 @@ export interface AdminStudentWithMetadata extends Omit<Student, 'lastLoginAt'> {
   lastLoginAt: string | null;
 }
 
-export interface AdminNoteWithMetadata extends FileMetadata {
+export interface AdminNoteWithMetadata {
+  id: string;
+  name: string;
+  title: string;
+  modifiedTime: string;
+  size: number;
+  thumbnailUrl: string;
+  downloadUrl: string;
+  viewUrl: string;
+  subject?: Subject | string | undefined;
+  topicGroup?: TopicGroup | string | undefined;
+  topic?: Topic | string | undefined;
+  level?: Level | string | undefined;
+  schoolYear?: SchoolYear | string | undefined;
+  keywords: string[];
+  summary?: string | undefined;
+  aiAnalyzedAt?: string | undefined;
+  createdAt: string;
+  updatedAt: string;
   student: {
     id: string;
     displayName: string;

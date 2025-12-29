@@ -248,7 +248,7 @@ export class BackgroundSyncService {
               const noteData = {
                 studentId: dbStudent.id,
                 type: 'PDF' as const,
-                title: fileMeta.title || fileMeta.name,
+                title: fileMeta.name,
                 datalakePath: fullFilePath,
                 subject: fileMeta.subject,
                 topicGroup: fileMeta.topicGroup,
