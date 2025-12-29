@@ -1,9 +1,9 @@
 #!/bin/bash
-# Script om MinIO publiek te maken, maar alleen de educatie-lesmateriaal bucket
+# Script om MinIO publiek te maken, maar alleen de bronze-education bucket
 
 set -e
 
-echo "🔓 MinIO Publiek Maken (Alleen educatie-lesmateriaal bucket)"
+echo "🔓 MinIO Publiek Maken (Alleen bronze-education bucket)"
 echo "=============================================================="
 echo ""
 
@@ -27,7 +27,7 @@ fi
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-localhost:9000}"
 MINIO_ACCESS_KEY="${MINIO_ACCESS_KEY:-minioadmin}"
 MINIO_SECRET_KEY="${MINIO_SECRET_KEY:-minioadmin}"
-BUCKET_NAME="educatie-lesmateriaal"
+BUCKET_NAME="bronze-education"
 
 echo "🔧 MinIO Configuratie:"
 echo "   Endpoint: $MINIO_ENDPOINT"

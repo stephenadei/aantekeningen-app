@@ -15,7 +15,7 @@ import {
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
 
 // Datalake configuration
-const BUCKET_NAME = 'educatie-lesmateriaal';
+const BUCKET_NAME = process.env.DATALAKE_BUCKET_EDUCATION_BRONZE || 'bronze-education';
 const BASE_PATH = 'notability/Priveles';
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
 const CACHE_KEY_STUDENTS = 'cached_students';
@@ -235,6 +235,57 @@ class DatalakeService {
   }
 
   /**
+   * Find students with calendar events in MinIO datalake
+   * Searches in calendar/events/{studentName}/ folders
+   * @param query Search query (use '*' or '' to find all students)
+   */
+  async findStudentsWithCalendarEvents(query: string): Promise<Array<{ name: string; calendarPath: string }>> {
+    try {
+      await this.ensureInitialized();
+      
+      const calendarPrefix = 'calendar/events/';
+      const queryLower = query === '*' || query === '' ? '' : query.toLowerCase();
+      const students: Array<{ name: string; calendarPath: string }> = [];
+      const studentNames = new Set<string>();
+      
+      try {
+        const objectsStream = this.minioClient.listObjects(BUCKET_NAME, calendarPrefix, true);
+        
+        for await (const obj of objectsStream) {
+          if (obj.name && obj.name.startsWith(calendarPrefix)) {
+            // Extract student name from path: calendar/events/StudentName/2024-01.json
+            const relativePath = obj.name.substring(calendarPrefix.length);
+            const parts = relativePath.split('/').filter((p: string) => p.length > 0);
+            
+            if (parts.length > 0) {
+              const studentName = parts[0];
+              
+              // Check if name matches query (or if query is empty/wildcard) and we haven't added this student yet
+              const matches = queryLower === '' || studentName.toLowerCase().includes(queryLower);
+              
+              if (matches && !studentNames.has(studentName)) {
+                studentNames.add(studentName);
+                students.push({
+                  name: studentName,
+                  calendarPath: `${calendarPrefix}${studentName}/`
+                });
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error listing calendar events:', error);
+        // Return empty array on error, don't throw
+      }
+      
+      return students;
+    } catch (error) {
+      console.error('Error finding students with calendar events:', error);
+      return [];
+    }
+  }
+
+  /**
    * Convert student name to datalake path
    * Tries multiple subject folders (VO, Rekenen, WO) to find the student
    */
@@ -395,6 +446,22 @@ class DatalakeService {
       return filteredFiles;
     } catch (error) {
       console.error('Error listing files in folder:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Upload a file to the datalake
+   */
+  async uploadFile(path: string, buffer: Buffer, contentType: string = 'application/pdf'): Promise<void> {
+    try {
+      await this.ensureInitialized();
+      await this.minioClient.putObject(BUCKET_NAME, path, buffer, buffer.length, {
+        'Content-Type': contentType
+      });
+      console.log(`✅ Uploaded file to ${path}`);
+    } catch (error) {
+      console.error(`❌ Error uploading file to ${path}:`, error);
       throw error;
     }
   }

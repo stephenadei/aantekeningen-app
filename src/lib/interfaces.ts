@@ -61,7 +61,37 @@ export interface Student {
   tags?: StudentTag[];
 }
 
-export interface Note {
+export type NoteType = 'TEXT' | 'PDF' | 'MARKDOWN' | 'AUDIO' | 'IMAGE' | 'LINK';
+export type NoteStatus = 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+
+// New Prisma-compatible interface
+export interface PrismaNote {
+  id: string;
+  studentId: string;
+  lessonId?: string | null;
+  authorId?: string | null;
+  userId?: string | null;
+  type: NoteType;
+  title?: string | null;
+  body?: string | null;
+  content?: string | null;
+  datalakePath?: string | null;
+  subject?: string | null;
+  topicGroup?: string | null;
+  topic?: string | null;
+  level?: string | null;
+  schoolYear?: string | null;
+  keywords: string[];
+  status: NoteStatus;
+  tags: string[];
+  isPrivate: boolean;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  lessonDate?: string | Date | null;
+}
+
+// Old Firestore interface (renamed)
+export interface FirestoreNote {
   id: NoteId;
   studentId: FirestoreStudentId;
   driveFileId: DriveFileId;
@@ -83,6 +113,13 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   aiAnalyzedAt?: string;
+}
+
+// Unified Note interface
+export interface Note extends Partial<FirestoreNote>, Partial<PrismaNote> {
+  id: string;
+  studentId: string;
+  // Common fields can be made required if consistent
 }
 
 export interface KeyConcept {
@@ -587,6 +624,8 @@ export interface MainPageStudent {
   displayName: string;
   subject: string;
   url: string;
+  hasNotes?: boolean; // Whether student has notes in datalake (has datalakePath)
+  hasAppointments?: boolean; // Whether student has calendar events in datalake
 }
 
 export interface MainPageStudentOverview {

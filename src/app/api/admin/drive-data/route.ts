@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getLoginAudits } from '@/lib/firestore';
-import { db } from '@/lib/firebase-admin';
+import { getLoginAudits, getAllStudents } from '@/lib/firestore';
 import { isOk } from '@/lib/types';
 
 export async function GET() {
   try {
-    // Get all students from Firestore
-    const studentsSnapshot = await db.collection('students').get();
-    const students = studentsSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    // Get all students
+    const studentsResult = await getAllStudents();
+    const students = isOk(studentsResult) ? studentsResult.data : [];
 
     // Get audit logs
     const auditsResult = await getLoginAudits();

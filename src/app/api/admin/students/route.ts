@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { getAllStudents, createStudent } from '@/lib/firestore';
 import { getFileMetadata } from '@/lib/cache';
-import { db } from '@/lib/firebase-admin';
 import { isErr, createPin, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
-import type { Student, CreateStudentInput } from '@/lib/interfaces';
+import type { CreateStudentInput } from '@/lib/interfaces';
 import bcrypt from 'bcryptjs';
 
 export async function GET(request: NextRequest) {
@@ -23,44 +22,13 @@ export async function GET(request: NextRequest) {
     const subject = searchParams.get('subject') || '';
     const activeFilter = searchParams.get('active');
 
-    // Get all students from Firestore
+    // Get all students from Prisma
     const studentsResult = await getAllStudents();
     if (isErr(studentsResult)) {
       return NextResponse.json({ error: studentsResult.error.message }, { status: 500 });
     }
 
-    // Also get student IDs from fileMetadata to find "orphaned" students
-    const fileMetadataSnapshot = await db.collection('fileMetadata').get();
-    const studentIdsFromFiles = new Set<string>();
-    fileMetadataSnapshot.docs.forEach(doc => {
-      const data = doc.data();
-      if (data.studentId) {
-        studentIdsFromFiles.add(data.studentId);
-      }
-    });
-
-    // Get all student IDs from students collection
-    const studentIdsFromStudents = new Set(studentsResult.data.map(s => s.id));
-
-    // Find student IDs that exist in fileMetadata but not in students collection
-    const orphanedStudentIds = Array.from(studentIdsFromFiles).filter(id => !studentIdsFromStudents.has(id as any));
-
-    // Create placeholder student objects for orphaned students
-    const orphanedStudents = orphanedStudentIds.map(id => ({
-      id,
-      displayName: `Unknown Student (${id})` as any,
-      email: undefined,
-      pinHash: '' as any,
-      driveFolderId: undefined,
-      subject: undefined,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: undefined,
-      isActive: false,
-      tags: []
-    }));
-
-    // Combine regular students with orphaned students
-    let students = [...studentsResult.data, ...orphanedStudents];
+    let students = studentsResult.data;
 
     // Apply filters
     if (search) {
@@ -167,7 +135,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create student in Firestore
+    // Create student in Prisma
     const result = await createStudent(validatedInput);
     
     if (isErr(result)) {

@@ -92,8 +92,8 @@ export function unwrapOr<T, E>(result: Result<T, E>, defaultValue: T): T {
 const TYPE_METADATA = {
   // Identity Types
   FirestoreStudentId: { 
-    validate: (v: string) => /^[a-zA-Z0-9]{20}$/.test(v),
-    description: 'Firestore student document ID (20 alphanumeric chars)'
+    validate: (v: string) => /^[a-zA-Z0-9]{20,30}$/.test(v),
+    description: 'Student ID (20-30 alphanumeric chars)'
   },
   DriveFolderId: { 
     validate: (v: string) => {
@@ -111,19 +111,19 @@ const TYPE_METADATA = {
   },
   TeacherId: { 
     validate: (v: string) => v.length >= 20 && v.length <= 30 && /^[a-zA-Z0-9]+$/.test(v),
-    description: 'Firestore teacher document ID or Firebase UID'
+    description: 'Teacher ID'
   },
   NoteId: { 
-    validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
-    description: 'Firestore note document ID'
+    validate: (v: string) => v.length >= 20 && v.length <= 30 && /^[a-zA-Z0-9]+$/.test(v),
+    description: 'Note ID'
   },
   KeyConceptId: { 
-    validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
-    description: 'Firestore key concept document ID'
+    validate: (v: string) => v.length >= 20 && v.length <= 30 && /^[a-zA-Z0-9]+$/.test(v),
+    description: 'Key concept ID'
   },
   LoginAuditId: { 
-    validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
-    description: 'Firestore login audit document ID'
+    validate: (v: string) => v.length >= 20 && v.length <= 30 && /^[a-zA-Z0-9]+$/.test(v),
+    description: 'Login audit ID'
   },
   DriveFileId: { 
     validate: (v: string) => {
@@ -140,11 +140,11 @@ const TYPE_METADATA = {
     description: 'Google Drive file ID or Datalake file path'
   },
   SubjectId: { 
-    validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
+    validate: (v: string) => /^[a-zA-Z0-9-]{3,50}$/.test(v), // Subjects often have names as IDs in old logic, new logic CUID or name-based
     description: 'Subject identifier'
   },
   TopicId: { 
-    validate: (v: string) => v.length === 20 && /^[a-zA-Z0-9]+$/.test(v),
+    validate: (v: string) => v.length >= 20 && v.length <= 30 && /^[a-zA-Z0-9]+$/.test(v),
     description: 'Topic identifier'
   },
 

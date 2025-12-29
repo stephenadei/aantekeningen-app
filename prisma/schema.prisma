@@ -1,9 +1,9 @@
 // Prisma schema for aantekeningen-app
-// Uses the same database as privelessen-dashboard
+// Uses the same database as privelessen-dashboard (Shared Schema)
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
 }
 
 datasource db {
@@ -11,56 +11,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model for admin authentication
-// Same as privelessen-dashboard
 model User {
   id        String   @id @default(cuid())
-  name      String?
+  name      String
   email     String   @unique
-  password  String?  // bcrypt hash (optional for backward compatibility)
   role      UserRole @default(TUTOR)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
-  lessons   Lesson[]
   notes     Note[]
+  lessons   Lesson[]
+  
+  // Aantekeningen-app extensions
+  loginAudits      LoginAudit[]
+  confirmedFolders UnlinkedFolder[]
 
   @@map("users")
-}
-
-enum UserRole {
-  ADMIN
-  TUTOR
-  STUDENT
-}
-
-// The following models are from the privelessen-dashboard and are included
-// to allow the aantekeningen-app to share the same database schema.
-// They are not directly used by the aantekeningen-app but are necessary
-// for Prisma to manage the shared database.
-
-enum SchoolLevel {
-  BASISSCHOOL
-  VMBO
-  HAVO
-  VWO
-  MBO
-  HBO
-  WO
-  OVERIG
-}
-
-enum Segment {
-  NEW
-  EXISTING
-  WEEKEND
-  INACTIVE
-}
-
-enum Language {
-  DUTCH
-  ENGLISH
 }
 
 model Student {
@@ -85,7 +52,10 @@ model Student {
   // Aantekeningen-app integration
   pinHash      String? // bcrypt hash for PIN login
   datalakePath String? // Path to student folder in MinIO datalake (e.g., "notability/Priveles/VO/Amirah")
-  shareToken   String? @unique // Unique token for sharing student page (e.g., "a3f9k2m8p1q")
+  
+  // Added for Aantekeningen-app
+  subject      String? // Primary subject (e.g. "wiskunde-bovenbouw")
+  shareToken   String? @unique // Unique token for sharing student page
 
   // Relations
   guardians     Guardian[]
@@ -95,6 +65,10 @@ model Student {
   packages      Package[]
   conversations Conversation[]
   appointments  Appointment[]
+  
+  // Aantekeningen-app extensions
+  loginAudits   LoginAudit[]
+  tags          StudentTag[]
 
   @@map("students")
 }
@@ -102,56 +76,412 @@ model Student {
 model Guardian {
   id        String   @id @default(cuid())
   name      String
-  email     String?
   phone     String?
+  email     String?
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
-  student   Student  @relation(fields: [studentId], references: [id])
-  studentId String
 
   @@map("guardians")
 }
 
-enum LessonStatus {
-  PLANNED
-  COMPLETED
-  CANCELLED
-  NO_SHOW
-}
-
 model Lesson {
-  id          String       @id @default(cuid())
-  date        DateTime
-  duration    Int          // in minutes
-  status      LessonStatus @default(PLANNED)
-  notes       String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id        String       @id @default(cuid())
+  studentId String
+  student   Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tutorId   String?
+  tutor     User?        @relation(fields: [tutorId], references: [id])
+  start     DateTime
+  end       DateTime
+  status    LessonStatus @default(SCHEDULED)
+  location  String?
+  notes     String?
+
+  // Package relationship
+  packageId String?
+  package   Package? @relation(fields: [packageId], references: [id])
+
+  // TutorBot integration fields
+  program               Program?
+  topicPrimary          String?
+  topicSecondary        String?
+  toolset               String?
+  lessonMode            LessonMode?
+  isAdult               Boolean     @default(false)
+  relationshipToLearner String?
+
+  // Google Calendar integration
+  googleCalendarEventId String?
+  googleCalendarColorId String?
 
   // Relations
-  student     Student      @relation(fields: [studentId], references: [id])
-  studentId   String
-  user        User         @relation(fields: [userId], references: [id])
-  userId      String
+  noteRecords Note[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("lessons")
 }
 
 model Note {
-  id        String   @id @default(cuid())
-  content   String
+  id String @id @default(cuid())
+
+  // Relations
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  lessonId String?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  authorId String?  // Optional in aantekeningen-app schema, mandatory in dashboard?
+  // Dashboard says `authorId String`. Aantekeningen-app previously `authorId String?`.
+  // To match dashboard, it should be String. But if I make it String, existing notes without author will fail?
+  // Dashboard schema: `authorId String`, `author User ...`.
+  // If I change to String?, it's safe for migration (relaxing).
+  // But dashboard code expects it.
+  // I'll keep `authorId String?` to be safe for aantekeningen-app (which might not have author for old notes?).
+  // Wait, old notes came from Firestore. Did they have author? Not really.
+  // So `String?` is safer for now.
+  author   User?   @relation(fields: [authorId], references: [id])
+
+  // Note Type & Content
+  type  NoteType @default(TEXT)
+  title String?
+  body  String?
+
+  // Datalake Integration
+  datalakePath String?
+
+  // Metadata
+  subject    String?
+  topicGroup String?
+  topic      String?
+  level      String?
+  schoolYear String?
+  keywords   String[]
+
+  // Status & Organization
+  status    NoteStatus @default(ACTIVE)
+  tags      String[]
+  isPrivate Boolean    @default(false)
+
+  // Timestamps
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lessonDate DateTime?
+
+  // Relations
+  attachments NoteAttachment[]
+  
+  // Aantekeningen-app extensions
+  keyConcepts KeyConcept[]
+
+  @@index([studentId, lessonId])
+  @@index([studentId, createdAt])
+  @@index([lessonId])
+  @@map("notes")
+}
+
+model NoteAttachment {
+  id     String @id @default(cuid())
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  type         String
+  filename     String
+  datalakePath String
+  size         Int?
+
+  createdAt DateTime @default(now())
+
+  @@map("note_attachments")
+}
+
+model Payment {
+  id          String         @id @default(cuid())
+  studentId   String
+  student     Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  amount      Int
+  currency    String         @default("EUR")
+  status      PaymentStatus  @default(PENDING)
+  method      PaymentMethod?
+  stripeId    String?        @unique
+  description String?
+  metadata    Json?
+
+  packageId String?  @unique
+  package   Package? @relation("PackagePayment")
+
+  orderId String? @unique
+  priceId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  student   Student  @relation(fields: [studentId], references: [id])
-  studentId String
-  user      User     @relation(fields: [userId], references: [id])
-  userId    String
+  @@map("payments")
+}
 
-  @@map("notes")
+model Appointment {
+  id        String            @id @default(cuid())
+  studentId String
+  student   Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  startsAt  DateTime
+  endsAt    DateTime
+  status    AppointmentStatus @default(PENDING)
+  source    AppointmentSource @default(MANUAL)
+  location  String?
+  notes     String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@map("appointments")
+}
+
+model Conversation {
+  id         String   @id @default(cuid())
+  externalId String   @unique
+  source     String
+  studentId  String?
+  student    Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  chatwootAccountId String?
+  chatwootInboxId   String?
+  chatwootStatus    String?
+
+  program               Program?
+  topicPrimary          String?
+  topicSecondary        String?
+  toolset               String?
+  lessonMode            LessonMode?
+  isAdult               Boolean          @default(false)
+  relationshipToLearner String?
+  languagePrompted      Boolean          @default(false)
+  intakeCompleted       Boolean          @default(false)
+  planningProfile       PlanningProfile?
+  orderId               String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messageLogs MessageLog[]
+  labels      ConversationLabel[]
+
+  @@map("conversations")
+}
+
+model ConversationLabel {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  label          String
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, label])
+  @@map("conversation_labels")
+}
+
+model MessageLog {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  direction      MessageDirection
+  channel        String
+  payload        Json
+  error          String?
+  ts             DateTime         @default(now())
+
+  @@map("message_logs")
+}
+
+model WebhookLog {
+  id      String   @id @default(cuid())
+  source  String
+  event   String
+  payload Json
+  ok      Boolean
+  ts      DateTime @default(now())
+
+  @@map("webhook_logs")
+}
+
+model Package {
+  id           String        @id @default(cuid())
+  studentId    String
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  type         PackageType
+  status       PackageStatus @default(PENDING_PAYMENT)
+  totalHours   Int
+  usedHours    Int           @default(0)
+  studentCount Int           @default(1)
+
+  price           Int
+  pricePerStudent Int?
+
+  paymentId String?  @unique
+  payment   Payment? @relation("PackagePayment", fields: [paymentId], references: [id], onDelete: SetNull)
+
+  notes    String?
+  metadata Json?
+
+  lessons Lesson[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("packages")
+}
+
+// ============================================================================
+// Aantekeningen-app Specific Models (New Tables)
+// ============================================================================
+
+model LoginAudit {
+  id        String   @id @default(cuid())
+  studentId String?
+  student   Student? @relation(fields: [studentId], references: [id])
+  teacherId String?
+  teacher   User?    @relation(fields: [teacherId], references: [id])
+  who       String?
+  action    String
+  ipAddress String?
+  userAgent String?
+  success   Boolean
+  failureReason String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@map("login_audits")
+}
+
+model KeyConcept {
+  id          String   @id @default(cuid())
+  noteId      String?
+  note        Note?    @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  driveFileId String?  // Path/ID for lookup
+  concept     String
+  definition  String
+  examples    String[]
+  importance  String?
+  orderIndex  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("key_concepts")
+}
+
+model StudentTag {
+  id        String   @id @default(cuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  tag       String
+  color     String?
+  createdAt DateTime @default(now())
+
+  @@map("student_tags")
+}
+
+model UnlinkedFolder {
+  id            String   @id @default(cuid())
+  driveFolderId String
+  folderName    String
+  studentName   String?
+  subject       String?
+  status        String   @default("pending")
+  confirmedAt   DateTime?
+  confirmedById String?
+  confirmedBy   User?    @relation(fields: [confirmedById], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("unlinked_folders")
+}
+
+model Subject {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?
+  icon        String?
+  sortOrder   Int?
+  topics      Topic[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("subjects")
+}
+
+model Topic {
+  id          String   @id @default(cuid())
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  sortOrder   Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("topics")
+}
+
+// Enums (Shared)
+enum UserRole {
+  ADMIN
+  TUTOR
+}
+
+enum SchoolLevel {
+  PO
+  VMBO
+  HAVO
+  VWO
+  MBO
+  UNIVERSITY_WO
+  UNIVERSITY_HBO
+  ADULT
+}
+
+enum Segment {
+  NEW
+  EXISTING
+  RETURNING_BROADCAST
+  WEEKEND
+}
+
+enum Language {
+  DUTCH
+  ENGLISH
+}
+
+enum Program {
+  NONE
+  MBO_REKENEN_2F
+  MBO_REKENEN_3F
+  IB_MATH_SL
+  IB_MATH_HL
+  CAMBRIDGE
+}
+
+enum PlanningProfile {
+  NEW
+  EXISTING
+  RETURNING_BROADCAST
+  WEEKEND
+}
+
+enum LessonStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum LessonMode {
+  ONLINE
+  IN_PERSON
+  HYBRID
 }
 
 enum PaymentStatus {
@@ -159,78 +489,59 @@ enum PaymentStatus {
   PAID
   FAILED
   REFUNDED
+  CANCELLED
 }
 
-model Payment {
-  id          String        @id @default(cuid())
-  amount      Float
-  status      PaymentStatus @default(PENDING)
-  stripeId    String?       @unique
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+enum PaymentMethod {
+  IDEAL
+  CREDIT_CARD
+  BANK_TRANSFER
+  CASH
+}
 
-  // Relations
-  student     Student       @relation(fields: [studentId], references: [id])
-  studentId   String
-  package     Package?      @relation(fields: [packageId], references: [id])
-  packageId   String?
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
 
-  @@map("payments")
+enum AppointmentSource {
+  MANUAL
+  GOOGLE_CALENDAR
+  MICROSOFT_CALENDAR
+  BOT
+}
+
+enum MessageDirection {
+  IN
+  OUT
 }
 
 enum PackageType {
-  HOURLY
-  SUBSCRIPTION
-  BUNDLE
+  PACKAGE_4H
+  URGENT_2H
 }
 
-model Package {
-  id          String      @id @default(cuid())
-  name        String
-  type        PackageType
-  price       Float
-  lessonsLeft Int?
-  expiresAt   DateTime?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  // Relations
-  student     Student     @relation(fields: [studentId], references: [id])
-  studentId   String
-  payments    Payment[]
-
-  @@map("packages")
+enum PackageStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  COMPLETED
+  EXPIRED
+  CANCELLED
 }
 
-model Conversation {
-  id        String   @id @default(cuid())
-  channel   String   // e.g., "whatsapp", "email", "chatwoot"
-  content   String
-  sender    String
-  timestamp DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  student   Student  @relation(fields: [studentId], references: [id])
-  studentId String
-
-  @@map("conversations")
+enum NoteType {
+  TEXT
+  PDF
+  MARKDOWN
+  AUDIO
+  IMAGE
+  LINK
 }
 
-model Appointment {
-  id        String   @id @default(cuid())
-  title     String
-  startTime DateTime
-  endTime   DateTime
-  location  String?
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  student   Student  @relation(fields: [studentId], references: [id])
-  studentId String
-
-  @@map("appointments")
+enum NoteStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
 }

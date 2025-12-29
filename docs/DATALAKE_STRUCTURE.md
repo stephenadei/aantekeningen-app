@@ -2,7 +2,7 @@
 
 ## 📦 Bucket Overzicht
 
-### Hoofd Bucket: `educatie-lesmateriaal`
+### Hoofd Bucket: `bronze-education`
 
 Dit is de bucket die gebruikt wordt door de aantekeningen-app. Deze bucket bevat alle lesmateriaal voor studenten.
 
@@ -20,7 +20,7 @@ Dit is de bucket die gebruikt wordt door de aantekeningen-app. Deze bucket bevat
 ## 📁 Pad Structuur
 
 ```
-educatie-lesmateriaal/
+bronze-education/
 └── notability/
     └── Priveles/
         ├── VO/          # Wiskunde A/B (Voortgezet Onderwijs)
@@ -58,7 +58,7 @@ Elke student heeft een eigen folder onder een subject folder:
 ### Voorbeeld
 
 ```
-educatie-lesmateriaal/notability/Priveles/VO/Amirah/
+bronze-education/notability/Priveles/VO/Amirah/
 ├── Note 26 Aug 2024 (2).pdf
 ├── Priveles 9 May 2025 15_10_49.pdf
 ├── Privéles 10 Sep 2024.pdf
@@ -73,7 +73,7 @@ educatie-lesmateriaal/notability/Priveles/VO/Amirah/
 In `src/lib/datalake-simple.ts`:
 
 ```typescript
-const BUCKET_NAME = 'educatie-lesmateriaal';
+const BUCKET_NAME = 'bronze-education';
 const BASE_PATH = 'notability/Priveles';
 ```
 
@@ -94,12 +94,12 @@ const subjectMap: Record<string, string> = {
 
 ### Student Pad
 ```
-educatie-lesmateriaal/notability/Priveles/VO/Amirah/
+bronze-education/notability/Priveles/VO/Amirah/
 ```
 
 ### Bestand Pad
 ```
-educatie-lesmateriaal/notability/Priveles/VO/Amirah/Note 26 Aug 2024 (2).pdf
+bronze-education/notability/Priveles/VO/Amirah/Note 26 Aug 2024 (2).pdf
 ```
 
 ---
@@ -108,7 +108,7 @@ educatie-lesmateriaal/notability/Priveles/VO/Amirah/Note 26 Aug 2024 (2).pdf
 
 ### Publieke Toegang
 
-Alleen de `educatie-lesmateriaal` bucket is publiek leesbaar voor downloads:
+Alleen de `bronze-education` bucket is publiek leesbaar voor downloads:
 - ✅ Publiek leesbaar (download)
 - ❌ Geen upload toegang
 - ❌ Geen delete toegang
@@ -117,7 +117,7 @@ Alleen de `educatie-lesmateriaal` bucket is publiek leesbaar voor downloads:
 ### Bucket Policy
 
 ```bash
-mc anonymous set download local/educatie-lesmateriaal
+mc anonymous set download local/bronze-education
 ```
 
 Dit maakt alleen `GetObject` (download) toegankelijk voor iedereen, maar alleen binnen deze bucket.
@@ -142,19 +142,19 @@ De app ondersteunt:
 docker exec minio mc ls local/
 
 # Subject folders
-docker exec minio mc ls local/educatie-lesmateriaal/notability/Priveles/
+docker exec minio mc ls local/bronze-education/notability/Priveles/
 
 # Student folders
-docker exec minio mc ls local/educatie-lesmateriaal/notability/Priveles/VO/
+docker exec minio mc ls local/bronze-education/notability/Priveles/VO/
 
 # Bestanden
-docker exec minio mc ls local/educatie-lesmateriaal/notability/Priveles/VO/Amirah/
+docker exec minio mc ls local/bronze-education/notability/Priveles/VO/Amirah/
 ```
 
 ### Check Bucket Policy
 
 ```bash
-docker exec minio mc anonymous get local/educatie-lesmateriaal
+docker exec minio mc anonymous get local/bronze-education
 ```
 
 Moet `download` tonen voor publieke lees toegang.

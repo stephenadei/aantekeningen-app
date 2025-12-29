@@ -5,7 +5,7 @@
 
 import * as MinIO from 'minio';
 
-const BUCKET_NAME = 'educatie-lesmateriaal';
+const BUCKET_NAME = process.env.DATALAKE_BUCKET_EDUCATION_BRONZE || 'bronze-education';
 const THUMBNAIL_PREFIX = 'thumbnails/';
 
 class DatalakeThumbnailService {

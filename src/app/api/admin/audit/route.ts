@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { db } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,49 +19,42 @@ export async function GET(request: NextRequest) {
     const dateTo = searchParams.get('dateTo') || '';
     const exportCsv = searchParams.get('export') === 'csv';
 
-    const skip = (page - 1) * limit;
-
-    // Build Firestore query
-    let query = db.collection('loginAudits').orderBy('createdAt', 'desc');
+    const where = {} as any;
     
     if (action) {
-      query = query.where('action', '==', action);
+      where.action = action;
     }
     
-    if (dateFrom) {
-      query = query.where('createdAt', '>=', new Date(dateFrom));
-    }
-    
-    if (dateTo) {
-      query = query.where('createdAt', '<=', new Date(dateTo + 'T23:59:59.999Z'));
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateTo) where.createdAt.lte = new Date(dateTo + 'T23:59:59.999Z');
     }
 
-    // Get total count
-    const snapshot = await query.get();
-    const total = snapshot.size;
+    const total = await prisma.loginAudit.count({ where });
 
     // Handle CSV export
     if (exportCsv) {
-      const audits = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const audits = await prisma.loginAudit.findMany({
+        where,
+        orderBy: { createdAt: 'desc' }
+      });
 
       // Generate CSV
       const csvHeaders = ['ID', 'Wie', 'Actie', 'IP', 'User Agent', 'Tijdstip', 'Metadata'];
-      const csvRows = audits.map((audit: Record<string, unknown>) => [
+      const csvRows = audits.map((audit) => [
         audit.id,
         audit.who || '',
         audit.action || '',
-        audit.ip || '',
+        audit.ipAddress || '',
         audit.userAgent || '',
-        audit.createdAt instanceof Date ? audit.createdAt.toISOString() : new Date(audit.createdAt as string).toISOString(),
+        audit.createdAt.toISOString(),
         JSON.stringify(audit.metadata || {})
       ]);
 
       const csvContent = [
         csvHeaders.join(','),
-        ...csvRows.map((row: (string | unknown)[]) => row.map((field: unknown) => `"${field}"`).join(','))
+        ...csvRows.map((row) => row.map((field) => `"${field}"`).join(','))
       ].join('\n');
 
       return new NextResponse(csvContent, {
@@ -72,16 +66,20 @@ export async function GET(request: NextRequest) {
     }
 
     // Get paginated audits
-    const paginatedDocs = snapshot.docs.slice(skip, skip + limit);
-    const audits = paginatedDocs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const audits = await prisma.loginAudit.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit
+    });
 
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      audits,
+      audits: audits.map(a => ({
+        ...a,
+        ip: a.ipAddress // Map for frontend compatibility if needed
+      })),
       total,
       page,
       totalPages,

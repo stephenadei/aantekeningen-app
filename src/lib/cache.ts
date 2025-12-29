@@ -168,7 +168,7 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
     for (const file of files) {
     try {
       // file.id contains the full datalake path (e.g., "notability/Priveles/VO/StudentName/file.pdf")
-      await datalakeMetadataService.setFileMetadata(file.id, file);
+      await datalakeMetadataService.saveFileMetadata(file.id, file);
       datalakeSuccess++;
     } catch (error) {
       console.error(`Error writing metadata to datalake for ${file.id}:`, error);

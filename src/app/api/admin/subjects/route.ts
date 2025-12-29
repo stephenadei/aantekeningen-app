@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
     console.log('📚 Fetching all subjects...');
 
-    const snapshot = await db.collection('subjects')
-      .orderBy('sortOrder', 'asc')
-      .get();
-
-    const subjects = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const subjects = await prisma.subject.findMany({
+      orderBy: { sortOrder: 'asc' }
+    });
 
     console.log(`✅ Found ${subjects.length} subjects`);
 
@@ -43,17 +38,32 @@ export async function POST(request: NextRequest) {
 
     console.log('🆕 Creating new subject:', name);
 
-    const subjectId = name.toLowerCase().replace(/\s+/g, '-');
-    const subjectRef = db.collection('subjects').doc(subjectId);
+    // Check if subject exists (name is unique)
+    const existingSubject = await prisma.subject.findUnique({
+        where: { name }
+    });
 
-    await subjectRef.set({
-      name,
-      description: description || '',
-      color: color || '#3B82F6',
-      icon: icon || 'BookOpen',
-      sortOrder: sortOrder || 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
+    if (existingSubject) {
+        return NextResponse.json(
+            { success: false, error: 'Subject already exists' },
+            { status: 400 }
+        );
+    }
+
+    // Try to preserve ID generation logic if possible or let CUID handle it
+    // Old logic: const subjectId = name.toLowerCase().replace(/\s+/g, '-');
+    // Prisma uses CUID by default. We can set ID manually if we want to preserve that format.
+    const subjectId = name.toLowerCase().replace(/\s+/g, '-');
+
+    await prisma.subject.create({
+      data: {
+        id: subjectId, // Manual ID setting
+        name,
+        description: description || '',
+        color: color || '#3B82F6',
+        icon: icon || 'BookOpen',
+        sortOrder: sortOrder || 0
+      }
     });
 
     console.log('✅ Subject created:', subjectId);

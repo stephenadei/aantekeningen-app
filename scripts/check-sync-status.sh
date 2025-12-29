@@ -39,12 +39,12 @@ echo ""
 
 # Check metadata files in datalake
 echo "📁 Datalake Metadata:"
-METADATA_COUNT=$(docker exec minio mc find local/educatie-lesmateriaal/notability/Priveles/ -name "*.metadata.json" 2>/dev/null | wc -l)
+METADATA_COUNT=$(docker exec minio mc find local/bronze-education/notability/Priveles/ -name "*.metadata.json" 2>/dev/null | wc -l)
 echo "   Total metadata files: $METADATA_COUNT"
 
 if [ "$METADATA_COUNT" -gt 0 ]; then
     # Get newest metadata file
-    NEWEST_METADATA=$(docker exec minio mc find local/educatie-lesmateriaal/notability/Priveles/ -name "*.metadata.json" 2>/dev/null | head -1)
+    NEWEST_METADATA=$(docker exec minio mc find local/bronze-education/notability/Priveles/ -name "*.metadata.json" 2>/dev/null | head -1)
     if [ -n "$NEWEST_METADATA" ]; then
         echo "   Sample file: $NEWEST_METADATA"
     fi

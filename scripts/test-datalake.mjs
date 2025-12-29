@@ -37,7 +37,7 @@ async function testDatalake() {
 
     if (allStudents.length === 0) {
       console.log('\n⚠️  No students found in datalake.');
-      console.log('   Expected path structure: educatie-lesmateriaal/notability/Priveles/{VO|Rekenen|WO}/{StudentName}/');
+      console.log('   Expected path structure: bronze-education/notability/Priveles/{VO|Rekenen|WO}/{StudentName}/');
       console.log('   Check if files are uploaded to the correct bucket and path.');
     }
 

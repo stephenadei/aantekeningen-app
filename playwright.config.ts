@@ -79,5 +79,11 @@ export default defineConfig({
     timeout: 120 * 1000, // Increased timeout for server startup
     stdout: 'pipe',
     stderr: 'pipe',
+    env: {
+      PORT: '3001',
+      NEXTAUTH_URL: 'http://localhost:3001',
+      NEXTAUTH_SECRET: 'test-secret-123',
+      NODE_ENV: 'test',
+    },
   },
 });

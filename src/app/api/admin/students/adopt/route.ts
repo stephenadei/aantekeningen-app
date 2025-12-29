@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { createStudent } from '@/lib/firestore';
-import { db } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 import { isErr, createPin, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
 import type { CreateStudentInput } from '@/lib/interfaces';
 import bcrypt from 'bcryptjs';
@@ -25,25 +25,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if student already exists in students collection
-    const existingStudent = await db.collection('students').doc(studentId).get();
-    if (existingStudent.exists) {
+    // Check if student already exists in students table
+    const existingStudent = await prisma.student.findUnique({ where: { id: studentId } });
+    if (existingStudent) {
       return NextResponse.json(
-        { error: 'Student already exists in students collection' },
+        { error: 'Student already exists' },
         { status: 400 }
-      );
-    }
-
-    // Check if student ID exists in fileMetadata
-    const fileMetadataQuery = await db.collection('fileMetadata')
-      .where('studentId', '==', studentId)
-      .limit(1)
-      .get();
-    
-    if (fileMetadataQuery.empty) {
-      return NextResponse.json(
-        { error: 'Student ID not found in file metadata' },
-        { status: 404 }
       );
     }
 
@@ -67,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create student in Firestore with the specific ID
+    // Create student in Prisma with the specific ID
     const result = await createStudent(validatedInput, studentId);
     
     if (isErr(result)) {
@@ -77,7 +64,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true,
       student: result.data,
-      message: 'Student successfully adopted from file metadata'
+      message: 'Student successfully adopted'
     });
 
   } catch (error) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(
   request: NextRequest,
@@ -10,16 +10,10 @@ export async function GET(
 
     console.log('📚 Fetching topics for subject:', subjectId);
 
-    const snapshot = await db.collection('subjects')
-      .doc(subjectId)
-      .collection('topics')
-      .orderBy('sortOrder', 'asc')
-      .get();
-
-    const topics = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const topics = await prisma.topic.findMany({
+      where: { subjectId },
+      orderBy: { sortOrder: 'asc' }
+    });
 
     console.log(`✅ Found ${topics.length} topics`);
 
@@ -54,23 +48,19 @@ export async function POST(
 
     console.log('🆕 Creating topic:', name, 'for subject:', subjectId);
 
-    const topicRef = db.collection('subjects')
-      .doc(subjectId)
-      .collection('topics')
-      .doc();
-
-    await topicRef.set({
-      name,
-      description: description || '',
-      sortOrder: sortOrder || 0,
-      createdAt: new Date(),
-      updatedAt: new Date()
+    const topic = await prisma.topic.create({
+      data: {
+        subjectId,
+        name,
+        description: description || '',
+        sortOrder: sortOrder || 0
+      }
     });
 
     console.log('✅ Topic created');
 
     return NextResponse.json(
-      { success: true, topicId: topicRef.id },
+      { success: true, topicId: topic.id },
       { status: 201 }
     );
   } catch (error) {
@@ -87,7 +77,7 @@ export async function PUT(
   { params }: { params: Promise<{ subjectId: string }> }
 ) {
   try {
-    const { subjectId } = await params;
+    // const { subjectId } = await params; // Not strictly needed for update if topicId is unique globally
     const body = await request.json();
     const { topicId, name, description, sortOrder } = body;
 
@@ -100,16 +90,14 @@ export async function PUT(
 
     console.log('🔄 Updating topic:', topicId);
 
-    await db.collection('subjects')
-      .doc(subjectId)
-      .collection('topics')
-      .doc(topicId)
-      .update({
+    await prisma.topic.update({
+      where: { id: topicId },
+      data: {
         name: name || undefined,
         description: description || undefined,
         sortOrder: sortOrder !== undefined ? sortOrder : undefined,
-        updatedAt: new Date()
-      });
+      }
+    });
 
     console.log('✅ Topic updated');
 
@@ -128,7 +116,7 @@ export async function DELETE(
   { params }: { params: Promise<{ subjectId: string }> }
 ) {
   try {
-    const { subjectId } = await params;
+    // const { subjectId } = await params;
     const body = await request.json();
     const { topicId } = body;
 
@@ -141,11 +129,9 @@ export async function DELETE(
 
     console.log('🗑️ Deleting topic:', topicId);
 
-    await db.collection('subjects')
-      .doc(subjectId)
-      .collection('topics')
-      .doc(topicId)
-      .delete();
+    await prisma.topic.delete({
+      where: { id: topicId }
+    });
 
     console.log('✅ Topic deleted');
 

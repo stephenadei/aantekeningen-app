@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { db } from '@/lib/firebase-admin';
-import { getStudent } from '@/lib/firestore';
-import { isErr, createDriveFileId } from '@/lib/types';
+import { prisma } from '@/lib/prisma';
+import { createDriveFileId } from '@/lib/types';
 import type { AdminNoteWithMetadata } from '@/lib/interfaces';
 
 export async function GET(
@@ -17,51 +16,53 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get file metadata from Firestore
-    const doc = await db.collection('fileMetadata').doc(id).get();
+    // Get note from Prisma
+    const note = await prisma.note.findUnique({
+      where: { id },
+      include: {
+        student: true,
+        keyConcepts: {
+          orderBy: { orderIndex: 'asc' }
+        }
+      }
+    });
     
-    if (!doc.exists) {
+    if (!note) {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
 
-    const noteData = doc.data();
-    if (!noteData) {
-      return NextResponse.json({ error: 'Note data not found' }, { status: 404 });
-    }
-
-    // Get student info
-    const studentResult = await getStudent(noteData.studentId);
-    if (isErr(studentResult)) {
-      return NextResponse.json({ error: studentResult.error.message }, { status: 500 });
-    }
-
-    const student = studentResult.data;
-
-    // Get key concepts (if any exist)
-    const keyConceptsSnapshot = await db
-      .collection('keyConcepts')
-      .where('noteId', '==', id)
-      .get();
-
-    const keyConcepts = keyConceptsSnapshot.docs.map((doc: FirebaseFirestore.QueryDocumentSnapshot) => ({
-      id: createDriveFileId(doc.id),
-      ...doc.data()
-    }));
-
-    const note: AdminNoteWithMetadata = {
-      ...(noteData as any),
-      id: createDriveFileId(doc.id),
+    const adminNote: AdminNoteWithMetadata = {
+      id: note.id,
+      name: note.title || 'Untitled',
+      title: note.title || '',
+      modifiedTime: note.updatedAt.toISOString(),
+      size: 0,
+      thumbnailUrl: '',
+      downloadUrl: '',
+      viewUrl: '',
+      
+      subject: note.subject || undefined,
+      topicGroup: note.topicGroup || undefined,
+      topic: note.topic || undefined,
+      level: note.level || undefined,
+      schoolYear: note.schoolYear || undefined,
+      keywords: note.keywords,
+      summary: note.body || undefined,
+      
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
+      
       student: {
-        id: student.id,
-        displayName: student.displayName,
-        subject: student.subject
+        id: note.student.id,
+        displayName: note.student.name,
+        subject: note.student.subject?.toString() || undefined
       }
     };
 
     return NextResponse.json({
       success: true,
-      note,
-      keyConcepts
+      note: adminNote,
+      keyConcepts: note.keyConcepts
     });
 
   } catch (error) {
@@ -94,17 +95,15 @@ export async function PUT(
       schoolYear,
       keywords,
       summary,
-      summaryEn,
-      topicEn,
-      keywordsEn,
-      skills,
-      tools,
-      theme
+      // summaryEn, topicEn, keywordsEn, skills, tools, theme -> Not in Prisma Note schema yet?
+      // I only added fields from core-data. If these fields are needed, they should be in schema or JSON metadata.
+      // Prisma Note schema has keywords.
+      // summary -> body.
     } = body;
 
     // Validate and prepare update data
-    const updateData: Record<string, unknown> = {
-      updatedAt: new Date().toISOString()
+    const updateData: any = {
+      updatedAt: new Date()
     };
 
     if (subject !== undefined) updateData.subject = subject;
@@ -113,49 +112,46 @@ export async function PUT(
     if (level !== undefined) updateData.level = level;
     if (schoolYear !== undefined) updateData.schoolYear = schoolYear;
     if (keywords !== undefined) updateData.keywords = keywords;
-    if (summary !== undefined) updateData.summary = summary;
-    if (summaryEn !== undefined) updateData.summaryEn = summaryEn;
-    if (topicEn !== undefined) updateData.topicEn = topicEn;
-    if (keywordsEn !== undefined) updateData.keywordsEn = keywordsEn;
-    if (skills !== undefined) updateData.skills = skills;
-    if (tools !== undefined) updateData.tools = tools;
-    if (theme !== undefined) updateData.theme = theme;
+    if (summary !== undefined) updateData.body = summary; // Mapping summary to body
 
-    // Update the document
-    await db.collection('fileMetadata').doc(id).update(updateData);
+    // Update the note
+    const updatedNote = await prisma.note.update({
+      where: { id },
+      data: updateData,
+      include: { student: true }
+    });
 
-    // Get the updated document
-    const doc = await db.collection('fileMetadata').doc(id).get();
-    if (!doc.exists) {
-      return NextResponse.json({ error: 'Note not found after update' }, { status: 404 });
-    }
-
-    const noteData = doc.data();
-    if (!noteData) {
-      return NextResponse.json({ error: 'Note data not found after update' }, { status: 404 });
-    }
-
-    // Get student info
-    const studentResult = await getStudent(noteData.studentId);
-    if (isErr(studentResult)) {
-      return NextResponse.json({ error: studentResult.error.message }, { status: 500 });
-    }
-
-    const student = studentResult.data;
-
-    const note: AdminNoteWithMetadata = {
-      ...(noteData as any),
-      id: createDriveFileId(doc.id),
+    const adminNote: AdminNoteWithMetadata = {
+      id: updatedNote.id,
+      name: updatedNote.title || 'Untitled',
+      title: updatedNote.title || '',
+      modifiedTime: updatedNote.updatedAt.toISOString(),
+      size: 0,
+      thumbnailUrl: '',
+      downloadUrl: '',
+      viewUrl: '',
+      
+      subject: updatedNote.subject || undefined,
+      topicGroup: updatedNote.topicGroup || undefined,
+      topic: updatedNote.topic || undefined,
+      level: updatedNote.level || undefined,
+      schoolYear: updatedNote.schoolYear || undefined,
+      keywords: updatedNote.keywords,
+      summary: updatedNote.body || undefined,
+      
+      createdAt: updatedNote.createdAt.toISOString(),
+      updatedAt: updatedNote.updatedAt.toISOString(),
+      
       student: {
-        id: student.id,
-        displayName: student.displayName,
-        subject: student.subject
+        id: updatedNote.student.id,
+        displayName: updatedNote.student.name,
+        subject: updatedNote.student.subject?.toString() || undefined
       }
     };
 
     return NextResponse.json({
       success: true,
-      note
+      note: adminNote
     });
 
   } catch (error) {
@@ -179,27 +175,10 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if note exists
-    const doc = await db.collection('fileMetadata').doc(id).get();
-    if (!doc.exists) {
-      return NextResponse.json({ error: 'Note not found' }, { status: 404 });
-    }
-
-    // Delete key concepts first
-    const keyConceptsSnapshot = await db
-      .collection('keyConcepts')
-      .where('noteId', '==', id)
-      .get();
-
-    const batch = db.batch();
-    keyConceptsSnapshot.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
-      batch.delete(doc.ref);
+    // Delete the note (Cascade will delete KeyConcepts)
+    await prisma.note.delete({
+      where: { id }
     });
-
-    // Delete the note
-    batch.delete(db.collection('fileMetadata').doc(id));
-
-    await batch.commit();
 
     return NextResponse.json({
       success: true,

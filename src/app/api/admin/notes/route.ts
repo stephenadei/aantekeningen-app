@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { db } from '@/lib/firebase-admin';
-import { getAllStudents } from '@/lib/firestore';
-import { isErr } from '@/lib/types';
-import type { AdminNoteWithMetadata, BulkOperationRequest, BulkOperationResponse } from '@/lib/interfaces';
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+import { datalakeService } from '@/lib/datalake-simple';
+import { datalakeMetadataService } from '@/lib/datalake-metadata';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,94 +28,86 @@ export async function GET(request: NextRequest) {
     const aiAnalyzed = searchParams.get('aiAnalyzed') || '';
     const studentId = searchParams.get('studentId') || '';
 
-    // Build Firestore query
-    let query = db.collection('fileMetadata').orderBy('modifiedTime', 'desc');
+    // Build Prisma query
+    const where: Prisma.NoteWhereInput = {};
 
-    // Apply filters (Firestore allows up to 10 compound filters)
-    const filters: Array<[string, FirebaseFirestore.WhereFilterOp, unknown]> = [];
+    if (subject) where.subject = subject;
+    if (topicGroup) where.topicGroup = topicGroup;
+    if (topic) where.topic = topic;
+    if (level) where.level = level;
+    if (schoolYear) where.schoolYear = schoolYear;
+    if (studentId) where.studentId = studentId;
 
-    if (subject) {
-      filters.push(['subject', '==', subject]);
-    }
-    if (topicGroup) {
-      filters.push(['topicGroup', '==', topicGroup]);
-    }
-    if (topic) {
-      filters.push(['topic', '==', topic]);
-    }
-    if (level) {
-      filters.push(['level', '==', level]);
-    }
-    if (schoolYear) {
-      filters.push(['schoolYear', '==', schoolYear]);
-    }
-    if (studentId) {
-      filters.push(['studentId', '==', studentId]);
-    }
-    if (aiAnalyzed === 'true') {
-      filters.push(['aiAnalyzedAt', '!=', null]);
-    } else if (aiAnalyzed === 'false') {
-      filters.push(['aiAnalyzedAt', '==', null]);
-    }
-    if (dateFrom) {
-      filters.push(['modifiedTime', '>=', dateFrom]);
-    }
-    if (dateTo) {
-      filters.push(['modifiedTime', '<=', dateTo]);
+    if (dateFrom || dateTo) {
+      where.updatedAt = {};
+      if (dateFrom) where.updatedAt.gte = new Date(dateFrom);
+      if (dateTo) where.updatedAt.lte = new Date(dateTo);
     }
 
-    // Apply filters to query (max 10 for Firestore)
-    filters.slice(0, 10).forEach(([field, op, value]) => {
-      query = query.where(field, op, value);
-    });
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { body: { contains: search, mode: 'insensitive' } },
+        { keywords: { has: search } }
+      ];
+    }
 
     // Execute query
-    const snapshot = await query.get();
-    let notes = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as AdminNoteWithMetadata[];
+    const [notes, total] = await Promise.all([
+      prisma.note.findMany({
+        where,
+        include: {
+          student: {
+            select: {
+              id: true,
+              name: true,
+              subject: true
+            }
+          }
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit
+      }),
+      prisma.note.count({ where })
+    ]);
 
-    // Get students for metadata
-    const studentsResult = await getAllStudents();
-    if (isErr(studentsResult)) {
-      return NextResponse.json({ error: studentsResult.error.message }, { status: 500 });
-    }
-
-    const studentsMap = new Map(studentsResult.data.map(s => [s.id, s]));
-
-    // Add student metadata to notes
-    notes = notes.map(note => ({
-      ...note,
+    // Map to response format
+    const formattedNotes = notes.map(note => ({
+      id: note.id,
+      name: note.title || 'Untitled',
+      title: note.title || '',
+      modifiedTime: note.updatedAt.toISOString(),
+      size: 0, 
+      thumbnailUrl: '', 
+      downloadUrl: '',
+      viewUrl: '',
+      
+      subject: note.subject || undefined,
+      topicGroup: note.topicGroup || undefined,
+      topic: note.topic || undefined,
+      level: note.level || undefined,
+      schoolYear: note.schoolYear || undefined,
+      keywords: note.keywords,
+      summary: note.body || undefined,
+      
+      createdAt: note.createdAt.toISOString(),
+      updatedAt: note.updatedAt.toISOString(),
+      
       student: {
-        id: note.studentId,
-        displayName: studentsMap.get(note.studentId)?.displayName || 'Unknown Student',
-        subject: studentsMap.get(note.studentId)?.subject
-      }
+        id: note.student.id,
+        displayName: note.student.name,
+        subject: note.student.subject?.toString() || undefined
+      },
+      datalakePath: note.datalakePath
     }));
 
-    // Apply text search in memory (after Firestore query)
-    if (search) {
-      const searchLower = search.toLowerCase();
-      notes = notes.filter(note => 
-        note.name.toLowerCase().includes(searchLower) ||
-        note.title.toLowerCase().includes(searchLower) ||
-        (note.keywords && note.keywords.some(k => k.toLowerCase().includes(searchLower))) ||
-        (note.summary && note.summary.toLowerCase().includes(searchLower))
-      );
-    }
-
-    // Apply pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedNotes = notes.slice(startIndex, endIndex);
-
     return NextResponse.json({
-      notes: paginatedNotes,
-      total: notes.length,
+      notes: formattedNotes,
+      total,
       page,
       limit,
-      hasMore: endIndex < notes.length,
+      hasMore: (page * limit) < total,
       appliedFilters: {
         search,
         subject,
@@ -176,13 +168,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get student info
-    const studentsResult = await getAllStudents();
-    if (isErr(studentsResult)) {
-      return NextResponse.json({ error: studentsResult.error.message }, { status: 500 });
-    }
+    // Get student info from Prisma
+    const student = await prisma.student.findUnique({
+      where: { id: studentId }
+    });
 
-    const student = studentsResult.data.find(s => s.id === studentId);
     if (!student) {
       return NextResponse.json(
         { error: 'Student not found' },
@@ -190,47 +180,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!student.driveFolderId) {
+    // Construct path: prefer datalakePath, fallback to constructing it
+    let studentPath = student.datalakePath;
+    if (!studentPath) {
+      // Fallback: notability/Priveles/VO/{Name}
+      // Note: This assumes VO structure.
+      studentPath = `notability/Priveles/VO/${student.name}`;
+    }
+
+    const filePath = `${studentPath}/${file.name}`;
+
+    // Read file buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Upload to MinIO
+    try {
+      await datalakeService.uploadFile(filePath, buffer, file.type);
+    } catch (uploadError) {
+      console.error('Error uploading to datalake:', uploadError);
       return NextResponse.json(
-        { error: 'Student does not have a linked Drive folder' },
-        { status: 400 }
+        { error: 'Failed to upload file to storage' },
+        { status: 500 }
       );
     }
 
-    // TODO: Upload to Google Drive
-    // This would require implementing the Google Drive upload functionality
-    // For now, we'll create a placeholder file metadata entry
+    // Create metadata object
+    const fileMetadata = datalakeMetadataService.createFileMetadata(
+      {
+        id: filePath,
+        name: file.name,
+        modifiedTime: new Date().toISOString(),
+        size: file.size
+      },
+      student.id,
+      student.datalakePath || ''
+    );
+    
+    // Write metadata to MinIO
+    await datalakeMetadataService.saveFileMetadata(filePath, fileMetadata);
+    
+    // Write to Prisma
+    const note = await prisma.note.create({
+      data: {
+        studentId: student.id,
+        type: 'PDF',
+        title: file.name.replace('.pdf', ''),
+        datalakePath: filePath,
+        subject: student.subject?.toString(),
+        // We initialize with basic info; sync service or manual edit can fill rest
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
 
-    const fileMetadata = {
-      studentId,
-      folderId: student.driveFolderId,
-      name: file.name,
-      title: file.name.replace('.pdf', ''),
-      modifiedTime: new Date().toISOString(),
-      size: file.size,
-      thumbnailUrl: '', // Will be generated
-      downloadUrl: '', // Will be set after Drive upload
-      viewUrl: '', // Will be set after Drive upload
-      subject: student.subject,
-      aiAnalyzedAt: autoAnalyze ? new Date().toISOString() : null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    // Create file metadata in Firestore
-    const docRef = await db.collection('fileMetadata').add(fileMetadata);
-
-    // TODO: If autoAnalyze is true, trigger AI analysis
-    // This would call the background sync service
+    // TODO: If autoAnalyze is true, trigger AI analysis (via background sync or queue)
 
     return NextResponse.json({
       success: true,
       note: {
-        id: docRef.id,
+        id: note.id,
         ...fileMetadata,
         student: {
           id: student.id,
-          displayName: student.displayName,
+          displayName: student.name,
           subject: student.subject
         }
       }

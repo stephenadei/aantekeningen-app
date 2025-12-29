@@ -224,9 +224,23 @@ export default function AantekeningenPage() {
             setCacheLoading(false);
           }
         } else {
-          console.log('❌ Student has no files - this should not happen if student was found');
-          setError('Er zijn geen aantekeningen gevonden voor deze student. Dit kan een tijdelijk probleem zijn.');
-          setCacheLoading(false);
+          // Check if student has notes indicator
+          if (selectedStudent && !selectedStudent.hasNotes) {
+            console.log('ℹ️ Student has no notes (expected)');
+            setError(null); // Don't show error if student has no notes (they might only have appointments)
+            setCacheLoading(false);
+        } else {
+          // Check if student has notes indicator
+          if (selectedStudent && !selectedStudent.hasNotes) {
+            console.log('ℹ️ Student has no notes (expected)');
+            setError(null); // Don't show error if student has no notes (they might only have appointments)
+            setCacheLoading(false);
+          } else {
+            console.log('❌ Student has no files - this should not happen if student was found');
+            setError('Er zijn geen aantekeningen gevonden voor deze student. Dit kan een tijdelijk probleem zijn.');
+            setCacheLoading(false);
+          }
+        }
         }
       } else {
         console.log('❌ Files loading failed:', filesData);
@@ -678,6 +692,25 @@ export default function AantekeningenPage() {
                         >
                           <h4 className="font-bold text-lg text-yellow-100">{student.displayName}</h4>
                           <p className="text-yellow-200">{student.subject}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {student.hasNotes ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-green-500/20 text-green-300 rounded border border-green-500/30">
+                                <FileText className="h-3 w-3" />
+                                Aantekeningen
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-gray-500/20 text-gray-300 rounded border border-gray-500/30">
+                                <FileText className="h-3 w-3" />
+                                Geen aantekeningen
+                              </span>
+                            )}
+                            {student.hasAppointments && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">
+                                <Calendar className="h-3 w-3" />
+                                Afspraken
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center space-x-2">
                           <button

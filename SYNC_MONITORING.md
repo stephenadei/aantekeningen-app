@@ -61,11 +61,11 @@ Tel het aantal metadata bestanden in de datalake:
 
 ```bash
 # Totaal aantal metadata bestanden
-docker exec minio mc find local/educatie-lesmateriaal/notability/Priveles/ \
+docker exec minio mc find local/bronze-education/notability/Priveles/ \
   -name "*.metadata.json" 2>/dev/null | wc -l
 
 # Nieuwste metadata bestand
-docker exec minio mc find local/educatie-lesmateriaal/notability/Priveles/ \
+docker exec minio mc find local/bronze-education/notability/Priveles/ \
   -name "*.metadata.json" 2>/dev/null | head -1
 ```
 

@@ -1,4 +1,4 @@
-import { db } from './firebase-admin';
+import { prisma } from './prisma';
 import { datalakeService } from './datalake-simple';
 import { datalakeMetadataService } from './datalake-metadata';
 import { thumbnailGeneratorService } from './thumbnail-generator';
@@ -224,7 +224,61 @@ export class BackgroundSyncService {
           );
 
           // Write metadata to datalake
-          await datalakeMetadataService.setFileMetadata(fullFilePath, fileMeta);
+          await datalakeMetadataService.saveFileMetadata(fullFilePath, fileMeta);
+
+          // Sync to PostgreSQL
+          try {
+            // Find student in Postgres
+            // We try to match by datalakePath (if mapped) or name
+            const dbStudent = await prisma.student.findFirst({
+              where: {
+                OR: [
+                  { datalakePath: { contains: student.displayName } },
+                  { name: student.displayName }
+                ]
+              }
+            });
+
+            if (dbStudent) {
+              // Check if note exists by datalake path
+              const existingNote = await prisma.note.findFirst({
+                where: { datalakePath: fullFilePath }
+              });
+
+              const noteData = {
+                studentId: dbStudent.id,
+                type: 'PDF' as const,
+                title: fileMeta.title || fileMeta.name,
+                datalakePath: fullFilePath,
+                subject: fileMeta.subject,
+                topicGroup: fileMeta.topicGroup,
+                topic: fileMeta.topic,
+                level: fileMeta.level,
+                schoolYear: fileMeta.schoolYear,
+                keywords: fileMeta.keywords || [],
+                body: fileMeta.summary, // Map summary to body
+                updatedAt: new Date(fileMeta.modifiedTime)
+              };
+
+              if (existingNote) {
+                await prisma.note.update({
+                  where: { id: existingNote.id },
+                  data: noteData
+                });
+              } else {
+                await prisma.note.create({
+                  data: {
+                    ...noteData,
+                    createdAt: new Date(fileMeta.createdAt || new Date())
+                  }
+                });
+              }
+              console.log(`   ↳ Synced to Postgres for student: ${dbStudent.name}`);
+            }
+          } catch (pgError) {
+            console.error(`   ❌ Failed to sync to Postgres:`, pgError);
+          }
+
           updatedCount++;
         }
       }
@@ -278,22 +332,23 @@ export class BackgroundSyncService {
   }
 
   /**
-   * Update sync timestamp in Firestore
+   * Update sync timestamp in MinIO
    */
   private async updateSyncTimestamp(): Promise<void> {
     try {
-      await db.collection('system').doc('syncStatus').set({
+      const status = {
         lastFullSync: new Date().toISOString(),
         isRunning: this.isRunning,
         version: '1.0',
-      });
+      };
+      await datalakeMetadataService.saveSystemStatus('syncStatus', status);
     } catch (error) {
       console.error('Error updating sync timestamp:', error);
     }
   }
 
   /**
-   * Get sync status
+   * Get sync status from MinIO
    */
   async getSyncStatus(): Promise<{
     lastSync: Date | null;
@@ -301,9 +356,9 @@ export class BackgroundSyncService {
     version: string;
   }> {
     try {
-      const doc = await db.collection('system').doc('syncStatus').get();
+      const status = await datalakeMetadataService.getSystemStatus('syncStatus');
       
-      if (!doc.exists) {
+      if (!status) {
         return {
           lastSync: null,
           isRunning: false,
@@ -311,11 +366,10 @@ export class BackgroundSyncService {
         };
       }
 
-      const data = doc.data()!;
       return {
-        lastSync: data.lastFullSync ? new Date(data.lastFullSync) : null,
-        isRunning: data.isRunning || false,
-        version: data.version || '1.0',
+        lastSync: status.lastFullSync ? new Date(status.lastFullSync) : null,
+        isRunning: status.isRunning || false,
+        version: status.version || '1.0',
       };
     } catch (error) {
       console.error('Error getting sync status:', error);

@@ -2,7 +2,7 @@
 
 ## 🎯 Doel
 
-MinIO publiek maken zodat leerlingen bestanden kunnen downloaden, maar **alleen de `educatie-lesmateriaal` bucket** is publiek leesbaar.
+MinIO publiek maken zodat leerlingen bestanden kunnen downloaden, maar **alleen de `bronze-education` bucket** is publiek leesbaar.
 
 ## ✅ Stap 1: MinIO Bucket Policy Configureren
 
@@ -15,7 +15,7 @@ cd /home/stephen/projects/aantekeningen-app
 
 Dit script:
 - ✅ Configureert MinIO client (mc)
-- ✅ Zet alleen `educatie-lesmateriaal` bucket op publiek leesbaar
+- ✅ Zet alleen `bronze-education` bucket op publiek leesbaar
 - ✅ Andere buckets blijven privé
 - ✅ Alleen `GetObject` toegang (download, geen upload/delete)
 
@@ -89,7 +89,7 @@ curl -I http://144.91.127.229:9000
 
 ```bash
 # Check bucket policy
-mc anonymous get local-minio/educatie-lesmateriaal
+mc anonymous get local-minio/bronze-education
 
 # Moet "download" tonen (publiek leesbaar)
 ```
@@ -117,7 +117,7 @@ curl "http://localhost:3001/api/test"
 ### Wat is Publiek:
 
 ✅ **Publiek leesbaar:**
-- `educatie-lesmateriaal` bucket
+- `bronze-education` bucket
 - Alleen `GetObject` (download)
 - Via presigned URLs (tijdelijk, 7 dagen geldig)
 
@@ -172,10 +172,10 @@ curl "http://localhost:3001/api/test"
 - Check firewall regels
 - Check nginx configuratie
 - Check MinIO logs: `docker logs minio`
-- Check bucket policy: `mc anonymous get local-minio/educatie-lesmateriaal`
+- Check bucket policy: `mc anonymous get local-minio/bronze-education`
 
 **Bucket policy werkt niet:**
-- Check of bucket bestaat: `mc ls local-minio/educatie-lesmateriaal`
-- Check policy: `mc anonymous get local-minio/educatie-lesmateriaal`
-- Herstel policy: `mc anonymous set download local-minio/educatie-lesmateriaal`
+- Check of bucket bestaat: `mc ls local-minio/bronze-education`
+- Check policy: `mc anonymous get local-minio/bronze-education`
+- Herstel policy: `mc anonymous set download local-minio/bronze-education`
 

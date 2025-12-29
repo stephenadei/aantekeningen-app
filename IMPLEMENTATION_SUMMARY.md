@@ -46,7 +46,7 @@ Script om alle PDFs opnieuw te analyseren:
 ## 📁 Metadata Structuur in Datalake
 
 ```
-educatie-lesmateriaal/
+bronze-education/
 └── notability/
     └── Priveles/
         ├── VO/{StudentName}/
@@ -156,7 +156,7 @@ curl http://localhost:3001/api/students/{student-id}/files
 **Verifieer in MinIO:**
 ```bash
 # Check metadata bestanden
-docker exec minio mc ls local/educatie-lesmateriaal/notability/Priveles/VO/{StudentName}/
+docker exec minio mc ls local/bronze-education/notability/Priveles/VO/{StudentName}/
 ```
 
 ## 📝 Volgende Stappen

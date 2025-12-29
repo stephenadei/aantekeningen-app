@@ -17,24 +17,9 @@ export const config = {
     return process.env.NEXTAUTH_URL || 'http://localhost:3000';
   },
   
-  // Database (Firestore - no longer using PostgreSQL/SQLite)
+  // Database
   get databaseUrl() {
-    return 'firestore'; // Using Firestore as primary database
-  },
-  
-  // OAuth Configuration
-  get oauth() {
-    const baseUrl = this.baseUrl;
-    
-    return {
-      google: {
-        clientId: process.env.GOOGLE_CLIENT_ID!,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-        redirectUri: `${baseUrl}/api/auth/callback/google`,
-        // Use explicit redirect URI if provided, otherwise auto-generate
-        explicitRedirectUri: process.env.GOOGLE_REDIRECT_URI,
-      },
-    };
+    return 'postgresql'; // Using PostgreSQL
   },
   
   // Security
@@ -64,8 +49,7 @@ export const config = {
       environment: process.env.NODE_ENV,
       isVercel: this.isVercel,
       baseUrl: this.baseUrl,
-      databaseType: 'Firestore',
-      oauthRedirectUri: this.oauth.google.redirectUri,
+      databaseType: 'PostgreSQL',
     };
   },
 };
@@ -75,22 +59,17 @@ export function validateConfig() {
   const errors: string[] = [];
   
   // Required for all environments
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    errors.push('GOOGLE_CLIENT_ID is required');
-  }
-  
-  if (!process.env.GOOGLE_CLIENT_SECRET) {
-    errors.push('GOOGLE_CLIENT_SECRET is required');
-  }
   
   if (!process.env.NEXTAUTH_SECRET) {
     errors.push('NEXTAUTH_SECRET is required');
   }
   
-  // Production-specific requirements
-  if (config.isProduction && !process.env.FIREBASE_PROJECT_ID) {
-    errors.push('FIREBASE_PROJECT_ID is required in production');
+  if (!process.env.DATABASE_URL) {
+    errors.push('DATABASE_URL is required');
   }
+
+  // Production-specific requirements
+  // (Add if needed)
   
   if (errors.length > 0) {
     console.error('❌ Configuration errors:', errors);
@@ -112,8 +91,3 @@ export function ensureConfigValidated() {
   }
   return true;
 }
-
-// Auto-validate on import (disabled to prevent early validation errors)
-// if (process.env.NODE_ENV !== 'test') {
-//   validateConfig();
-// }

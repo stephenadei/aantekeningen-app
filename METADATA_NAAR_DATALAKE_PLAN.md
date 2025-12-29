@@ -6,7 +6,7 @@ Genereer alle metadata opnieuw vanuit de PDFs in de datalake en sla deze op in d
 
 ## Huidige Situatie
 
-- **PDFs staan in datalake**: `educatie-lesmateriaal/notability/Priveles/{Subject}/{StudentName}/file.pdf`
+- **PDFs staan in datalake**: `bronze-education/notability/Priveles/{Subject}/{StudentName}/file.pdf`
 - **Metadata staat in Firestore**: fileMetadata collection met AI analyse resultaten
 - **Background sync**: Analyseert PDFs en slaat resultaten op in Firestore
 
@@ -21,7 +21,7 @@ Genereer alle metadata opnieuw vanuit de PDFs in de datalake en sla deze op in d
 ### Metadata Bestanden in Datalake:
 
 ```
-educatie-lesmateriaal/
+bronze-education/
 └── notability/
     └── Priveles/
         ├── VO/{StudentName}/

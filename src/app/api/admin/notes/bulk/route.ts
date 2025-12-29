@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { db } from '@/lib/firebase-admin';
+import { prisma } from '@/lib/prisma';
 import { backgroundSyncService } from '@/lib/background-sync';
 import type { BulkOperationRequest, BulkOperationResponse } from '@/lib/interfaces';
 
@@ -28,68 +28,34 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'reanalyze':
-        // Trigger re-analysis for each note
-        for (const noteId of noteIds) {
+        // Get unique student IDs from notes
+        const notes = await prisma.note.findMany({
+          where: { id: { in: noteIds } },
+          select: { studentId: true }
+        });
+        
+        const studentIds = [...new Set(notes.map(n => n.studentId))];
+        
+        for (const sid of studentIds) {
           try {
-            // Get the note to find the student
-            const noteDoc = await db.collection('fileMetadata').doc(noteId).get();
-            if (!noteDoc.exists) {
-              errors++;
-              errorDetails.push(`Note ${noteId} not found`);
-              continue;
-            }
-
-            const noteData = noteDoc.data();
-            if (!noteData) {
-              errors++;
-              errorDetails.push(`Note ${noteId} has no data`);
-              continue;
-            }
-
-            // Trigger re-analysis for the student
-            await backgroundSyncService.forceReanalyzeStudent(noteData.studentId);
-            processed++;
+            await backgroundSyncService.forceReanalyzeStudent(sid);
           } catch (error) {
             errors++;
-            errorDetails.push(`Failed to re-analyze note ${noteId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            errorDetails.push(`Failed to re-analyze student ${sid}: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         }
+        processed = noteIds.length; // Approximate, as we sync by student
         break;
 
       case 'delete':
-        // Delete notes in batches
-        const batchSize = 500; // Firestore batch limit
-        for (let i = 0; i < noteIds.length; i += batchSize) {
-          const batch = db.batch();
-          const batchIds = noteIds.slice(i, i + batchSize);
-
-          for (const noteId of batchIds) {
-            try {
-              // Delete key concepts first
-              const keyConceptsSnapshot = await db
-                .collection('keyConcepts')
-                .where('noteId', '==', noteId)
-                .get();
-
-              keyConceptsSnapshot.docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
-                batch.delete(doc.ref);
-              });
-
-              // Delete the note
-              batch.delete(db.collection('fileMetadata').doc(noteId));
-              processed++;
-            } catch (error) {
-              errors++;
-              errorDetails.push(`Failed to delete note ${noteId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-          }
-
-          try {
-            await batch.commit();
-          } catch (error) {
-            errors += batchIds.length;
-            errorDetails.push(`Batch delete failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
+        try {
+          const result = await prisma.note.deleteMany({
+            where: { id: { in: noteIds } }
+          });
+          processed = result.count;
+        } catch (error) {
+          errors = noteIds.length;
+          errorDetails.push(`Failed to delete notes: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
         break;
 
@@ -101,33 +67,28 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        // Update metadata in batches
-        const updateBatchSize = 500;
-        for (let i = 0; i < noteIds.length; i += updateBatchSize) {
-          const batch = db.batch();
-          const batchIds = noteIds.slice(i, i + updateBatchSize);
+        try {
+          const updateData: any = {
+            updatedAt: new Date()
+          };
 
-          for (const noteId of batchIds) {
-            try {
-              const updateData = {
-                ...metadata,
-                updatedAt: new Date().toISOString()
-              };
+          // Map fields
+          if (metadata.subject) updateData.subject = metadata.subject;
+          if (metadata.topicGroup) updateData.topicGroup = metadata.topicGroup;
+          if (metadata.topic) updateData.topic = metadata.topic;
+          if (metadata.level) updateData.level = metadata.level;
+          if (metadata.schoolYear) updateData.schoolYear = metadata.schoolYear;
+          if (metadata.keywords) updateData.keywords = metadata.keywords;
+          if (metadata.summary) updateData.body = metadata.summary; // Map summary to body
 
-              batch.update(db.collection('fileMetadata').doc(noteId), updateData);
-              processed++;
-            } catch (error) {
-              errors++;
-              errorDetails.push(`Failed to update note ${noteId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-          }
-
-          try {
-            await batch.commit();
-          } catch (error) {
-            errors += batchIds.length;
-            errorDetails.push(`Batch update failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
+          const result = await prisma.note.updateMany({
+            where: { id: { in: noteIds } },
+            data: updateData
+          });
+          processed = result.count;
+        } catch (error) {
+          errors = noteIds.length;
+          errorDetails.push(`Failed to update notes: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
         break;
 
