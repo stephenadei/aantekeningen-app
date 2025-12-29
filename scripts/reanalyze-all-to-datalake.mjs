@@ -54,9 +54,10 @@ function formatTime(ms) {
 }
 
 /**
- * Print progress
+ * Print progress (currently unused but kept for future use)
  */
-function printProgress() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _printProgress() {
   const elapsed = formatTime(Date.now() - progress.startTime);
   console.log(`\n📊 Progress:`);
   console.log(`   Students: ${stats.students}`);

@@ -22,9 +22,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXTAUTH_URL
 const CRON_SECRET = process.env.CRON_SECRET || 'test-secret';
 
 /**
- * Format elapsed time
+ * Format elapsed time (currently unused but kept for future use)
  */
-function formatTime(ms) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _formatTime(ms) {
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -76,8 +77,6 @@ async function generateAllThumbnails(size = 'medium', force = false) {
   console.log(`   API URL: ${API_BASE_URL}`);
   console.log('');
 
-  const startTime = Date.now();
-
   try {
     // Trigger thumbnail generation via API
     console.log('📡 Triggering thumbnail generation via API...');
@@ -104,8 +103,6 @@ async function generateStudentThumbnails(studentPath, size = 'medium', force = f
   console.log(`   Size: ${size}`);
   console.log(`   Force: ${force ? 'Yes (regenerate existing)' : 'No (skip existing)'}`);
   console.log(`   API URL: ${API_BASE_URL}`);
-  
-  const startTime = Date.now();
 
   try {
     // Trigger thumbnail generation for specific student

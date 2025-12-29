@@ -69,7 +69,7 @@ export class DatalakeMetadataService {
    */
   private getMetadataPath(filePath: string): string {
     // Remove bucket name if present
-    let cleanPath = filePath.replace(`${BUCKET_NAME}/`, '');
+    const cleanPath = filePath.replace(`${BUCKET_NAME}/`, '');
     
     // Ensure we don't double-append extension if it's already there
     if (cleanPath.endsWith('.metadata.json')) {

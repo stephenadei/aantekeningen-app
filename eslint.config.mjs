@@ -15,13 +15,17 @@ const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     ignores: [
-      "node_modules/**",
-      ".next/**",
-      "out/**",
-      "build/**",
-      "next-env.d.ts",
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/.next/**/*",
+      "**/out/**",
+      "**/build/**",
+      "**/next-env.d.ts",
       "**/*.tsbuildinfo",
+      ".next/**",
+      ".next/**/*",
     ],
+    files: ["src/**/*.{ts,tsx,js,jsx}", "tests/**/*.{ts,tsx,js,jsx}", "scripts/**/*.{ts,tsx,js,jsx}"],
     rules: {
       "@typescript-eslint/no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "off",

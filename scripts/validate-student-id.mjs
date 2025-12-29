@@ -145,7 +145,7 @@ try {
     console.log('✅ Use this ID as a Firestore student ID');
     console.log('   API calls: /api/students/' + studentId + '?idType=firestore');
   }
-} catch (error) {
+} catch {
   // Ignore errors
 }
 
@@ -159,7 +159,7 @@ try {
     console.log('✅ Use this ID as a Drive folder ID');
     console.log('   API calls: /api/students/' + studentId + '?idType=drive');
   }
-} catch (error) {
+} catch {
   // Ignore errors
 }
 

@@ -46,8 +46,6 @@ async function checkAIDataStatus() {
       totalFiles += files.length;
 
       // Check which files have AI metadata (summary field)
-      const metadataMap = new Map();
-
       let studentFilesWithAI = 0;
       let studentFilesWithoutAI = 0;
 
