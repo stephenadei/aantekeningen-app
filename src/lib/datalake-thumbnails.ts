@@ -5,7 +5,10 @@
 
 import * as MinIO from 'minio';
 
-const BUCKET_NAME = process.env.DATALAKE_BUCKET_EDUCATION_BRONZE || 'bronze-education';
+import { MedallionBuckets } from '@stephen/datalake';
+
+// Silver layer for thumbnails
+const BUCKET_NAME = MedallionBuckets.SILVER_EDUCATION;
 const THUMBNAIL_PREFIX = 'thumbnails/';
 
 class DatalakeThumbnailService {

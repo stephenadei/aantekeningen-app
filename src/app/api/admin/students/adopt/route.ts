@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { createStudent } from '@/lib/firestore';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
 import { isErr, createPin, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
 import type { CreateStudentInput } from '@/lib/interfaces';
 import bcrypt from 'bcryptjs';

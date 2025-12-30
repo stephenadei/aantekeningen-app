@@ -4,6 +4,7 @@
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+  output        = "../../../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -52,9 +53,6 @@ model Student {
   // Aantekeningen-app integration
   pinHash      String? // bcrypt hash for PIN login
   datalakePath String? // Path to student folder in MinIO datalake (e.g., "notability/Priveles/VO/Amirah")
-  
-  // Added for Aantekeningen-app
-  subject      String? // Primary subject (e.g. "wiskunde-bovenbouw")
   shareToken   String? @unique // Unique token for sharing student page
 
   // Relations

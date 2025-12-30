@@ -1,4 +1,10 @@
 import { vi, beforeAll } from 'vitest';
+import { config } from 'dotenv';
+import { resolve } from 'path';
+
+// Load environment variables for tests
+config({ path: resolve(__dirname, '../.env.local') });
+config({ path: resolve(__dirname, '../.env') });
 
 // Global test setup
 beforeAll(() => {
@@ -12,6 +18,13 @@ beforeAll(() => {
     GOOGLE_CLIENT_ID: 'test-google-client-id',
     GOOGLE_CLIENT_SECRET: 'test-google-client-secret',
     OPENAI_API_KEY: 'test-openai-key',
+    // Database and MinIO config (use defaults if not set)
+    DATABASE_URL: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5435/platform?schema=public',
+    MINIO_ENDPOINT: process.env.MINIO_ENDPOINT || 'localhost',
+    MINIO_PORT: process.env.MINIO_PORT || '9005',
+    MINIO_SECURE: process.env.MINIO_SECURE || 'false',
+    MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+    MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY || 'minioadmin',
   });
 });
 

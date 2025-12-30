@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
 import { Prisma } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
       // Generate CSV
       const csvHeaders = ['ID', 'Wie', 'Actie', 'IP', 'User Agent', 'Tijdstip', 'Metadata'];
-      const csvRows = audits.map((audit) => [
+      const csvRows = audits.map((audit: any) => [
         audit.id,
         audit.who || '',
         audit.action || '',

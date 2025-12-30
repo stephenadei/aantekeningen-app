@@ -17,7 +17,8 @@ async function checkAIDataStatus() {
 
   try {
     // Get all students from datalake via API
-    const searchResponse = await fetch(`${API_BASE_URL}/api/students/search?q=`);
+    // Use empty string as query to get all students
+    const searchResponse = await fetch(`${API_BASE_URL}/api/students/search?q=*`);
     if (!searchResponse.ok) {
       throw new Error(`Failed to search students: ${searchResponse.statusText}`);
     }

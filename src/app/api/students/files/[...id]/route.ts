@@ -3,7 +3,7 @@ import { datalakeService } from '@/lib/datalake-simple';
 import { getFileMetadata, isFileMetadataFresh } from '@/lib/cache';
 import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
 import { backgroundSyncService } from '@/lib/background-sync';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
 import { 
   StudentIdType, 
   detectIdType, 

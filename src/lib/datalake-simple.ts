@@ -13,9 +13,10 @@ import {
   type Subject
 } from './types';
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
+import { MedallionBuckets } from '@stephen/datalake';
 
-// Datalake configuration
-const BUCKET_NAME = process.env.DATALAKE_BUCKET_EDUCATION_BRONZE || 'bronze-education';
+// Datalake configuration - Bronze layer for raw PDFs
+const BUCKET_NAME = MedallionBuckets.BRONZE_EDUCATION;
 const BASE_PATH = 'notability/Priveles';
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
 const CACHE_KEY_STUDENTS = 'cached_students';
@@ -46,15 +47,17 @@ class DatalakeService {
       const accessKey = process.env.MINIO_ACCESS_KEY || 'minioadmin';
       const secretKey = process.env.MINIO_SECRET_KEY || 'minioadmin';
 
-      // For internal connection, always use localhost (MinIO runs locally)
-      const internalHostname = 'localhost';
-      const internalPort = 9000;
+      // For internal connection, use endpoint from env or default to localhost
+      // In Docker, this should be the container name (e.g., 'platform-minio')
+      const internalHostname = endpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
+      const internalPort = port;
+      const internalUseSSL = endpoint.includes('https://') ? true : useSSL;
       
       // Create internal client for operations
       this.minioClient = new MinIO.Client({
         endPoint: internalHostname,
         port: internalPort,
-        useSSL: false, // Always false for localhost
+        useSSL: internalUseSSL,
         accessKey: accessKey,
         secretKey: secretKey,
       });

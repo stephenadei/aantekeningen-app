@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
+import { extractSubjectFromDatalakePath } from '@stephen/datalake';
 import { createDriveFileId } from '@/lib/types';
 import type { AdminNoteWithMetadata } from '@/lib/interfaces';
 
@@ -55,7 +56,7 @@ export async function GET(
       student: {
         id: note.student.id,
         displayName: note.student.name,
-        subject: note.student.subject?.toString() || undefined
+        subject: extractSubjectFromDatalakePath(note.student.datalakePath) || undefined
       }
     };
 
@@ -145,7 +146,7 @@ export async function PUT(
       student: {
         id: updatedNote.student.id,
         displayName: updatedNote.student.name,
-        subject: updatedNote.student.subject?.toString() || undefined
+        subject: extractSubjectFromDatalakePath(updatedNote.student.datalakePath) || undefined
       }
     };
 

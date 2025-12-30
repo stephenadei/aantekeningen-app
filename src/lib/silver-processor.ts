@@ -1,0 +1,141 @@
+/**
+ * Silver Layer Processor
+ * Processes Bronze files into Silver refined data
+ */
+
+import * as Minio from 'minio';
+import { MedallionBuckets, MedallionPaths } from '@stephen/datalake';
+import { datalakeService } from './datalake-simple';
+import { datalakeThumbnailService } from './datalake-thumbnails';
+import { datalakeMetadataService } from './datalake-metadata';
+
+export class SilverProcessor {
+  private bronzeClient: Minio.Client;
+  private silverClient: Minio.Client;
+  
+  constructor() {
+    const config = {
+      endPoint: process.env.MINIO_ENDPOINT || 'platform-minio',
+      port: parseInt(process.env.MINIO_PORT || '9000'),
+      useSSL: process.env.MINIO_SECURE === 'true',
+      accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+      secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+    };
+    
+    this.bronzeClient = new Minio.Client(config);
+    this.silverClient = new Minio.Client(config);
+  }
+  
+  /**
+   * Process a Bronze PDF into Silver metadata + thumbnail
+   */
+  async processPDF(subject: string, studentName: string, filename: string): Promise<void> {
+    const bronzePath = MedallionPaths.notabilityPriveles(subject, studentName) + filename;
+    
+    try {
+      // 1. Get PDF from Bronze
+      const pdfStream = await this.bronzeClient.getObject(
+        MedallionBuckets.BRONZE_EDUCATION,
+        bronzePath
+      );
+      
+      // 2. Generate AI metadata using existing service
+      const metadata = await datalakeService.analyzeDocumentWithAI(filename, bronzePath, false);
+      
+      // Add file info
+      const fileInfo = {
+        id: filename,
+        name: filename,
+        modifiedTime: new Date().toISOString(),
+        size: 0, // Will be updated if we can get it
+      };
+      
+      // Create full metadata object
+      const fullMetadata = datalakeMetadataService.createFileMetadata(
+        fileInfo,
+        studentName,
+        MedallionPaths.notabilityPriveles(subject, studentName),
+        metadata
+      );
+      
+      // Save metadata to Silver (use full bronze path as reference)
+      await datalakeMetadataService.saveFileMetadata(bronzePath, fullMetadata);
+      
+      // 3. Generate thumbnail (TODO: implement thumbnail generation from PDF stream)
+      // For now, thumbnails will be generated separately via background sync
+      console.log(`  ℹ️  Thumbnail generation skipped (will be handled by background sync)`);
+      
+      console.log(`✅ Processed: ${filename} → Silver`);
+    } catch (error) {
+      console.error(`❌ Error processing ${filename}:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Process all PDFs for a student
+   */
+  async processStudentFolder(subject: string, studentName: string): Promise<{ processed: number; errors: number }> {
+    const prefix = MedallionPaths.notabilityPriveles(subject, studentName);
+    const stream = this.bronzeClient.listObjects(
+      MedallionBuckets.BRONZE_EDUCATION,
+      prefix,
+      true
+    );
+    
+    let processed = 0;
+    let errors = 0;
+    
+    for await (const obj of stream) {
+      if (obj.name?.endsWith('.pdf')) {
+        const filename = obj.name.split('/').pop()!;
+        try {
+          await this.processPDF(subject, studentName, filename);
+          processed++;
+        } catch (error) {
+          console.error(`Failed to process ${filename}:`, error);
+          errors++;
+        }
+      }
+    }
+    
+    return { processed, errors };
+  }
+  
+  /**
+   * Process all students in a subject folder
+   */
+  async processSubjectFolder(subject: string): Promise<{ processed: number; errors: number }> {
+    const prefix = `notability/Priveles/${subject}/`;
+    const stream = this.bronzeClient.listObjects(
+      MedallionBuckets.BRONZE_EDUCATION,
+      prefix,
+      true
+    );
+    
+    const studentFolders = new Set<string>();
+    
+    // Collect unique student folders
+    for await (const obj of stream) {
+      if (obj.name) {
+        const parts = obj.name.split('/');
+        if (parts.length >= 4) {
+          studentFolders.add(parts[3]); // Student name is at index 3
+        }
+      }
+    }
+    
+    let totalProcessed = 0;
+    let totalErrors = 0;
+    
+    for (const studentName of studentFolders) {
+      console.log(`\n📚 Processing student: ${studentName}`);
+      const result = await this.processStudentFolder(subject, studentName);
+      totalProcessed += result.processed;
+      totalErrors += result.errors;
+    }
+    
+    return { processed: totalProcessed, errors: totalErrors };
+  }
+}
+

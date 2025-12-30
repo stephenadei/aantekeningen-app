@@ -41,6 +41,9 @@
     "seed-subjects": "node scripts/seed-subjects.mjs"
   },
   "dependencies": {
+    "@stephen/database": "*",
+    "@stephen/datalake": "*",
+    "@stephen/shared-types": "*",
     "@prisma/client": "^6.19.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
 import { backgroundSyncService } from '@/lib/background-sync';
 import type { BulkOperationRequest, BulkOperationResponse } from '@/lib/interfaces';
 

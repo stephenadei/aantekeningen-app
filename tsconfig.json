@@ -25,6 +25,15 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@stephen/database": [
+        "../../packages/database/src"
+      ],
+      "@stephen/datalake": [
+        "../../packages/datalake/src"
+      ],
+      "@stephen/shared-types": [
+        "../../packages/shared-types/src"
       ]
     }
   },

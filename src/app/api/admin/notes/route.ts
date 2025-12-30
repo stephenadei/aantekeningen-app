@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
+import { extractSubjectFromDatalakePath } from '@stephen/datalake';
 import { Prisma } from '@prisma/client';
 import { datalakeService } from '@/lib/datalake-simple';
 import { datalakeMetadataService } from '@/lib/datalake-metadata';
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              subject: true
+              datalakePath: true
             }
           }
         },
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
       student: {
         id: note.student.id,
         displayName: note.student.name,
-        subject: note.student.subject?.toString() || undefined
+        subject: extractSubjectFromDatalakePath(note.student.datalakePath) || undefined
       },
       datalakePath: note.datalakePath
     }));
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
         type: 'PDF',
         title: file.name.replace('.pdf', ''),
         datalakePath: filePath,
-        subject: student.subject?.toString(),
+        subject: extractSubjectFromDatalakePath(student.datalakePath) || undefined,
         // We initialize with basic info; sync service or manual edit can fill rest
         createdAt: new Date(),
         updatedAt: new Date()
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest) {
         student: {
           id: student.id,
           displayName: student.name,
-          subject: student.subject
+          subject: extractSubjectFromDatalakePath(student.datalakePath) || undefined
         }
       }
     });

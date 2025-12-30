@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
 import { config, ensureConfigValidated } from '@/lib/config';
+import { extractSubjectFromDatalakePath } from '@stephen/datalake';
 import { 
   StudentIdType, 
   detectIdType, 
@@ -13,7 +14,7 @@ import {
 } from '@/lib/types';
 import { createErrorResponse, handleUnknownError, InvalidStudentIdError } from '@/lib/errors';
 import { getOrCreateShareToken } from '@/lib/share-token';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
 
 export async function GET(
   request: NextRequest,
@@ -100,10 +101,11 @@ export async function GET(
         if (detectedType === 'firestore') {
           const studentResult = await getStudent(createFirestoreStudentId(id));
           if (isOk(studentResult)) {
+            const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
             student = { 
               id: studentResult.data.id, 
               displayName: studentResult.data.displayName,
-              subject: studentResult.data.subject,
+              subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
               driveFolderId: studentResult.data.driveFolderId
             };
             actualId = id;
@@ -117,10 +119,11 @@ export async function GET(
               const driveFolderId = createDriveFolderId(id);
               const studentResult = await getStudentByDriveFolderId(driveFolderId);
               if (isOk(studentResult)) {
+                const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
                 student = { 
                   id: studentResult.data.id, 
                   displayName: studentResult.data.displayName,
-                  subject: studentResult.data.subject,
+                  subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
                   driveFolderId: studentResult.data.driveFolderId
                 };
                 actualId = id;
@@ -131,10 +134,11 @@ export async function GET(
               // If validation fails, try without validation
               const studentResult = await getStudentByDriveFolderId(id as DriveFolderId);
               if (isOk(studentResult)) {
+                const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
                 student = { 
                   id: studentResult.data.id, 
                   displayName: studentResult.data.displayName,
-                  subject: studentResult.data.subject,
+                  subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
                   driveFolderId: studentResult.data.driveFolderId
                 };
                 actualId = id;
@@ -145,10 +149,11 @@ export async function GET(
           } else {
             const studentResult = await getStudentByDriveFolderId(createDriveFolderId(id));
             if (isOk(studentResult)) {
+              const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
               student = { 
                 id: studentResult.data.id, 
                 displayName: studentResult.data.displayName,
-                subject: studentResult.data.subject,
+                subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
                 driveFolderId: studentResult.data.driveFolderId
               };
               actualId = id;
@@ -247,7 +252,7 @@ export async function GET(
         student: {
           id: student.id,
           displayName: student.displayName,
-          subject: student.subject,
+          subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
           driveFolderId: student.driveFolderId
         },
         shareableUrl: shareableUrl,
@@ -262,12 +267,13 @@ export async function GET(
     const baseUrl = config.baseUrl;
     const shareableUrl = `${baseUrl}/share/${shareToken}`;
     
+    const dbStudentFinal = await prisma.student.findFirst({ where: { id: student.id } });
     return NextResponse.json({
       success: true,
       student: {
         id: student.id,
         displayName: student.displayName,
-        subject: student.subject,
+        subject: extractSubjectFromDatalakePath(dbStudentFinal?.datalakePath || null) || undefined,
         driveFolderId: student.driveFolderId
       },
       shareableUrl: shareableUrl,

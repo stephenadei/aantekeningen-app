@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { datalakeService } from '@/lib/datalake-simple';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
 import type { MainPageStudent } from '@/lib/interfaces';
+import { extractSubjectFromDatalakePath } from '@stephen/datalake';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Search Prisma database first (finds ALL students, with or without datalakePath)
     try {
+      console.log(`🔍 Querying database for: "${query}"`);
       const dbStudents = await prisma.student.findMany({
         where: {
           name: {
@@ -42,20 +44,7 @@ export async function GET(request: NextRequest) {
       console.log(`✅ Found ${dbStudents.length} students in database`);
 
       for (const student of dbStudents) {
-        // Extract subject from datalakePath if available
-        let subject = '';
-        if (student.datalakePath) {
-          // datalakePath format: "notability/Priveles/VO/Amirah" or "notability/Priveles/Rekenen/StudentName"
-          const pathParts = student.datalakePath.split('/');
-          const subjectFolder = pathParts[pathParts.length - 2]; // VO, Rekenen, or WO
-          
-          // Map subject folder to subject type
-          if (subjectFolder === 'Rekenen') {
-            subject = 'rekenen-basis';
-          } else if (subjectFolder === 'VO' || subjectFolder === 'WO') {
-            subject = 'wiskunde-a';
-          }
-        }
+        const subject = extractSubjectFromDatalakePath(student.datalakePath);
 
         const mainPageStudent: MainPageStudent = {
           id: student.id,
@@ -72,6 +61,7 @@ export async function GET(request: NextRequest) {
       }
     } catch (dbError) {
       console.error('❌ Database search failed:', dbError);
+      console.error('❌ Error details:', dbError instanceof Error ? dbError.message : String(dbError));
       // Continue with MinIO search even if database fails
     }
 

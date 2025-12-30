@@ -1,6 +1,9 @@
 import * as MinIO from 'minio';
 
-const BUCKET_NAME = process.env.DATALAKE_BUCKET_EDUCATION_BRONZE || 'bronze-education';
+import { MedallionBuckets } from '@stephen/datalake';
+
+// Silver layer for processed metadata
+const BUCKET_NAME = MedallionBuckets.SILVER_EDUCATION;
 
 export interface FileMetadata {
   id?: string;

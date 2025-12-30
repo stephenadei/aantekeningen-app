@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@stephen/database';
 import { 
   FirestoreStudentId, 
   DriveFolderId, 
@@ -248,12 +248,10 @@ export const createStudent = async (input: CreateStudentInput & { pinHash?: stri
       email?: string | null;
       datalakePath?: string | null;
       pinHash?: string | null;
-      subject?: string | null;
     } = {
       name: input.displayName,
       email: input.email,
       datalakePath: input.driveFolderId,
-      subject: input.subject?.toString()
     };
     
     // Only add pinHash if provided (should be set by caller)
@@ -286,13 +284,11 @@ export const updateStudent = async (id: FirestoreStudentId, data: Partial<Create
       name?: string;
       email?: string | null;
       datalakePath?: string | null;
-      subject?: string | null;
       pinHash?: string | null;
     } = {
       name: data.displayName,
       email: data.email,
       datalakePath: data.driveFolderId,
-      subject: data.subject?.toString()
     };
     
     if ('pinHash' in data && data.pinHash) {
