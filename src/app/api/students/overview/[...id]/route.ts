@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { datalakeService } from '@/lib/datalake-simple';
-import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
+import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/database';
 import { 
   StudentIdType, 
   detectIdType, 
@@ -49,7 +49,7 @@ export async function GET(
       
       driveFolderId = validationResult.data;
       
-      // Try to get student name from Firestore if possible
+      // Try to get student name from database if possible
       const studentResult = await getStudentByDriveFolderId(validationResult.data);
       if (isOk(studentResult)) {
         studentName = studentResult.data.displayName;
@@ -75,14 +75,41 @@ export async function GET(
       }
       
       const student = studentResult.data;
-      if (!student.driveFolderId) {
+      // Use datalakePath as driveFolderId if driveFolderId is not available
+      let folderId = student.driveFolderId || student.datalakePath;
+      
+      // If no folderId, try to find datalake path from student name
+      if (!folderId && student.displayName) {
+        console.log(`🔍 No datalakePath found, searching datalake for student: ${student.displayName}`);
+        const datalakePath = await datalakeService.getStudentPath(student.displayName, student.subject || undefined);
+        if (datalakePath) {
+          folderId = datalakePath;
+          console.log(`✅ Found datalake path: ${datalakePath}`);
+        } else {
+          console.log(`⚠️ No datalake path found for student: ${student.displayName}`);
+          // Return empty overview instead of error - student exists but has no files
+          return NextResponse.json({
+            success: true,
+            overview: {
+              fileCount: 0,
+              lastActivity: 'no files',
+              lastActivityDate: new Date().toISOString(),
+              lastFile: undefined
+            },
+            studentName: student.displayName,
+            idType: 'firestore'
+          });
+        }
+      }
+      
+      if (!folderId) {
         return NextResponse.json(
           createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
           { status: 400 }
         );
       }
       
-      driveFolderId = student.driveFolderId;
+      driveFolderId = folderId as DriveFolderId;
       studentName = student.displayName;
     } else {
       // Auto-detect ID type (backward compatibility)
@@ -109,15 +136,44 @@ export async function GET(
           }
           
           const student = studentResult.data;
-          if (!student.driveFolderId) {
+          // Use datalakePath as driveFolderId if driveFolderId is not available
+          let folderId = student.driveFolderId || student.datalakePath;
+          
+          // If no folderId, try to find datalake path from student name
+          // Database uses 'name' but Student interface uses 'displayName'
+          const studentNameForLookup = (student as any).name || student.displayName;
+          if (!folderId && studentNameForLookup) {
+            console.log(`🔍 No datalakePath found, searching datalake for student: ${studentNameForLookup}`);
+            const datalakePath = await datalakeService.getStudentPath(studentNameForLookup, student.subject || undefined);
+            if (datalakePath) {
+              folderId = datalakePath;
+              console.log(`✅ Found datalake path: ${datalakePath}`);
+            } else {
+              console.log(`⚠️ No datalake path found for student: ${studentNameForLookup}`);
+              // Return empty overview instead of error - student exists but has no files
+              return NextResponse.json({
+                success: true,
+                overview: {
+                  fileCount: 0,
+                  lastActivity: 'no files',
+                  lastActivityDate: new Date().toISOString(),
+                  lastFile: undefined
+                },
+                studentName: studentNameForLookup,
+                idType: 'firestore'
+              });
+            }
+          }
+          
+          if (!folderId) {
             return NextResponse.json(
               createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
               { status: 400 }
             );
           }
           
-          driveFolderId = student.driveFolderId;
-          studentName = student.displayName;
+          driveFolderId = folderId as DriveFolderId;
+          studentName = studentNameForLookup || student.displayName;
         } else {
           // Check if it's a datalake path (contains slashes)
           if (studentId.includes('/')) {
@@ -130,14 +186,14 @@ export async function GET(
                 studentName = studentNameFromPath;
               }
               
-              // Try to get from Firestore if available (for metadata)
+              // Try to get from database if available (for metadata)
               try {
                 const studentResult = await getStudentByDriveFolderId(driveFolderId);
                 if (isOk(studentResult)) {
                   studentName = studentResult.data.displayName;
                 }
               } catch (error) {
-                // Ignore Firestore errors, use extracted name
+                // Ignore database errors, use extracted name
               }
             } catch (error) {
               // If validation fails, still use the path but log the error

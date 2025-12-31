@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getLoginAudits, getAllStudents } from '@/lib/firestore';
+import { getLoginAudits, getAllStudents } from '@/lib/database';
 import { isOk } from '@/lib/types';
 
 export async function GET() {

@@ -54,6 +54,7 @@ export interface Student {
   email?: Email;
   pinHash: PinHash;
   driveFolderId?: DriveFolderId;
+  datalakePath?: string | null;
   subject?: Subject;
   createdAt: string;
   lastLoginAt?: string;
@@ -90,7 +91,7 @@ export interface PrismaNote {
   lessonDate?: string | Date | null;
 }
 
-// Old Firestore interface (renamed)
+// Legacy interface (renamed)
 export interface FirestoreNote {
   id: NoteId;
   studentId: FirestoreStudentId;
@@ -119,7 +120,7 @@ export interface FirestoreNote {
 export interface Note {
   id: string;
   studentId: string;
-  // FirestoreNote fields
+  // Note fields
   driveFileId?: DriveFileId;
   fileName?: FileName;
   title?: CleanFileName;
@@ -286,10 +287,10 @@ export interface StudentApiParams {
 }
 
 // ============================================================================
-// FIREBASE AUTH INTERFACES
+// AUTH INTERFACES
 // ============================================================================
 
-export interface FirebaseUser {
+export interface SessionUser {
   uid: string;
   email?: string;
   name?: string;
@@ -302,7 +303,7 @@ export interface FirebaseUser {
 
 export interface AuthResult {
   success: boolean;
-  user?: FirebaseUser;
+  user?: SessionUser;
   error?: string;
   token?: string;
 }
@@ -954,10 +955,7 @@ export interface BatchOperation {
   data?: Record<string, unknown>;
 }
 
-export interface FirebaseAdminConfig {
-  projectId: string;
-  credential: unknown;
-}
+// Legacy: FirebaseAdminConfig removed - using Prisma/PostgreSQL instead
 
 // ============================================================================
 // ADMIN MANAGEMENT INTERFACES (Extended)

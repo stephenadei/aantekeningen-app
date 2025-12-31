@@ -1,4 +1,5 @@
 import * as MinIO from 'minio';
+import { createMinioClient, getMinioConfig } from '@stephen/datalake';
 import { 
   createDriveFolderId,
   createStudentName,
@@ -30,6 +31,41 @@ class DatalakeService {
   private presignedClient!: MinIO.Client; // Separate client for presigned URLs
   private isInitialized = false;
   private presignedEndpoint: string | null = null;
+  private internalEndpoint: string | null = null;
+
+  /**
+   * Transform presigned URL to use public endpoint if needed
+   */
+  private transformPresignedUrl(url: string): string {
+    if (!this.presignedEndpoint) {
+      return url;
+    }
+    
+    // Replace internal endpoint with public endpoint in the URL
+    try {
+      const urlObj = new URL(url);
+      const publicUrlObj = new URL(this.presignedEndpoint);
+      
+      // Replace hostname and protocol
+      urlObj.hostname = publicUrlObj.hostname;
+      urlObj.protocol = publicUrlObj.protocol;
+      
+      // Always remove port for standard ports (80 for http, 443 for https)
+      // Nginx reverse proxy handles the routing
+      const standardPort = publicUrlObj.protocol === 'https:' ? 443 : 80;
+      const currentPort = urlObj.port ? parseInt(urlObj.port) : (urlObj.protocol === 'https:' ? 443 : 80);
+      
+      // Remove port if it's standard or if it's 9000 (internal MinIO port)
+      if (currentPort === standardPort || currentPort === 9000) {
+        urlObj.port = '';
+      }
+      
+      return urlObj.toString();
+    } catch (error) {
+      console.error('Error transforming presigned URL:', error);
+      return url;
+    }
+  }
 
   constructor() {
     this.initializeMinIO();
@@ -41,51 +77,83 @@ class DatalakeService {
         throw new Error('MinIO client can only be used server-side');
       }
 
+      // Use shared utility for base config and internal client
+      const baseConfig = getMinioConfig();
       const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
-      const port = parseInt(process.env.MINIO_PORT || '9000');
-      const useSSL = process.env.MINIO_SECURE === 'true';
-      const accessKey = process.env.MINIO_ACCESS_KEY || 'minioadmin';
-      const secretKey = process.env.MINIO_SECRET_KEY || 'minioadmin';
-
-      // For internal connection, use endpoint from env or default to localhost
-      // In Docker, this should be the container name (e.g., 'platform-minio')
-      const internalHostname = endpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
-      const internalPort = port;
-      const internalUseSSL = endpoint.includes('https://') ? true : useSSL;
+      const publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost';
       
-      // Create internal client for operations
-      this.minioClient = new MinIO.Client({
-        endPoint: internalHostname,
-        port: internalPort,
-        useSSL: internalUseSSL,
-        accessKey: accessKey,
-        secretKey: secretKey,
-      });
+      // Create internal client for operations using shared utility
+      this.minioClient = createMinioClient();
+      
+      // Extract internal connection details for presigned URL logic
+      const internalHostname = baseConfig.endPoint;
+      const internalPort = baseConfig.port;
 
       // Create separate client for presigned URLs with public endpoint
       // This ensures presigned URLs have correct signature for public domain
-      if (endpoint !== 'localhost' && !endpoint.includes('127.0.0.1')) {
-        // Extract hostname from endpoint (remove protocol if present)
-        const endpointHostname = endpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
-        const protocol = useSSL ? 'https' : 'http';
-        const publicPort = port === 80 || port === 443 ? '' : `:${port}`;
-        this.presignedEndpoint = `${protocol}://${endpointHostname}${publicPort}`;
+      // Use MINIO_PUBLIC_ENDPOINT if set, otherwise try to detect from MINIO_ENDPOINT
+      const publicHostname = publicEndpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
+      const isDockerContainerName = !publicHostname.includes('.') && publicHostname !== 'localhost' && !publicHostname.includes('127.0.0.1');
+      
+      if (isDockerContainerName) {
+        // If it's a Docker container name (like 'platform-minio'), we need a public endpoint
+        // Check if MINIO_PUBLIC_ENDPOINT is set
+        if (process.env.MINIO_PUBLIC_ENDPOINT) {
+          const publicUrl = process.env.MINIO_PUBLIC_ENDPOINT;
+          const publicUrlObj = new URL(publicUrl.startsWith('http') ? publicUrl : `https://${publicUrl}`);
+          // For presigned URLs, always use the public endpoint without port (Nginx handles routing)
+          // The signature is generated with internal endpoint, but URL is transformed to public
+          this.presignedEndpoint = `${publicUrlObj.protocol}//${publicUrlObj.hostname}`;
+          
+          // For presigned URLs, we need to connect to internal MinIO for signature generation
+          // But the URL will be transformed to use the public endpoint
+          // MinIO signatures are based on the endpoint used in the client, so we connect internally
+          this.presignedClient = new MinIO.Client({
+            endPoint: internalHostname, // Connect internally for signature generation
+            port: internalPort, // Use internal port
+            useSSL: false, // Internal connection is always HTTP
+            accessKey: baseConfig.accessKey,
+            secretKey: baseConfig.secretKey,
+          });
+          
+          this.internalEndpoint = `http://${internalHostname}:${internalPort}`;
+          console.log(`✅ MinIO client initialized (presigned URLs will use: ${this.presignedEndpoint})`);
+        } else {
+          // Fallback: use localhost but warn
+          this.presignedClient = new MinIO.Client({
+            endPoint: 'localhost',
+            port: internalPort,
+            useSSL: false,
+            accessKey: baseConfig.accessKey,
+            secretKey: baseConfig.secretKey,
+          });
+          console.log('⚠️  MinIO endpoint is a Docker container name but MINIO_PUBLIC_ENDPOINT is not set.');
+          console.log('   Presigned URLs will use localhost. Set MINIO_PUBLIC_ENDPOINT for production.');
+          this.presignedEndpoint = null;
+          this.internalEndpoint = null;
+        }
+      } else if (publicEndpoint !== 'localhost' && !publicEndpoint.includes('127.0.0.1')) {
+        // Extract hostname from public endpoint (remove protocol if present)
+        const protocol = publicEndpoint.includes('https://') ? 'https' : (baseConfig.useSSL ? 'https' : 'http');
+        // For presigned URLs, always use public endpoint without port (Nginx handles routing)
+        this.presignedEndpoint = `${protocol}://${publicHostname}`;
+        this.internalEndpoint = `http://${internalHostname}:${internalPort}`;
         
-        // Create presigned client pointing to public endpoint
-        // But still connect to localhost internally (nginx will proxy)
+        // Create presigned client connecting internally (for signature generation)
+        // URL will be transformed to use public endpoint
         this.presignedClient = new MinIO.Client({
-          endPoint: endpointHostname,
-          port: port,
-          useSSL: useSSL,
-          accessKey: accessKey,
-          secretKey: secretKey,
+          endPoint: internalHostname, // Connect internally for signature
+          port: internalPort, // Use internal port
+          useSSL: false, // Internal connection is always HTTP
+          accessKey: baseConfig.accessKey,
+          secretKey: baseConfig.secretKey,
         });
         
         console.log(`✅ MinIO client initialized (presigned URLs will use: ${this.presignedEndpoint})`);
       } else {
         this.presignedEndpoint = null;
         this.presignedClient = this.minioClient; // Use same client if no public endpoint
-        console.log('✅ MinIO client initialized');
+        console.log('✅ MinIO client initialized (using localhost for presigned URLs)');
       }
 
       this.isInitialized = true;
@@ -370,75 +438,115 @@ class DatalakeService {
         folderPath = path;
       }
 
+      console.log(`📂 Listing files in folder: ${folderPath}`);
+
       const cacheKey = CACHE_KEY_FILES + folderPath;
       const cachedData = this.getCache(cacheKey);
       
       if (cachedData) {
+        console.log(`✅ Cache hit for ${folderPath}: ${(cachedData.files as FileInfo[]).length} files`);
         return cachedData.files as FileInfo[];
       }
 
       // Normalize folder path (remove leading/trailing slashes, ensure it ends with /)
       const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
       const prefix = normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`;
+      
+      console.log(`🔍 MinIO listObjects: bucket="${BUCKET_NAME}", prefix="${prefix}"`);
 
       const files: FileInfo[] = [];
       const objectsStream = this.minioClient.listObjects(BUCKET_NAME, prefix, false);
 
-      for await (const obj of objectsStream) {
-        if (!obj.name) continue;
+      // Add timeout wrapper - check timeout during iteration
+      const TIMEOUT_MS = 30000; // 30 seconds
+      const startTime = Date.now();
+      
+      try {
+        for await (const obj of objectsStream) {
+          // Check if we've exceeded timeout
+          if (Date.now() - startTime > TIMEOUT_MS) {
+            throw new Error('Timeout: listObjects took too long (30s)');
+          }
+          
+          if (!obj.name) continue;
 
-        // Skip if it's a directory marker
-        if (obj.name.endsWith('/')) continue;
+          // Skip if it's a directory marker
+          if (obj.name.endsWith('/')) continue;
 
-        // Get file name from path
-        const fileName = obj.name.split('/').pop() || obj.name;
-        
-        // Skip .note files if matching PDF exists
-        if (fileName.endsWith('.note')) {
-          const baseName = fileName.slice(0, -5);
-          // Check if PDF exists (we'll check this after collecting all files)
-          continue; // We'll filter later
+          // Get file name from path
+          const fileName = obj.name.split('/').pop() || obj.name;
+          
+          // Skip .note files if matching PDF exists
+          if (fileName.endsWith('.note')) {
+            const baseName = fileName.slice(0, -5);
+            // Check if PDF exists (we'll check this after collecting all files)
+            continue; // We'll filter later
+          }
+
+          // Use download proxy endpoint instead of presigned URL to avoid signature issues
+          const downloadProxyUrl = `/api/download/${encodeURIComponent(obj.name)}`;
+
+          // Extract metadata from file name and path
+          const cleanFileName = fileName.replace(/\.(pdf|note|notability)$/i, '');
+          
+          // Extract subject from path
+          const pathParts = obj.name.split('/').filter((p: string) => p);
+          let subject: Subject | undefined;
+          if (pathParts.length >= 2) {
+            const subjectFolder = pathParts[pathParts.length - 2]; // Second to last is subject folder
+            if (subjectFolder === 'VO' || subjectFolder === 'WO') {
+              subject = 'wiskunde-a';
+            } else if (subjectFolder === 'Rekenen') {
+              subject = 'rekenen-basis';
+            }
+          }
+
+            // Get thumbnail URL from datalake (if available)
+            let thumbnailUrl = '';
+            try {
+              const { datalakeThumbnailService } = await import('./datalake-thumbnails');
+              const datalakeThumbnail = await datalakeThumbnailService.getThumbnailUrl(obj.name, 'medium');
+              if (datalakeThumbnail) {
+                // Use API endpoint instead of direct presigned URL for better caching
+                thumbnailUrl = `/api/thumbnail/${encodeURIComponent(obj.name)}?size=medium`;
+              }
+            } catch (error) {
+              // Thumbnail not available, use empty string
+            }
+
+            const fileInfo: FileInfo = {
+              id: createDriveFileId(obj.name),
+              name: createFileName(fileName),
+              title: createCleanFileName(cleanFileName),
+              url: createDriveUrl(`/${BUCKET_NAME}/${obj.name}`),
+              downloadUrl: createDownloadUrl(downloadProxyUrl),
+              viewUrl: createViewUrl(downloadProxyUrl), // Use proxy for viewing too
+              thumbnailUrl: thumbnailUrl ? createThumbnailUrl(thumbnailUrl) : createThumbnailUrl(''),
+              modifiedTime: obj.lastModified?.toISOString() || new Date().toISOString(),
+              size: obj.size || 0,
+              mimeType: this.getMimeType(fileName),
+              subject,
+            };
+
+          files.push(fileInfo);
         }
-
-        // Generate presigned URL for download (valid for 7 days)
-        // Use presignedClient which points to public endpoint for correct signature
-        const downloadUrl = await this.presignedClient.presignedGetObject(
-          BUCKET_NAME,
-          obj.name,
-          7 * 24 * 60 * 60 // 7 days
-        );
-
-        // Extract metadata from file name and path
-        const cleanFileName = fileName.replace(/\.(pdf|note|notability)$/i, '');
-        
-        // Extract subject from path
-        let subject: Subject | undefined;
-        if (obj.name.includes('/VO/') || obj.name.includes('/WO/')) {
-          subject = createSubject('wiskunde-a');
-        } else if (obj.name.includes('/Rekenen/')) {
-          subject = createSubject('rekenen');
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Timeout')) {
+          console.error('❌ Timeout listing files:', error.message);
+          throw error;
         }
-
-        const fileInfo: FileInfo = {
-          id: createDriveFileId(obj.name),
-          name: createFileName(fileName),
-          title: createCleanFileName(cleanFileName),
-          url: createDriveUrl(`/${BUCKET_NAME}/${obj.name}`),
-          downloadUrl: createDownloadUrl(downloadUrl),
-          viewUrl: createViewUrl(downloadUrl), // Same as download for now
-          thumbnailUrl: createThumbnailUrl(''), // No thumbnails yet
-          modifiedTime: obj.lastModified?.toISOString() || new Date().toISOString(),
-          size: obj.size || 0,
-          mimeType: this.getMimeType(fileName),
-          subject,
-        };
-
-        files.push(fileInfo);
+        throw error;
       }
 
       // Filter out .note files if matching PDF exists
       const fileNames = files.map(f => f.name);
       const filteredFiles = files.filter(file => {
+        // Filter out .metadata.json files
+        if (file.name.endsWith('.metadata.json')) {
+          return false;
+        }
+        
+        // Filter out .note files if matching PDF exists
         if (file.name.endsWith('.note')) {
           const baseName = file.name.slice(0, -5);
           const pdfName = createFileName(`${baseName}.pdf`);
@@ -472,6 +580,28 @@ class DatalakeService {
   }
 
   /**
+   * Download a file directly from MinIO as a Buffer
+   * Used for thumbnail generation and other processing
+   */
+  async downloadFileAsBuffer(filePath: string): Promise<Buffer> {
+    try {
+      await this.ensureInitialized();
+      
+      const stream = await this.minioClient.getObject(BUCKET_NAME, filePath);
+      const chunks: Buffer[] = [];
+      
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      
+      return Buffer.concat(chunks);
+    } catch (error) {
+      console.error(`❌ Error downloading file ${filePath}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Get file information by file path
    */
   async getFileInfo(filePath: string): Promise<{ success: boolean; data?: FileInfo; error?: string }> {
@@ -484,14 +614,6 @@ class DatalakeService {
       const fileName = filePath.split('/').pop() || filePath;
       const cleanFileName = fileName.replace(/\.(pdf|note|notability)$/i, '');
 
-      // Generate presigned URL
-      // Use presignedClient which points to public endpoint for correct signature
-      const downloadUrl = await this.presignedClient.presignedGetObject(
-        BUCKET_NAME,
-        filePath,
-        7 * 24 * 60 * 60
-      );
-
       let subject: Subject | undefined;
       if (filePath.includes("/VO/") || filePath.includes("/WO/")) {
         subject = createSubject("wiskunde-a");
@@ -499,14 +621,30 @@ class DatalakeService {
         subject = createSubject("rekenen");
       }
 
+      // Get thumbnail URL from datalake (if available)
+      let thumbnailUrl = '';
+      try {
+        const { datalakeThumbnailService } = await import('./datalake-thumbnails');
+        const datalakeThumbnail = await datalakeThumbnailService.getThumbnailUrl(filePath, 'medium');
+        if (datalakeThumbnail) {
+          // Use API endpoint instead of direct presigned URL for better caching
+          thumbnailUrl = `/api/thumbnail/${encodeURIComponent(filePath)}?size=medium`;
+        }
+      } catch (error) {
+        // Thumbnail not available, use empty string
+      }
+
+      // Use download proxy endpoint instead of presigned URL to avoid signature issues
+      const downloadProxyUrl = `/api/download/${encodeURIComponent(filePath)}`;
+
       const fileInfo: FileInfo = {
         id: createDriveFileId(filePath),
         name: createFileName(fileName),
         title: createCleanFileName(cleanFileName),
         url: createDriveUrl(`/${BUCKET_NAME}/${filePath}`),
-        downloadUrl: createDownloadUrl(downloadUrl),
-        viewUrl: createViewUrl(downloadUrl),
-        thumbnailUrl: createThumbnailUrl(''),
+        downloadUrl: createDownloadUrl(downloadProxyUrl),
+        viewUrl: createViewUrl(downloadProxyUrl), // Use proxy for viewing too
+        thumbnailUrl: thumbnailUrl ? createThumbnailUrl(thumbnailUrl) : createThumbnailUrl(''),
         modifiedTime: stat.lastModified.toISOString(),
         size: stat.size,
         mimeType: this.getMimeType(fileName),

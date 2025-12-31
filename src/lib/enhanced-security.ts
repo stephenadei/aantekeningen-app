@@ -1,7 +1,7 @@
 import { 
   validatePinFormat
 } from './security';
-import { createLoginAudit } from './firestore';
+import { createLoginAudit } from './database';
 import { createTeacherEmail, createIPAddress, createUserAgent, createStudentName, createPin } from './types';
 import type { SecurityContext, LoginAttempt } from './interfaces';
 

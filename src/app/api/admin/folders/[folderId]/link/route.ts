@@ -13,11 +13,11 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore folder linking
+    // TODO: Implement database folder linking
     return NextResponse.json({ 
       folderId,
       success: true, 
-      message: 'Folder linking coming soon via Firestore'
+      message: 'Folder linking coming soon'
     });
 
   } catch (error) {

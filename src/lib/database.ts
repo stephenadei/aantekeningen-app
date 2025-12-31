@@ -142,7 +142,12 @@ export const getStudent = async (id: FirestoreStudentId): Promise<Result<Student
     if (!student) {
       return Err(new Error(`Student not found: ${id}`));
     }
-    return Ok(student as unknown as Student);
+    // Map datalakePath to driveFolderId if driveFolderId is not available
+    const studentWithDriveFolderId = {
+      ...student,
+      driveFolderId: (student as any).driveFolderId || student.datalakePath as DriveFolderId | undefined
+    };
+    return Ok(studentWithDriveFolderId as unknown as Student);
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to get student'));
   }
@@ -177,7 +182,12 @@ export const getStudentByDriveFolderId = async (driveFolderId: DriveFolderId): P
     if (!student) {
       return Err(new Error(`Student not found with Drive folder ID: ${driveFolderId}`));
     }
-    return Ok(student as unknown as Student);
+    // Map datalakePath to driveFolderId if driveFolderId is not available
+    const studentWithDriveFolderId = {
+      ...student,
+      driveFolderId: (student as any).driveFolderId || student.datalakePath as DriveFolderId | undefined
+    };
+    return Ok(studentWithDriveFolderId as unknown as Student);
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to get student by Drive folder ID'));
   }

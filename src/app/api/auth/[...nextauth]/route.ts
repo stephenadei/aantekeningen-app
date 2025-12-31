@@ -2,7 +2,7 @@ import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { prisma } from '@stephen/database';
 import { compare } from 'bcrypt';
-import { createLoginAudit } from '@/lib/firestore';
+import { createLoginAudit } from '@/lib/database';
 import { createIPAddress, createUserAgent } from '@/lib/types';
 
 export const authOptions: NextAuthOptions = {
@@ -20,11 +20,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          console.log('[AUTH] Attempting to find user:', credentials.email.trim().toLowerCase());
+          const normalizedEmail = credentials.email.trim().toLowerCase();
+          console.log('[AUTH] Attempting to find user:', normalizedEmail);
           
           const user = await prisma.user.findUnique({
             where: {
-              email: credentials.email.trim().toLowerCase(),
+              email: normalizedEmail,
             },
           });
 

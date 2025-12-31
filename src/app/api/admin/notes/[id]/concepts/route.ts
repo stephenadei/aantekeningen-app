@@ -13,10 +13,10 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore query to get concepts for note
+    // TODO: Implement database query to get concepts for note
     return NextResponse.json({ 
       concepts: [],
-      message: 'Concepts fetching coming soon via Firestore'
+      message: 'Concepts fetching coming soon'
     });
 
   } catch (error) {
@@ -40,10 +40,10 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore create concept
+    // TODO: Implement database create concept
     return NextResponse.json({ 
       success: true, 
-      message: 'Concept creation coming soon via Firestore'
+      message: 'Concept creation coming soon'
     });
 
   } catch (error) {

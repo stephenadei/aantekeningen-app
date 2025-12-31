@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { datalakeService } from '@/lib/datalake-simple';
 import { getFileMetadata, isFileMetadataFresh } from '@/lib/cache';
-import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
+import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/database';
 import { backgroundSyncService } from '@/lib/background-sync';
 import { prisma } from '@stephen/database';
+import { formatFileTitle } from '@/lib/title-formatter';
 import { 
   StudentIdType, 
   detectIdType, 
   FirestoreStudentId, 
   DriveFolderId,
   createDriveFolderId,
+  createCleanFileName,
   isOk,
   isErr
 } from '@/lib/types';
@@ -55,7 +57,7 @@ export async function GET(
       
       driveFolderId = validationResult.data;
       
-      // Try to get student name from Firestore if possible
+      // Try to get student name from database if possible
       const studentResult = await getStudentByDriveFolderId(validationResult.data);
       if (isOk(studentResult)) {
         studentName = studentResult.data.displayName;
@@ -81,15 +83,39 @@ export async function GET(
       }
       
       const student = studentResult.data;
-      if (!student.driveFolderId) {
-        return NextResponse.json(
-          createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
-          { status: 400 }
-        );
-      }
+      // Use datalakePath as driveFolderId if driveFolderId is not available
+      let folderId = student.driveFolderId || student.datalakePath;
       
-      driveFolderId = student.driveFolderId;
-      studentName = student.displayName;
+          // If no folderId, try to find datalake path from student name
+          // Database uses 'name' but Student interface uses 'displayName'
+          const studentNameForLookup = (student as any).name || student.displayName;
+          if (!folderId && studentNameForLookup) {
+            console.log(`🔍 No datalakePath found, searching datalake for student: ${studentNameForLookup}`);
+            const datalakePath = await datalakeService.getStudentPath(studentNameForLookup, student.subject || undefined);
+            if (datalakePath) {
+              folderId = datalakePath;
+              console.log(`✅ Found datalake path: ${datalakePath}`);
+            } else {
+              console.log(`⚠️ No datalake path found for student: ${studentNameForLookup}`);
+              // Return empty files list instead of error - student exists but has no files
+              return NextResponse.json({
+                success: true,
+                files: [],
+                studentName: studentNameForLookup,
+                hasMore: false
+              });
+            }
+          }
+          
+          if (!folderId) {
+            return NextResponse.json(
+              createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
+              { status: 400 }
+            );
+          }
+          
+          driveFolderId = folderId as DriveFolderId;
+          studentName = studentNameForLookup || student.displayName;
     } else {
       // Auto-detect ID type (backward compatibility)
       console.log('🔄 Auto-detecting ID type...');
@@ -115,15 +141,39 @@ export async function GET(
           }
           
           const student = studentResult.data;
-          if (!student.driveFolderId) {
+          // Use datalakePath as driveFolderId if driveFolderId is not available
+          let folderId = student.driveFolderId || student.datalakePath;
+          
+          // If no folderId, try to find datalake path from student name
+          // Database uses 'name' but Student interface uses 'displayName'
+          const studentNameForLookup = (student as any).name || student.displayName;
+          if (!folderId && studentNameForLookup) {
+            console.log(`🔍 No datalakePath found, searching datalake for student: ${studentNameForLookup}`);
+            const datalakePath = await datalakeService.getStudentPath(studentNameForLookup, student.subject || undefined);
+            if (datalakePath) {
+              folderId = datalakePath;
+              console.log(`✅ Found datalake path: ${datalakePath}`);
+            } else {
+              console.log(`⚠️ No datalake path found for student: ${studentNameForLookup}`);
+              // Return empty files list instead of error - student exists but has no files
+              return NextResponse.json({
+                success: true,
+                files: [],
+                studentName: studentNameForLookup,
+                hasMore: false
+              });
+            }
+          }
+          
+          if (!folderId) {
             return NextResponse.json(
               createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
               { status: 400 }
             );
           }
           
-          driveFolderId = student.driveFolderId;
-          studentName = student.displayName;
+          driveFolderId = folderId as DriveFolderId;
+          studentName = studentNameForLookup || student.displayName;
         } else {
           // Check if it's a datalake path (contains slashes)
           if (studentId.includes('/')) {
@@ -137,14 +187,14 @@ export async function GET(
                 studentName = studentNameFromPath;
               }
               
-              // Try to get from Firestore if available (for metadata)
+              // Try to get from database if available (for metadata)
               try {
                 const studentResult = await getStudentByDriveFolderId(driveFolderId);
                 if (isOk(studentResult)) {
                   studentName = studentResult.data.displayName;
                 }
               } catch (error) {
-                // Ignore Firestore errors, use extracted name
+                // Ignore database errors, use extracted name
               }
             } catch (error) {
               // If validation fails, still use the path but log the error
@@ -185,7 +235,7 @@ export async function GET(
     // Always fetch from Datalake first (primary source)
     console.log('🔄 Fetching files from Datalake...');
     
-    // Check if studentId is a Prisma database ID (not a path, not a Firestore ID format)
+    // Check if studentId is a Prisma database ID (not a path)
     // Prisma IDs are typically CUIDs (24 chars) or UUIDs
     let datalakePath: string | null = null;
     let isPrismaId = false;
@@ -270,7 +320,7 @@ export async function GET(
     // List files using the full datalake path (pass path as first param, empty string as second)
     const allFiles = await datalakeService.listFilesInFolder(datalakePath, '');
     
-    // Optionally enrich with Firestore cache metadata (AI analysis, etc.)
+    // Optionally enrich with cache metadata (AI analysis, etc.)
     if (!forceRefresh) {
       const cachedFiles = await getFileMetadata(studentId);
       if (cachedFiles.length > 0) {
@@ -280,7 +330,8 @@ export async function GET(
         const enrichedFiles = allFiles.map(file => {
           const cached = cacheMap.get(file.id);
           if (cached) {
-            return {
+            // Create enriched file with proper types
+            const enrichedFile: typeof file = {
               ...file,
               topic: cached.topic,
               level: cached.level,
@@ -290,10 +341,21 @@ export async function GET(
               summaryEn: cached.summaryEn,
               topicEn: cached.topicEn,
               keywordsEn: cached.keywordsEn,
-              aiAnalyzedAt: cached.aiAnalyzedAt,
+              aiAnalyzedAt: cached.aiAnalyzedAt ? new Date(cached.aiAnalyzedAt) : undefined,
+            };
+            // Update title with enhanced formatting
+            const formattedTitle = formatFileTitle(enrichedFile);
+            return {
+              ...enrichedFile,
+              title: createCleanFileName(formattedTitle)
             };
           }
-          return file;
+          // Update title with enhanced formatting even if no cache
+          const formattedTitle = formatFileTitle(file);
+          return {
+            ...file,
+            title: createCleanFileName(formattedTitle)
+          };
         });
         
         // Check if cache is fresh, if not trigger background refresh
@@ -340,14 +402,9 @@ export async function GET(
     console.log('✅ Files fetched from Datalake:', files.length, 'files (total:', allFiles.length, ')');
 
     // Trigger background sync to update datalake metadata (non-blocking, optional)
-    // Only if Firebase credentials are available (for student lookup)
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-      backgroundSyncService.forceSyncStudent(studentId).catch(error => {
-        console.error('Background sync failed (non-critical):', error);
-      });
-    } else {
-      console.log('⚠️ Background sync skipped: Firebase credentials not configured');
-    }
+    backgroundSyncService.forceSyncStudent(studentId).catch(error => {
+      console.error('Background sync failed (non-critical):', error);
+    });
 
     return NextResponse.json({
       success: true,

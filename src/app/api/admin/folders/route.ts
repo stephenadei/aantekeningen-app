@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { getAllStudents } from '@/lib/firestore';
+import { getAllStudents } from '@/lib/database';
 import { datalakeService } from '@/lib/datalake-simple';
 import { isErr, createStudentName } from '@/lib/types';
 import type { FoldersListResponse } from '@/lib/interfaces';
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all students from Firestore
+    // Get all students from database
     const studentsResult = await getAllStudents();
     if (isErr(studentsResult)) {
       return NextResponse.json({ error: studentsResult.error.message }, { status: 500 });
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update student - folderId is now just a reference, not a Google Drive ID
-    const { updateStudent } = await import('@/lib/firestore');
+    const { updateStudent } = await import('@/lib/database');
     const { createFirestoreStudentId, createDriveFolderId } = await import('@/lib/types');
 
     const result = await updateStudent(

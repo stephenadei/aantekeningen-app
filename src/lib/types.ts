@@ -231,9 +231,13 @@ const TYPE_METADATA = {
       if (v.startsWith('http://') || v.startsWith('https://')) {
         return true;
       }
+      // Accept relative API paths (for download proxy)
+      if (v.startsWith('/api/download/')) {
+        return true;
+      }
       return false;
     },
-    description: 'Google Drive download URL or presigned MinIO URL'
+    description: 'Google Drive download URL, presigned MinIO URL, or API proxy path'
   },
   ViewUrl: { 
     validate: (v: string) => {
@@ -245,14 +249,22 @@ const TYPE_METADATA = {
       if (v.startsWith('http://') || v.startsWith('https://')) {
         return true;
       }
+      // Accept relative API paths (for download proxy)
+      if (v.startsWith('/api/download/')) {
+        return true;
+      }
       return false;
     },
-    description: 'Google Drive view URL or presigned MinIO URL'
+    description: 'Google Drive view URL, presigned MinIO URL, or API proxy path'
   },
   ThumbnailUrl: { 
     validate: (v: string) => {
       // Accept Google Drive thumbnail URLs
       if (v.startsWith('https://drive.google.com/thumbnail')) {
+        return true;
+      }
+      // Accept relative API paths (for datalake thumbnails)
+      if (v.startsWith('/api/thumbnail/')) {
         return true;
       }
       // Accept empty string (no thumbnail)
@@ -265,7 +277,7 @@ const TYPE_METADATA = {
       }
       return false;
     },
-    description: 'Google Drive thumbnail URL, other URL, or empty string'
+    description: 'Google Drive thumbnail URL, API path, other URL, or empty string'
   },
 
   // Display Name Types
@@ -516,7 +528,7 @@ export type CacheType = 'files' | 'metadata' | 'students' | 'fileMetadata';
  * Parameters for student API endpoints
  */
 export interface StudentApiParams {
-  /** The student ID (either Firestore ID or Drive folder ID) */
+  /** The student ID (either database ID or Drive folder ID) */
   id: string;
   /** The type of ID being used (defaults to 'firestore') */
   idType?: StudentIdType;

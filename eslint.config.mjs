@@ -24,6 +24,8 @@ const eslintConfig = [
       "**/*.tsbuildinfo",
       ".next/**",
       ".next/**/*",
+      ".next/build/**",
+      ".next/build/**/*",
     ],
     files: ["src/**/*.{ts,tsx,js,jsx}", "tests/**/*.{ts,tsx,js,jsx}", "scripts/**/*.{ts,tsx,js,jsx}"],
     rules: {

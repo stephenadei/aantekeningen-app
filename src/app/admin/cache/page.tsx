@@ -82,7 +82,7 @@ export default function CacheDashboard() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Cache Dashboard</h1>
             <p className="mt-2 text-gray-600">
-              Monitor Firestore cache performance en sync status
+              Monitor database cache performance en sync status
             </p>
           </div>
           <div className="flex space-x-3">

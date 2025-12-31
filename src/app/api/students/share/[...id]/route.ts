@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/firestore';
+import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/database';
 import { config, ensureConfigValidated } from '@/lib/config';
 import { extractSubjectFromDatalakePath } from '@stephen/datalake';
 import { 
@@ -90,7 +90,7 @@ export async function GET(
         subject: studentResult.data.subject,
         driveFolderId: studentResult.data.driveFolderId
       };
-      actualId = validationResult.data; // Use Firestore ID for sharing
+      actualId = validationResult.data; // Use student ID for sharing
     } else {
       // Auto-detect ID type (backward compatibility)
       console.log('🔄 Auto-detecting ID type...');
@@ -191,7 +191,7 @@ export async function GET(
         where: { datalakePath: actualId }
       });
     } else {
-      // Try to find by Firestore ID or Drive folder ID
+      // Try to find by student ID or Drive folder ID
       dbStudent = await prisma.student.findFirst({
         where: {
           OR: [

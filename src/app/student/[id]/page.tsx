@@ -70,7 +70,7 @@ export default function StudentPage() {
 
       // Load student info and overview in parallel
       const [studentResponse, overviewResponse] = await Promise.all([
-        fetch(`/api/students/${studentId}/share`), // Use share API to get student info
+        fetch(`/api/students/share/${studentId}`), // Use share API to get student info
         fetch(`/api/students/${studentId}/overview`)
       ]);
 
@@ -149,12 +149,32 @@ export default function StudentPage() {
   const handleShare = async () => {
     if (!student) return;
 
+    // If we don't have a shareable URL yet, fetch it first
+    let urlToShare = shareableUrl;
+    if (!urlToShare) {
+      try {
+        const response = await fetch(`/api/students/share/${studentId}`);
+        const data = await response.json();
+        
+        if (data.success && data.shareableUrl) {
+          urlToShare = data.shareableUrl;
+          setShareableUrl(data.shareableUrl);
+        } else {
+          throw new Error(data.message || 'Failed to generate shareable link');
+        }
+      } catch (err) {
+        console.error('Error generating shareable link:', err);
+        alert(`Fout bij het genereren van de shareable link: ${err instanceof Error ? err.message : 'Onbekende fout'}`);
+        return;
+      }
+    }
+
     // Try native share first (iOS/Android)
     if (isNativeShareSupported) {
       const success = await nativeShare({
         title: `Aantekeningen van ${student.displayName}`,
         text: `Bekijk de aantekeningen van ${student.displayName} voor ${student.subject} op Stephen's Privelessen`,
-        url: shareableUrl
+        url: urlToShare
       });
       
       if (success) {
@@ -165,17 +185,17 @@ export default function StudentPage() {
     // Fallback to clipboard copy
     try {
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(shareableUrl);
+        await navigator.clipboard.writeText(urlToShare);
         alert('Link gekopieerd naar klembord!');
       } else {
         // Fallback: show the link in a prompt
         const userConfirmed = confirm(
-          `Shareable link:\n\n${shareableUrl}\n\nKlik OK om de link te kopiëren, of Annuleren om te sluiten.`
+          `Shareable link:\n\n${urlToShare}\n\nKlik OK om de link te kopiëren, of Annuleren om te sluiten.`
         );
         if (userConfirmed) {
           // Try alternative clipboard method
           const textArea = document.createElement('textarea');
-          textArea.value = shareableUrl;
+          textArea.value = urlToShare;
           document.body.appendChild(textArea);
           textArea.select();
           document.execCommand('copy');
@@ -186,7 +206,7 @@ export default function StudentPage() {
     } catch (err) {
       console.error('Failed to copy link:', err);
       // Final fallback: just show the link
-      alert(`Shareable link:\n\n${shareableUrl}\n\nKopieer deze link handmatig.`);
+      alert(`Shareable link:\n\n${urlToShare}\n\nKopieer deze link handmatig.`);
     }
   };
 

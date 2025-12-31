@@ -9,11 +9,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore detailed statistics queries
+    // TODO: Implement database detailed statistics queries
     return NextResponse.json({ 
       bySubject: {},
       byMonth: {},
-      message: 'Detailed statistics coming soon via Firestore'
+      message: 'Detailed statistics coming soon'
     });
 
   } catch (error) {

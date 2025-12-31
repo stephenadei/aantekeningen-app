@@ -41,7 +41,7 @@ export class TeacherManagementService {
         lastLoginAt: undefined
       };
 
-      // Here you would normally save to Firestore
+      // Here you would normally save to database
       // For now, we'll simulate the creation
       console.log('Creating teacher:', {
         id: teacher.id,
@@ -65,7 +65,7 @@ export class TeacherManagementService {
    * Get teacher statistics
    */
   async getTeacherStats(): Promise<TeacherStats> {
-    // This would normally query Firestore
+    // This would normally query database
     // For now, return mock data
     return {
       totalTeachers: 5,
@@ -88,7 +88,7 @@ export class TeacherManagementService {
       
       console.log('Updating teacher:', id, updates);
       
-      // Here you would normally update in Firestore
+      // Here you would normally update in database
       return { success: true };
     } catch (error) {
       return {
@@ -131,7 +131,7 @@ export class TeacherManagementService {
     try {
       const id = createTeacherId(teacherId);
       
-      // This would normally query Firestore
+      // This would normally query database
       // For now, return mock data
       const mockTeacher: Teacher = {
         id: id,
@@ -159,7 +159,7 @@ export class TeacherManagementService {
    */
   async listTeachers(): Promise<{ success: boolean; teachers?: Teacher[]; error?: string }> {
     try {
-      // This would normally query Firestore
+      // This would normally query database
       // For now, return mock data
       const mockTeachers: Teacher[] = [
         {

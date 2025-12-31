@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
   
+  // Include pdf2pic in standalone build (needed for thumbnail generation)
+  experimental: {
+    serverComponentsExternalPackages: ['pdf2pic'],
+  },
+  
   // Disable source maps in development to avoid warnings
   productionBrowserSourceMaps: false,
   

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
 import { backgroundSyncService } from '@/lib/background-sync';
-import { getAllStudents } from '@/lib/firestore';
+import { getAllStudents } from '@/lib/database';
 import { invalidateCache } from '@/lib/cache';
 import { isErr } from '@/lib/types';
 

@@ -4,6 +4,7 @@
  */
 
 import * as MinIO from 'minio';
+import { createMinioClient, getMinioConfig } from '@stephen/datalake';
 
 import { MedallionBuckets } from '@stephen/datalake';
 
@@ -16,9 +17,33 @@ class DatalakeThumbnailService {
   private presignedClient!: MinIO.Client;
   private isInitialized = false;
   private presignedEndpoint: string | null = null;
+  private internalEndpoint: string | null = null;
 
   constructor() {
     this.initializeMinIO();
+  }
+
+  /**
+   * Transform presigned URL to use public endpoint if needed
+   */
+  private transformPresignedUrl(url: string): string {
+    if (!this.presignedEndpoint || !this.internalEndpoint) {
+      return url;
+    }
+    
+    try {
+      const urlObj = new URL(url);
+      const publicUrlObj = new URL(this.presignedEndpoint);
+      
+      urlObj.hostname = publicUrlObj.hostname;
+      urlObj.port = publicUrlObj.port || '';
+      urlObj.protocol = publicUrlObj.protocol;
+      
+      return urlObj.toString();
+    } catch (error) {
+      console.error('Error transforming presigned URL:', error);
+      return url;
+    }
   }
 
   private initializeMinIO() {
@@ -27,40 +52,35 @@ class DatalakeThumbnailService {
         throw new Error('MinIO client can only be used server-side');
       }
 
+      // Use shared utility for base config
+      const baseConfig = getMinioConfig();
       const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
-      const port = parseInt(process.env.MINIO_PORT || '9000');
-      const useSSL = process.env.MINIO_SECURE === 'true';
-      const accessKey = process.env.MINIO_ACCESS_KEY || 'minioadmin';
-      const secretKey = process.env.MINIO_SECRET_KEY || 'minioadmin';
+      const publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost';
 
-      // Internal client for operations
+      // Internal client for operations - use shared utility but override SSL for internal connection
+      const internalHostname = baseConfig.endPoint;
+      const internalPort = baseConfig.port;
       this.minioClient = new MinIO.Client({
-        endPoint: 'localhost',
-        port: 9000,
-        useSSL: false,
-        accessKey: accessKey,
-        secretKey: secretKey,
+        endPoint: internalHostname,
+        port: internalPort,
+        useSSL: false, // Internal connection is always HTTP
+        accessKey: baseConfig.accessKey,
+        secretKey: baseConfig.secretKey,
       });
 
-      // Presigned client for public URLs
-      if (endpoint !== 'localhost' && !endpoint.includes('127.0.0.1')) {
-        // Extract hostname from endpoint (remove protocol if present)
-        const endpointHostname = endpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
-        const protocol = useSSL ? 'https' : 'http';
-        const publicPort = port === 80 || port === 443 ? '' : `:${port}`;
-        this.presignedEndpoint = `${protocol}://${endpointHostname}${publicPort}`;
-        
-        this.presignedClient = new MinIO.Client({
-          endPoint: endpointHostname,
-          port: port,
-          useSSL: useSSL,
-          accessKey: accessKey,
-          secretKey: secretKey,
-        });
-      } else {
-        this.presignedEndpoint = null;
-        this.presignedClient = this.minioClient;
-      }
+      // Presigned client uses same internal connection, we transform URLs later
+      this.presignedClient = new MinIO.Client({
+        endPoint: internalHostname,
+        port: internalPort,
+        useSSL: false,
+        accessKey: baseConfig.accessKey,
+        secretKey: baseConfig.secretKey,
+      });
+
+      // Set up endpoint transformation for presigned URLs
+      const publicUrlObj = new URL(publicEndpoint.startsWith('http') ? publicEndpoint : `https://${publicEndpoint}`);
+      this.presignedEndpoint = publicUrlObj.origin;
+      this.internalEndpoint = `http://${internalHostname}:${internalPort}`;
 
       this.isInitialized = true;
       console.log('✅ Datalake Thumbnail Service initialized');
@@ -143,11 +163,14 @@ class DatalakeThumbnailService {
       }
 
       // Generate presigned URL (valid for 7 days)
-      const url = await this.presignedClient.presignedGetObject(
+      let url = await this.presignedClient.presignedGetObject(
         BUCKET_NAME,
         objectPath,
         7 * 24 * 60 * 60 // 7 days
       );
+
+      // Transform URL to use public endpoint if needed
+      url = this.transformPresignedUrl(url);
 
       console.log('✅ Thumbnail found in datalake:', url);
       return url;

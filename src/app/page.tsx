@@ -151,9 +151,6 @@ export default function AantekeningenPage() {
 
   const handleStudentSelect = async (student: MainPageStudent) => {
     console.log('🔄 Loading student:', student.displayName, 'ID:', student.id);
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:148',message:'handleStudentSelect called',data:{studentId:student.id,studentDisplayName:student.displayName,studentIdLength:student.id.length,hasSlashes:student.id.includes('/'),encodedId:encodeURIComponent(student.id)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,E'})}).catch(()=>{});
-    // #endregion
     setSelectedStudent(student);
     setLoading(true);
     setCacheLoading(false);
@@ -164,13 +161,7 @@ export default function AantekeningenPage() {
       console.log('📊 Fetching overview for student:', student.id);
       // Get overview first
       const apiUrl = `/api/students/overview/${student.id}`;
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:160',message:'Before fetch overview',data:{rawId:student.id,encodedId:encodeURIComponent(student.id),apiUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,E'})}).catch(()=>{});
-      // #endregion
       const overviewResponse = await fetch(apiUrl);
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:162',message:'After fetch overview',data:{status:overviewResponse.status,statusText:overviewResponse.statusText,ok:overviewResponse.ok,url:overviewResponse.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       const overviewData = await overviewResponse.json();
 
       if (overviewData.success) {
@@ -196,9 +187,6 @@ export default function AantekeningenPage() {
       console.log('📁 Fetching files for student:', student.id);
       // Get files (this is where AI analysis happens)
       const filesApiUrl = `/api/students/files/${student.id}`;
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:185',message:'Before fetch files',data:{rawId:student.id,encodedId:encodeURIComponent(student.id),filesApiUrl},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B,E'})}).catch(()=>{});
-      // #endregion
       const filesResponse = await fetch(filesApiUrl);
       const filesData = await filesResponse.json();
 
@@ -258,9 +246,6 @@ export default function AantekeningenPage() {
       }
     } catch (err) {
       console.error('❌ Student select error:', err);
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'page.tsx:228',message:'Student select error caught',data:{error:err instanceof Error?err.message:String(err),errorName:err instanceof Error?err.name:undefined,errorStack:err instanceof Error?err.stack:undefined,studentId:student.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       const errorMessage = err instanceof Error 
         ? `Er is een fout opgetreden: ${err.message}` 
         : 'Er is een fout opgetreden bij het laden van studentgegevens';
@@ -281,7 +266,7 @@ export default function AantekeningenPage() {
 
   const handleShareStudent = async (student: MainPageStudent) => {
     try {
-      const response = await fetch(`/api/students/${student.id}/share`);
+      const response = await fetch(`/api/students/share/${student.id}`);
       const data = await response.json();
       
       if (data.success) {
@@ -1026,38 +1011,39 @@ export default function AantekeningenPage() {
                             }}
                           />
                         </div>
-                        <h3 className="font-semibold text-lg mb-2 line-clamp-2 text-yellow-50 group-hover:text-yellow-100 transition-colors">
+                        <h3 className="font-semibold text-base sm:text-lg mb-2 line-clamp-2 text-yellow-50 group-hover:text-yellow-100 transition-colors">
                           {file.title}
                         </h3>
-                        <p className="text-sm text-yellow-200/80 mb-3 font-medium">{file.name}</p>
-                        <div className="flex items-center justify-between text-xs text-yellow-300/70 mb-4">
+                        <p className="text-xs sm:text-sm text-yellow-200/60 mb-2 sm:mb-3 font-mono truncate">{file.name}</p>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-yellow-300/70 mb-3 sm:mb-4">
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {formatDate(file.modifiedTime)}
+                            <span className="hidden sm:inline">{formatDate(file.modifiedTime)}</span>
+                            <span className="sm:hidden">{formatDate(file.modifiedTime).slice(0, 5)}</span>
                           </span>
                           <span className="flex items-center gap-1">
                             <FileText className="w-3 h-3" />
                             {formatFileSize(file.size ?? 0)}
                           </span>
                         </div>
-                        <div className="flex flex-wrap gap-1.5 mb-4">
+                        <div className="flex flex-wrap gap-1.5 mb-3 sm:mb-4">
                           {file.subject && (
-                            <span className="bg-yellow-100/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                            <span className="bg-yellow-100/90 text-blue-900 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium shadow-sm">
                               {file.subject}
                             </span>
                           )}
                           {file.topic && (
-                            <span className="bg-yellow-200/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                            <span className="bg-yellow-200/90 text-blue-900 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium shadow-sm">
                               {file.topic}
                             </span>
                           )}
                           {file.level && (
-                            <span className="bg-yellow-300/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                            <span className="bg-yellow-300/90 text-blue-900 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium shadow-sm">
                               {file.level}
                             </span>
                           )}
                           {file.schoolYear && (
-                            <span className="bg-yellow-400/90 text-blue-900 px-2.5 py-1 rounded-full text-xs font-medium shadow-sm">
+                            <span className="bg-yellow-400/90 text-blue-900 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium shadow-sm">
                               {file.schoolYear}
                             </span>
                           )}
@@ -1072,19 +1058,20 @@ export default function AantekeningenPage() {
                           </div>
                         )}
                         {file.summary && (
-                          <p className="text-xs text-yellow-200/90 bg-yellow-100/10 backdrop-blur-sm p-3 rounded-lg mb-4 line-clamp-2 border border-yellow-200/20">
+                          <p className="text-[10px] sm:text-xs text-yellow-200/90 bg-yellow-100/10 backdrop-blur-sm p-2 sm:p-3 rounded-lg mb-3 sm:mb-4 line-clamp-2 border border-yellow-200/20">
                             {file.summary}
                           </p>
                         )}
                         <div className="flex gap-2">
                           <a
                             href={file.downloadUrl}
-                            className="flex-1 bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-blue-900 text-center py-2.5 px-4 rounded-lg text-sm font-semibold hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
+                            className="flex-1 bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-blue-900 text-center py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center gap-2"
                             aria-label={`Download ${file.name}`}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Download className="h-4 w-4" />
-                            Downloaden
+                            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Downloaden</span>
+                            <span className="sm:hidden">Download</span>
                           </a>
                         </div>
                       </div>
@@ -1107,14 +1094,15 @@ export default function AantekeningenPage() {
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-lg text-yellow-50 line-clamp-1 group-hover:text-yellow-100 transition-colors">
+                            <h3 className="font-semibold text-base sm:text-lg text-yellow-50 line-clamp-2 group-hover:text-yellow-100 transition-colors">
                               {file.title}
                             </h3>
-                            <p className="text-sm text-yellow-200/80 font-medium mt-0.5">{file.name}</p>
-                            <div className="flex items-center gap-4 text-xs text-yellow-300/70 mt-2">
+                            <p className="text-xs sm:text-sm text-yellow-200/60 font-mono mt-1 truncate">{file.name}</p>
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-yellow-300/70 mt-2">
                               <span className="flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {formatDate(file.modifiedTime)}
+                                <span className="hidden sm:inline">{formatDate(file.modifiedTime)}</span>
+                                <span className="sm:hidden">{formatDate(file.modifiedTime).slice(0, 5)}</span>
                               </span>
                               <span className="flex items-center gap-1">
                                 <FileText className="w-3 h-3" />
@@ -1162,12 +1150,13 @@ export default function AantekeningenPage() {
                         <div className="flex gap-2 flex-shrink-0">
                           <a
                             href={file.downloadUrl}
-                            className="bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-blue-900 py-2.5 px-4 rounded-lg text-sm font-semibold hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2"
+                            className="bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 text-blue-900 py-2 sm:py-2.5 px-3 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-1.5 sm:gap-2"
                             aria-label={`Download ${file.name}`}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Download className="h-4 w-4" />
-                            Downloaden
+                            <Download className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="hidden sm:inline">Downloaden</span>
+                            <span className="sm:hidden">DL</span>
                           </a>
                         </div>
                       </div>

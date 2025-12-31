@@ -75,31 +75,25 @@ export class ThumbnailGeneratorService {
     let tempPdfPath: string | null = null;
 
     try {
-      // Get file info from datalake
-      const fileInfo = await datalakeService.getFileInfo(filePath);
-      if (!fileInfo.success || !fileInfo.data) {
-        return { success: false, error: 'File not found in datalake' };
+      // Download PDF directly from MinIO using datalake service
+      console.log(`📥 Downloading PDF from MinIO: ${filePath}`);
+      
+      let pdfBuffer: Buffer;
+      try {
+        pdfBuffer = await datalakeService.downloadFileAsBuffer(filePath);
+      } catch (downloadError) {
+        console.error(`❌ Failed to download PDF from MinIO:`, downloadError);
+        return { success: false, error: `Failed to download PDF: ${downloadError instanceof Error ? downloadError.message : 'Unknown error'}` };
+      }
+      
+      if (pdfBuffer.length === 0) {
+        return { success: false, error: 'Downloaded PDF is empty' };
       }
 
-      // Check if file is a PDF
-      if (!fileInfo.data.mimeType || !fileInfo.data.mimeType.includes('pdf')) {
-        return { success: false, error: 'File is not a PDF' };
-      }
-
-      // Get download URL
-      const downloadUrl = typeof fileInfo.data.downloadUrl === 'string' 
-        ? fileInfo.data.downloadUrl 
-        : String(fileInfo.data.downloadUrl);
-
-      // Download the PDF file from datalake
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        return { success: false, error: `Failed to download PDF: ${response.status}` };
-      }
-
-      const pdfBuffer = await response.arrayBuffer();
+      console.log(`✅ Downloaded PDF: ${pdfBuffer.length} bytes`);
+      
       tempPdfPath = path.join('/tmp', `thumb_${Date.now()}_${Math.random().toString(36).substring(7)}.pdf`);
-      await writeFile(tempPdfPath, Buffer.from(pdfBuffer));
+      await writeFile(tempPdfPath, pdfBuffer);
 
       // Configure pdf2pic based on size
       const sizeConfig = {

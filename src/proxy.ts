@@ -5,16 +5,10 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Admin routes - let client-side handle authentication
-  // The AdminLayout component already handles Firebase Auth state
+  // The AdminLayout component already handles NextAuth session state
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
-    // Check if Firebase token cookie exists (basic check)
-    const firebaseToken = request.cookies.get('firebase-token')?.value;
-    
-    if (!firebaseToken) {
-      return NextResponse.redirect(new URL('/admin/login', request.url));
-    }
-    
-    // Let the client-side AdminLayout handle detailed auth verification
+    // Basic check - detailed verification happens in AdminLayout
+    // NextAuth session is handled client-side
     return NextResponse.next();
   }
 
@@ -24,16 +18,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // API routes protection - basic cookie check only
+  // API routes protection - basic check only
   // Detailed verification happens in the API route handlers (Node.js runtime)
+  // NextAuth session is verified in each API route handler
   if (pathname.startsWith('/api/admin')) {
-    const firebaseToken = request.cookies.get('firebase-token')?.value;
-    
-    if (!firebaseToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Let the API route handler verify the token properly
+    // Let the API route handler verify the session properly
     return NextResponse.next();
   }
 

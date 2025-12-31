@@ -13,11 +13,11 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore re-analysis trigger
+    // TODO: Implement database re-analysis trigger
     return NextResponse.json({ 
       id,
       success: true, 
-      message: 'Note re-analysis coming soon via Firestore'
+      message: 'Note re-analysis coming soon'
     });
 
   } catch (error) {

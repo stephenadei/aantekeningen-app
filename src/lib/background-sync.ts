@@ -9,7 +9,7 @@ import {
   cleanupExpiredCache 
 } from './cache';
 import type { FileMetadata } from './interfaces';
-import { getAllStudents, getStudentByDriveFolderId } from './firestore';
+import { getAllStudents, getStudentByDriveFolderId } from './database';
 import { 
   createDriveFileId,
   createFirestoreStudentId,
@@ -24,7 +24,7 @@ import {
 import crypto from 'crypto';
 
 /**
- * Background sync job to keep Firestore cache fresh
+ * Background sync job to keep database cache fresh
  */
 export class BackgroundSyncService {
   private isRunning = false;
@@ -50,16 +50,16 @@ export class BackgroundSyncService {
   }
 
   /**
-   * Get FirestoreStudentId from datalake path, trying Firestore mapping first
+   * Get FirestoreStudentId from datalake path, trying database mapping first
    */
   private async getStudentIdFromPath(datalakePath: string): Promise<FirestoreStudentId> {
     try {
-      // Try to get from Firestore if mapping exists
+      // Try to get from database if mapping exists
       const driveFolderId = createDriveFolderId(datalakePath);
       const studentResult = await getStudentByDriveFolderId(driveFolderId);
       
       if (isOk(studentResult)) {
-        // Use existing Firestore ID
+        // Use existing student ID
         return createFirestoreStudentId(studentResult.data.id);
       }
     } catch (error) {
@@ -204,8 +204,8 @@ export class BackgroundSyncService {
             // Continue with basic metadata even if AI analysis fails
           }
 
-          // Get or generate FirestoreStudentId from datalake path
-          const firestoreStudentId = await this.getStudentIdFromPath(student.id);
+          // Get or generate student ID from datalake path
+          const studentId = await this.getStudentIdFromPath(student.id);
 
           // Create FileMetadata using the service helper
           const fileMeta = datalakeMetadataService.createFileMetadata(
@@ -218,7 +218,7 @@ export class BackgroundSyncService {
               viewUrl: driveFile.viewUrl,
               thumbnailUrl: driveFile.thumbnailUrl,
             },
-            firestoreStudentId,
+            studentId,
             student.driveFolderId || '',
             aiAnalysis || undefined
           );

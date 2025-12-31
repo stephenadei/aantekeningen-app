@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createLoginAudit } from '@/lib/firestore';
+import { createLoginAudit } from '@/lib/database';
 import { getFileMetadata } from '@/lib/cache';
 import { validatePinFormat, getClientIP, getUserAgent } from '@/lib/security';
 import { createStudentName } from '@/lib/types';

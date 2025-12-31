@@ -21,10 +21,6 @@ async function main() {
   console.log('🔄 Starting direct force re-analysis...\n');
   
   try {
-    // Use tsx to run TypeScript directly
-    const { spawn } = await import('child_process');
-    const { promisify } = await import('util');
-    
     console.log('📡 Calling background sync service directly...\n');
     
     // Create a temporary TypeScript file that calls the service

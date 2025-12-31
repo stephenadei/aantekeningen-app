@@ -1,6 +1,6 @@
 import { datalakeService } from './datalake-simple';
 import { datalakeMetadataService, type FileMetadata as DatalakeFileMetadata } from './datalake-metadata';
-import { getStudent } from './firestore';
+import { getStudent } from './database';
 import { isOk } from './types';
 import { 
   createFirestoreStudentId,
@@ -14,13 +14,13 @@ const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
 
 // Cache types are now imported from interfaces.ts
 
-// Firestore cache schema
+// Database cache schema
 // DriveCache interface is now imported from ./interfaces
 
 // File metadata schema for optimized queries
 // FileMetadata interface is now imported from ./interfaces
 
-// In-memory cache (replaces Firestore cache)
+// In-memory cache (replaces database cache)
 const memoryCacheMap = new Map<string, { data: Record<string, unknown>; expiresAt: number }>();
 
 /**
@@ -107,7 +107,7 @@ export async function setCachedFiles(
 }
 
 /**
- * Get file metadata - tries datalake first, falls back to Firestore
+ * Get file metadata - tries datalake first
  */
 export async function getFileMetadata(studentId: string): Promise<FileMetadata[]> {
   try {
@@ -122,7 +122,7 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
       const pathParts = studentId.split('/');
       studentName = pathParts[pathParts.length - 2]; // Second to last part
     } else {
-      // It's a Firestore ID, try to get student info
+      // It's a student ID, try to get student info
       try {
         const studentResult = await getStudent(studentId as any);
         if (isOk(studentResult)) {
@@ -131,7 +131,7 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
           studentPath = await datalakeService.getStudentPath(studentName);
         }
       } catch (error) {
-        // Fall through to Firestore
+        // Fall through - student not found
       }
     }
 
@@ -146,11 +146,11 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
           return metadata as unknown as FileMetadata[];
         }
     } catch (error) {
-        console.log(`⚠️ Failed to get metadata from datalake, falling back to Firestore:`, error);
+        console.log(`⚠️ Failed to get metadata from datalake:`, error);
       }
     }
 
-    // No fallback to Firestore - datalake is the only source now
+    // No fallback - datalake is the only source now
     console.log(`⚠️ No metadata found in datalake for ${studentName || studentId}`);
     return [];
   } catch (error) {
@@ -160,7 +160,7 @@ export async function getFileMetadata(studentId: string): Promise<FileMetadata[]
 }
 
 /**
- * Set file metadata - writes to datalake, also updates Firestore as fallback
+ * Set file metadata - writes to datalake
  */
 export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
   // Write to datalake (primary)
@@ -185,7 +185,7 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
     console.warn(`⚠️ Failed to write ${datalakeFailed} file metadata entries to datalake`);
   }
 
-  // Firestore backup removed - datalake is now the only source
+  // Database backup removed - datalake is now the only source
   // If you need backup, consider implementing a separate backup service
 }
 
@@ -208,7 +208,7 @@ export async function invalidateCache(pattern: string): Promise<void> {
     }
 
     // Note: File metadata invalidation is handled by datalake metadata service
-    // No Firestore invalidation needed anymore
+    // No database invalidation needed anymore
   } catch (error) {
     console.error(`Error invalidating cache for pattern ${pattern}:`, error);
   }
@@ -282,14 +282,14 @@ export async function getCacheStats(): Promise<{
 
 /**
  * Check if file metadata is fresh (less than specified hours old)
- * Checks datalake metadata instead of Firestore
+ * Checks datalake metadata
  */
 export async function isFileMetadataFresh(
   studentId: string, 
   maxAgeHours: number = 6
 ): Promise<boolean> {
   try {
-    // Get student name from studentId (could be path or Firestore ID)
+    // Get student name from studentId (could be path or student ID)
     let studentPath: string | null = null;
     let studentName: string | undefined;
     

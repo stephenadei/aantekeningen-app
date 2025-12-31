@@ -17,32 +17,15 @@ const __dirname = dirname(__filename);
 config({ path: join(__dirname, '..', '.env.local') });
 config({ path: join(__dirname, '..', '.env') });
 
-// MinIO config
-let MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'localhost';
-const MINIO_PORT = parseInt(process.env.MINIO_PORT || '9000');
-const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || 'minioadmin';
-const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || 'minioadmin';
-let MINIO_USE_SSL = process.env.MINIO_SECURE === 'true';
-
-// Parse endpoint if it's a full URL
-if (MINIO_ENDPOINT.startsWith('http://') || MINIO_ENDPOINT.startsWith('https://')) {
-  const url = new URL(MINIO_ENDPOINT);
-  MINIO_ENDPOINT = url.hostname;
-  MINIO_USE_SSL = url.protocol === 'https:';
-}
+// MinIO config - use shared utility
+import { createMinioClient } from '@stephen/datalake';
 
 const BUCKET_NAME = process.env.MINIO_BRONZE_EDUCATION_BUCKET || 'bronze-education';
 const BASE_PATH = 'notability/Priveles';
 const SUBJECT_FOLDERS = ['VO', 'Rekenen', 'WO'];
 
 // Initialize MinIO client
-const minioClient = new MinIO.Client({
-  endPoint: MINIO_ENDPOINT,
-  port: MINIO_PORT,
-  useSSL: MINIO_USE_SSL,
-  accessKey: MINIO_ACCESS_KEY,
-  secretKey: MINIO_SECRET_KEY,
-});
+const minioClient = createMinioClient();
 
 // Statistics
 const stats = {
@@ -166,7 +149,6 @@ async function analyzeAllNotes() {
           if (metadata.aiAnalyzedAt) {
             // Track when last analyzed
             const analyzedDate = new Date(metadata.aiAnalyzedAt);
-            const studentKey = `${studentName}_${subject}`;
             if (!stats.students[studentName].lastAnalyzed) {
               stats.students[studentName].lastAnalyzed = analyzedDate;
             } else if (analyzedDate > stats.students[studentName].lastAnalyzed) {

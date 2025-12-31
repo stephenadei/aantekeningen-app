@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { getAllStudents, createStudent } from '@/lib/firestore';
+import { getAllStudents, createStudent } from '@/lib/database';
 import { getFileMetadata } from '@/lib/cache';
 import { isErr, createPin, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
 import type { CreateStudentInput } from '@/lib/interfaces';

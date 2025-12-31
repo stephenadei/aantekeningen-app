@@ -49,7 +49,7 @@ docker rm aantekeningen-app 2>/dev/null || true
 
 # Build and start with Docker Compose
 print_status "Building and starting Docker container..."
-docker-compose build --no-cache
+docker-compose build
 
 print_status "Starting container..."
 docker-compose up -d
@@ -85,14 +85,15 @@ sudo systemctl reload nginx
 # Setup SSL with Certbot
 print_status "Setting up SSL certificate..."
 if command -v certbot &> /dev/null; then
-    sudo certbot --nginx -d stephensprive.app --non-interactive --agree-tos --email stephen@stephensprivelessen.nl 2>/dev/null || print_warning "SSL certificate setup skipped (may already exist)"
+    sudo certbot --nginx -d stephensprive.app -d www.stephensprive.app --non-interactive --agree-tos --email stephen@stephensprivelessen.nl 2>/dev/null || print_warning "SSL certificate setup skipped (may already exist)"
 else
     print_warning "Certbot not found. Please install certbot and run:"
-    print_warning "sudo certbot --nginx -d stephensprive.app"
+    print_warning "sudo certbot --nginx -d stephensprive.app -d www.stephensprive.app"
 fi
 
 print_status "✅ Deployment complete!"
 print_status "🌐 App available at: https://stephensprive.app"
+print_status "🌐 www.stephensprive.app redirects to: https://stephensprive.app"
 print_status "📊 Container status: docker ps | grep aantekeningen-app"
 print_status "📝 Container logs: docker-compose logs -f"
 print_status "🛑 Stop container: docker-compose down"

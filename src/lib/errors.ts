@@ -34,7 +34,7 @@ export class InvalidStudentIdError extends AppError {
   constructor(id: string, idType?: string) {
     const suggestions = [
       'Check if the student ID is correct',
-      'Verify the student exists in Firestore',
+      'Verify the student exists in the database',
       'If using a Drive folder ID, make sure to set idType=drive',
       'Run `node scripts/validate-student-id.mjs <id>` to check the ID'
     ];
@@ -80,8 +80,8 @@ export class AuthenticationError extends AppError {
       'See AUTHENTICATION.md for detailed setup instructions'
     ];
 
-    if (service === 'firebase') {
-      suggestions.push('Make sure FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY are set');
+    if (service === 'database') {
+      suggestions.push('Make sure DATABASE_URL is set correctly');
     } else if (service === 'google-drive') {
       suggestions.push('Run `node scripts/refresh-oauth-token.mjs` to get a new refresh token');
     }
@@ -96,21 +96,21 @@ export class AuthenticationError extends AppError {
 }
 
 /**
- * Error thrown when Firebase credentials are missing or invalid
+ * Error thrown when database credentials are missing or invalid
  */
-export class FirebaseCredentialsError extends AppError {
+export class DatabaseCredentialsError extends AppError {
   constructor(missingVars: string[]) {
     const suggestions = [
       'Add the missing environment variables to your .env.local file',
-      'Get service account credentials from Firebase Console',
+      'Check your database connection string',
       'See AUTHENTICATION.md for detailed setup instructions'
     ];
 
     super(
-      `Missing Firebase credentials: ${missingVars.join(', ')}`,
-      'FIREBASE_CREDENTIALS_ERROR',
+      `Missing database credentials: ${missingVars.join(', ')}`,
+      'DATABASE_CREDENTIALS_ERROR',
       suggestions,
-      '/docs/authentication.md#firebase-authentication'
+      '/docs/authentication.md#database-authentication'
     );
   }
 }
@@ -163,11 +163,11 @@ export function handleUnknownError(error: unknown): AppError {
     }
 
     if (error.message.includes('Could not load the default credentials')) {
-      return new FirebaseCredentialsError(['FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY']);
+      return new DatabaseCredentialsError(['DATABASE_URL']);
     }
 
-    if (error.message.includes('Project not found')) {
-      return new FirebaseCredentialsError(['FIREBASE_PROJECT_ID']);
+    if (error.message.includes('Project not found') || error.message.includes('database')) {
+      return new DatabaseCredentialsError(['DATABASE_URL']);
     }
 
     // Generic error

@@ -13,12 +13,12 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore PIN reset
+    // TODO: Implement database PIN reset
     return NextResponse.json({ 
       id,
       pin: '000000',
       success: true, 
-      message: 'PIN reset coming soon via Firestore'
+      message: 'PIN reset coming soon'
     });
 
   } catch (error) {

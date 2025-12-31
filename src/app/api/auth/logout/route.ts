@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession } from '@/lib/auth';
-import { createLoginAudit } from '@/lib/firestore';
+import { createLoginAudit } from '@/lib/database';
 import { getClientIP, getUserAgent } from '@/lib/security';
 
 export async function POST(request: NextRequest) {

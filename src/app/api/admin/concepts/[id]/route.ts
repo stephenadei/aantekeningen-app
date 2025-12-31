@@ -13,11 +13,11 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore query to get concept
+    // TODO: Implement database query to get concept
     return NextResponse.json({ 
       id,
       success: true, 
-      message: 'Concept fetching coming soon via Firestore'
+      message: 'Concept fetching coming soon'
     });
 
   } catch (error) {

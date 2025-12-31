@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { getStudent, updateStudent } from '@/lib/firestore';
+import { getStudent, updateStudent } from '@/lib/database';
 import { getFileMetadata } from '@/lib/cache';
 import { isErr, isFirestoreStudentId, createFirestoreStudentId, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
 
@@ -23,7 +23,7 @@ export async function GET(
 
     const studentId = createFirestoreStudentId(id);
     
-    // Get student from Firestore
+    // Get student from database
     const studentResult = await getStudent(studentId);
     if (isErr(studentResult)) {
       return NextResponse.json({ error: studentResult.error.message }, { status: 404 });
@@ -113,7 +113,7 @@ export async function PUT(
       );
     }
 
-    // Update student in Firestore
+    // Update student in database
     const result = await updateStudent(studentId, updates);
     
     if (isErr(result)) {

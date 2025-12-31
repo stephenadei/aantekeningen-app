@@ -13,11 +13,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore update concept
+    // TODO: Implement database update concept
     return NextResponse.json({ 
       id: conceptId,
       success: true, 
-      message: 'Concept update coming soon via Firestore'
+      message: 'Concept update coming soon'
     });
 
   } catch (error) {
@@ -41,11 +41,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore delete concept
+    // TODO: Implement database delete concept
     return NextResponse.json({ 
       id: conceptId,
       success: true, 
-      message: 'Concept deletion coming soon via Firestore'
+      message: 'Concept deletion coming soon'
     });
 
   } catch (error) {

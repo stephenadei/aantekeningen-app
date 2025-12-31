@@ -13,11 +13,11 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Implement Firestore folder confirmation
+    // TODO: Implement database folder confirmation
     return NextResponse.json({ 
       folderId,
       success: true, 
-      message: 'Folder confirmation coming soon via Firestore'
+      message: 'Folder confirmation coming soon'
     });
 
   } catch (error) {
