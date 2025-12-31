@@ -24,6 +24,7 @@ WORKDIR /workspace
 COPY --from=deps /workspace/node_modules ./node_modules
 COPY --from=deps /workspace/package.json ./package.json
 COPY --from=deps /workspace/package-lock.json ./package-lock.json
+COPY --from=deps /workspace/tsconfig.base.json ./tsconfig.base.json
 
 # Copy packages source
 COPY packages/database ./packages/database
@@ -66,7 +67,7 @@ RUN adduser --system --uid 1001 nextjs
 # Copy necessary files from standalone build
 COPY --from=builder --chown=nextjs:nodejs /workspace/projects/aantekeningen-app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /workspace/projects/aantekeningen-app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /workspace/projects/aantekeningen-app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /workspace/projects/aantekeningen-app/.next/static ./projects/aantekeningen-app/.next/static
 # Copy workspace packages for runtime
 COPY --from=builder --chown=nextjs:nodejs /workspace/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /workspace/packages ./packages
@@ -78,6 +79,6 @@ EXPOSE 3001
 ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
-# Next.js standalone puts server.js in the root
-CMD ["node", "server.js"]
+# Next.js standalone puts server.js in projects/aantekeningen-app/
+CMD ["node", "projects/aantekeningen-app/server.js"]
 
