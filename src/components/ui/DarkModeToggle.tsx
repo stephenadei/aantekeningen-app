@@ -6,11 +6,16 @@ import { useDarkMode } from '@/contexts/DarkModeContext';
 export default function DarkModeToggle() {
   const { isDarkMode, toggleDarkMode } = useDarkMode();
 
+  const handleToggle = () => {
+    toggleDarkMode();
+  };
+
   return (
     <button
-      onClick={toggleDarkMode}
+      onClick={handleToggle}
       className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
       aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDarkMode ? 'Schakel naar licht modus' : 'Schakel naar donkere modus'}
     >
       {isDarkMode ? (
         <Sun className="h-5 w-5 text-yellow-500" />

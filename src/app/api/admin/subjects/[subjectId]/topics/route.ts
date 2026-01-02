@@ -10,8 +10,17 @@ export async function GET(
 
     console.log('📚 Fetching topics for subject:', subjectId);
 
-    const topics = await prisma.topic.findMany({
+    // First get topic groups for this subject
+    const topicGroups = await prisma.topicGroup.findMany({
       where: { subjectId },
+      select: { id: true }
+    });
+
+    const topicGroupIds = topicGroups.map(tg => tg.id);
+
+    // Then get topics for those topic groups
+    const topics = await prisma.topic.findMany({
+      where: { topicGroupId: { in: topicGroupIds } },
       orderBy: { sortOrder: 'asc' }
     });
 
@@ -46,12 +55,29 @@ export async function POST(
       );
     }
 
-    console.log('🆕 Creating topic:', name, 'for subject:', subjectId);
+    const { topicGroupId, displayName } = body;
+
+    if (!topicGroupId) {
+      return NextResponse.json(
+        { success: false, error: 'Topic group ID is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!displayName) {
+      return NextResponse.json(
+        { success: false, error: 'Display name is required' },
+        { status: 400 }
+      );
+    }
+
+    console.log('🆕 Creating topic:', name, 'for topic group:', topicGroupId);
 
     const topic = await prisma.topic.create({
       data: {
-        subjectId,
+        topicGroupId,
         name,
+        displayName,
         description: description || '',
         sortOrder: sortOrder || 0
       }

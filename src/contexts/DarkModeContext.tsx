@@ -6,32 +6,63 @@ import type { DarkModeContextType } from '@/lib/interfaces';
 const DarkModeContext = createContext<DarkModeContextType | undefined>(undefined);
 
 export function DarkModeProvider({ children }: { children: React.ReactNode }) {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Initialize from localStorage - default to light mode if not set
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const savedTheme = localStorage.getItem('theme');
+    // Only use dark mode if explicitly set to 'dark'
+    // Don't auto-detect system preference on initial load
+    return savedTheme === 'dark';
+  });
+
+  // Sync HTML class with state whenever isDarkMode changes
+  useEffect(() => {
+    const html = document.documentElement;
+    if (isDarkMode) {
+      html.classList.add('dark');
+    } else {
+      html.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
-    // Check for saved theme preference or default to system preference
+    // Sync with the script in layout.tsx on mount
     const savedTheme = localStorage.getItem('theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldBeDark = savedTheme === 'dark';
     
-    if (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
+    setIsDarkMode(shouldBeDark);
+    
+    // Listen for storage changes (e.g., from other tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'theme') {
+        const newTheme = e.newValue;
+        const shouldBeDark = newTheme === 'dark';
+        setIsDarkMode(shouldBeDark);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
+    
+    // Update state
     setIsDarkMode(newMode);
     
+    // Update localStorage
+    localStorage.setItem('theme', newMode ? 'dark' : 'light');
+    
+    // Update HTML class immediately
+    const html = document.documentElement;
     if (newMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
+      html.classList.add('dark');
     } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+      html.classList.remove('dark');
     }
   };
 

@@ -34,6 +34,9 @@
       ],
       "@stephen/shared-types": [
         "../../packages/shared-types/src"
+      ],
+      "@stephen/taxonomy": [
+        "../../packages/taxonomy/dist"
       ]
     }
   },

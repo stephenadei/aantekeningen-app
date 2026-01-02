@@ -40,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="nl">
+    <html lang="nl" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon.png" />
@@ -50,6 +50,18 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              // Apply dark mode before React hydrates to prevent flash
+              (function() {
+                const savedTheme = localStorage.getItem('theme');
+                // Only use dark mode if explicitly set to 'dark'
+                // Default to light mode if not set
+                if (savedTheme === 'dark') {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              })();
+              
               // Suppress browser extension errors
               (function() {
                 // Suppress message port errors

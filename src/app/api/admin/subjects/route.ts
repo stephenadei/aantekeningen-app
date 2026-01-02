@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description, color, icon, sortOrder } = body;
+    const { name, displayName, description, color, icon, sortOrder } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       data: {
         id: subjectId, // Manual ID setting
         name,
+        displayName: displayName || name, // Use displayName if provided, otherwise use name
         description: description || '',
         color: color || '#3B82F6',
         icon: icon || 'BookOpen',

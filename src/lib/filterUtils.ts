@@ -1,5 +1,6 @@
 // No direct type imports needed for this utility file
 import type { FileInfo, FilterState } from './interfaces';
+import { getFileDate } from './date-extractor';
 
 // FileInfo and FilterState interfaces are now imported from ./interfaces
 
@@ -73,11 +74,11 @@ export function fileMatchesFilters(file: FileInfo, filters: FilterState): boolea
     if (!hasKeyword) return false;
   }
 
-  // Date range filter
+  // Date range filter - use dateFromTitle if available, otherwise modifiedTime
   if (filters.dateRange.type !== 'all') {
     const dateRange = dateRangeToFilter(filters.dateRange.type, filters.dateRange.value);
     if (dateRange) {
-      const fileDate = new Date(file.modifiedTime);
+      const fileDate = getFileDate(file);
       if (fileDate < dateRange.start || fileDate > dateRange.end) {
         return false;
       }

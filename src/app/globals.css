@@ -13,7 +13,13 @@
   --foreground: #1E3A5F;
 }
 
-/* Dark mode variables */
+/* Dark mode variables - ensure html element has dark class */
+html.dark {
+  --background: #0F2439;
+  --foreground: #FCD34D;
+}
+
+/* Also support .dark class on html for Tailwind compatibility */
 .dark {
   --background: #0F2439;
   --foreground: #FCD34D;

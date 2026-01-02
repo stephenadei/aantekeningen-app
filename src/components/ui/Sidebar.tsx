@@ -50,7 +50,7 @@ export default function Sidebar({
       {/* Backdrop - subtle overlay without darkening */}
       {isOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-black/10 backdrop-blur-sm transition-opacity duration-300"
+          className="fixed inset-0 z-40 bg-black/10 dark:bg-black/30 backdrop-blur-sm transition-opacity duration-300"
           onClick={handleBackdropClick}
           aria-hidden="true"
         />
@@ -58,7 +58,7 @@ export default function Sidebar({
       
       {/* Sidebar */}
       <div
-        className={`fixed top-0 right-0 h-full ${widthClasses[width]} bg-blue-800/95 backdrop-blur-xl shadow-2xl border-l border-blue-700/20 z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full ${widthClasses[width]} bg-blue-800/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-2xl border-l border-blue-700/20 dark:border-slate-700/50 z-50 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         role="dialog"
@@ -66,13 +66,13 @@ export default function Sidebar({
         aria-labelledby="sidebar-title"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-blue-700/20">
-          <h2 id="sidebar-title" className="text-xl font-semibold text-yellow-100">
+        <div className="flex items-center justify-between p-6 border-b border-blue-700/20 dark:border-slate-700/50">
+          <h2 id="sidebar-title" className="text-xl font-semibold text-yellow-100 dark:text-yellow-300">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 text-yellow-300 hover:text-yellow-100 hover:bg-yellow-500/20 rounded-lg transition-colors"
+            className="p-2 text-yellow-300 dark:text-yellow-400 hover:text-yellow-100 dark:hover:text-yellow-200 hover:bg-yellow-500/20 dark:hover:bg-yellow-900/30 rounded-lg transition-colors"
             aria-label="Close sidebar"
           >
             <X className="h-5 w-5" />

@@ -14,6 +14,7 @@ import {
   getSubjectDisplayNameFromString, 
   getTopicGroupDisplayNameFromString 
 } from '@/data/taxonomy';
+import { getFileDate } from '@/lib/date-extractor';
 import type { ApiFileInfo, StudentPageStudent, StudentPageStudentOverview, FileInfo } from '@/lib/interfaces';
 
 // FileInfo interface is now imported from @/lib/interfaces
@@ -243,8 +244,8 @@ export default function StudentPage() {
 
       switch (sortBy) {
         case 'date':
-          aValue = new Date(a.modifiedTime).getTime();
-          bValue = new Date(b.modifiedTime).getTime();
+          aValue = getFileDate(a).getTime();
+          bValue = getFileDate(b).getTime();
           break;
         case 'name':
           aValue = a.title.toLowerCase();

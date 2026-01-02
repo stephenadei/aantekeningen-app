@@ -12,6 +12,7 @@ COPY package.json package-lock.json* tsconfig.base.json ./
 COPY packages/database/package.json ./packages/database/
 COPY packages/datalake/package.json ./packages/datalake/
 COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/taxonomy/package.json ./packages/taxonomy/
 COPY projects/aantekeningen-app/package.json ./projects/aantekeningen-app/
 # Install workspace dependencies
 RUN npm ci
@@ -30,6 +31,7 @@ COPY --from=deps /workspace/tsconfig.base.json ./tsconfig.base.json
 COPY packages/database ./packages/database
 COPY packages/datalake ./packages/datalake
 COPY packages/shared-types ./packages/shared-types
+COPY packages/taxonomy ./packages/taxonomy
 
 # Build packages
 WORKDIR /workspace/packages/database
@@ -40,6 +42,9 @@ WORKDIR /workspace/packages/datalake
 RUN npm run build
 
 WORKDIR /workspace/packages/shared-types
+RUN npm run build
+
+WORKDIR /workspace/packages/taxonomy
 RUN npm run build
 
 # Copy app source and build

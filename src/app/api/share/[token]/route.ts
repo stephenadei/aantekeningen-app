@@ -45,6 +45,7 @@ export async function GET(
       student: {
         id: student.id,
         name: student.name,
+        displayName: student.name, // Add displayName for consistency
         datalakePath: studentPath
       }
     });

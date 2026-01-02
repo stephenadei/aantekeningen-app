@@ -8,19 +8,29 @@ export async function PUT(
   try {
     const { subjectId } = await params;
     const body = await request.json();
-    const { name, description, color, icon, sortOrder } = body;
+    const { name, displayName, description, color, icon, sortOrder } = body;
 
     console.log('🔄 Updating subject:', subjectId);
 
+    const updateData: {
+      name?: string;
+      displayName?: string;
+      description?: string | null;
+      color?: string | null;
+      icon?: string | null;
+      sortOrder?: number;
+    } = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (description !== undefined) updateData.description = description || null;
+    if (color !== undefined) updateData.color = color || null;
+    if (icon !== undefined) updateData.icon = icon || null;
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
     await prisma.subject.update({
       where: { id: subjectId },
-      data: {
-        name: name || undefined,
-        description: description || undefined,
-        color: color || undefined,
-        icon: icon || undefined,
-        sortOrder: sortOrder !== undefined ? sortOrder : undefined,
-      }
+      data: updateData
     });
 
     console.log('✅ Subject updated:', subjectId);

@@ -13,6 +13,7 @@ export default function SubjectsPage() {
   const [, setDraggedId] = useState<string | null>(null);
   const [formData, setFormData] = useState<SubjectFormData>({
     name: '',
+    displayName: '',
     description: '',
     color: '#3B82F6',
     icon: 'BookOpen',
@@ -52,6 +53,7 @@ export default function SubjectsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          displayName: formData.displayName || formData.name,
           sortOrder: subjects.length + 1,
         }),
       });
@@ -85,6 +87,7 @@ export default function SubjectsPage() {
     setEditingId(subject.id);
     setFormData({
       name: subject.name,
+      displayName: (subject as any).displayName || subject.name,
       description: subject.description,
       color: subject.color,
       icon: subject.icon,
@@ -96,6 +99,7 @@ export default function SubjectsPage() {
     setEditingId(null);
     setFormData({
       name: '',
+      displayName: '',
       description: '',
       color: '#3B82F6',
       icon: 'BookOpen',

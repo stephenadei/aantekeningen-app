@@ -30,6 +30,7 @@ export default function AdminNavigation({ user }: AdminNavigationProps) {
     { name: 'Studenten', href: '/admin/students', icon: Users },
     { name: 'Notities', href: '/admin/notes', icon: FileText },
     { name: 'Subjects', href: '/admin/subjects', icon: BookOpen },
+    { name: 'Taxonomy', href: '/admin/taxonomy', icon: BookOpen },
     { name: 'Drive Data', href: '/admin/drive-data', icon: Folder },
     { name: 'Folders', href: '/admin/folders', icon: LinkIcon },
     { name: 'Cache', href: '/admin/cache', icon: Database },

@@ -4,11 +4,13 @@ import { useState, useEffect, useMemo } from 'react';
 import FilterSection from './FilterSection';
 import DateRangeFilter from './DateRangeFilter';
 import { type FilterState, FilterSidebarContentProps } from '@/lib/interfaces';
+// Import taxonomy helpers for dynamic taxonomy
+import { getSubjectDisplayName as getSubjectDisplayNameFromTaxonomy, getTopicGroupDisplayName as getTopicGroupDisplayNameFromTaxonomy } from '@/lib/taxonomy-helpers';
+
+// Fallback to hardcoded taxonomy for cascading logic (until fully migrated)
 import { 
   subjectToGroups, 
-  groupToTopics, 
-  getSubjectDisplayName, 
-  getTopicGroupDisplayName 
+  groupToTopics
 } from '@/data/taxonomy';
 
 export default function FilterSidebarContent({
@@ -126,7 +128,7 @@ export default function FilterSidebarContent({
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-slate-50 dark:bg-slate-900">
       {/* Subject Filter Section */}
       <FilterSection
         title="Vakken"
@@ -177,8 +179,8 @@ export default function FilterSidebarContent({
       />
 
       {/* Date Range Filter */}
-      <div className="border-b border-blue-700/20 pb-6">
-        <h3 className="font-semibold text-yellow-100 mb-3">Datumbereik</h3>
+      <div className="border-b border-blue-700/20 dark:border-slate-700/50 pb-6">
+        <h3 className="font-semibold text-yellow-100 dark:text-yellow-300 mb-3">Datumbereik</h3>
         <DateRangeFilter
           value={localFilters.dateRange}
           onChange={(value) => updateFilters({ dateRange: value })}
@@ -187,27 +189,27 @@ export default function FilterSidebarContent({
 
       {/* Search Text */}
       <div>
-        <label className="block text-sm font-medium text-yellow-200 mb-2">Zoeken</label>
+        <label className="block text-sm font-medium text-yellow-200 dark:text-yellow-300 mb-2">Zoeken</label>
         <input
           type="text"
           placeholder="Zoek op naam, titel, onderwerp..."
           value={localFilters.searchText}
           onChange={(e) => updateFilters({ searchText: e.target.value })}
-          className="w-full px-3 py-2 border border-yellow-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-yellow-100 text-blue-900 placeholder-blue-600"
+          className="w-full px-3 py-2 border border-yellow-300 dark:border-slate-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 dark:focus:ring-yellow-400 bg-yellow-100 dark:bg-slate-800 text-blue-900 dark:text-slate-100 placeholder-blue-600 dark:placeholder-slate-400"
         />
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-3 pt-6 border-t border-blue-700/20">
+      <div className="flex gap-3 pt-6 border-t border-blue-700/20 dark:border-slate-700/50">
         <button
           onClick={handleClear}
-          className="flex-1 px-4 py-2 text-yellow-300 hover:text-yellow-100 hover:bg-yellow-500/20 rounded-lg transition-colors font-medium"
+          className="flex-1 px-4 py-2 text-yellow-300 dark:text-yellow-400 hover:text-yellow-100 dark:hover:text-yellow-200 hover:bg-yellow-500/20 dark:hover:bg-yellow-900/30 rounded-lg transition-colors font-medium"
         >
           Wissen
         </button>
         <button
           onClick={handleApply}
-          className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 text-blue-900 rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
+          className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-amber-600 dark:from-yellow-600 dark:to-amber-700 text-blue-900 dark:text-slate-900 rounded-lg hover:shadow-lg transition-all duration-200 font-medium"
         >
           Toepassen
         </button>

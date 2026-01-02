@@ -25,11 +25,11 @@ export default function ShareRedirectPage() {
         const data = await response.json();
 
         if (data.success && data.student) {
-          // Redirect to student page using datalakePath or student ID
-          if (data.student.datalakePath) {
-            router.push(`/student/${encodeURIComponent(data.student.datalakePath)}`);
-          } else if (data.student.id) {
-            router.push(`/student/${data.student.id}`);
+          // Redirect to search page with student name as query parameter
+          // This allows the user to see search results and click on the student
+          const studentName = data.student.name || data.student.displayName;
+          if (studentName) {
+            router.push(`/?student=${encodeURIComponent(studentName)}`);
           } else {
             setError('Student informatie niet gevonden');
             setLoading(false);

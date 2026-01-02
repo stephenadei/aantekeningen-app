@@ -10,7 +10,13 @@ Een standalone Next.js applicatie voor het beheren van student aantekeningen voo
 - **Aantekeningen Bekijken**: Bekijk alle aantekeningen van een student
 - **Sharing Functionaliteit**: Genereer shareable links voor individuele studenten
 - **Google Drive Integratie**: Directe toegang tot Google Drive bestanden
+- **Datalake Storage**: MinIO-based datalake voor schaalbare opslag
 - **AI Metadata**: Automatische extractie van document metadata
+- **Datum Extractie**: Intelligente datum extractie uit bestandsnamen en PDF metadata
+- **Slimme Sortering**: Sorteer op datum uit titel, PDF creation date, of import datum
+- **List & Grid Views**: Flexibele weergave met klikbare bestandsbalken
+- **Dark Mode**: Volledige dark mode ondersteuning
+- **Taxonomy Management**: Beheer van vakken, onderwerpen en topics
 - **Responsive Design**: Werkt op desktop en mobiel
 
 ## 🔗 Live Demo
@@ -26,7 +32,7 @@ Een standalone Next.js applicatie voor het beheren van student aantekeningen voo
 - **Styling**: Tailwind CSS
 - **Database**: PostgreSQL (Prisma)
 - **Authentication**: NextAuth + Google OAuth2
-- **Storage**: Google Drive API
+- **Storage**: Google Drive API + MinIO Datalake
 - **Caching**: In-memory + React Query
 - **AI**: OpenAI API (optioneel)
 - **Testing**: Vitest + Playwright + c8
@@ -257,10 +263,4 @@ Dit project is eigendom van Stephen's Privelessen.
 
 ## 📞 Contact
 
-Voor vragen of ondersteuning, neem contact op via [stephensprivelessen.nl](https://stephensprivelessen.nl).# Test deployment
-
-## 🚀 Automatic Deployment
-This project is now connected to GitHub for automatic deployments!
-
-## ✅ Git Integration Complete
-Automatic deployments are now fully configured!
+Voor vragen of ondersteuning, neem contact op via [stephensprivelessen.nl](https://stephensprivelessen.nl)

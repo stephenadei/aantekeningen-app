@@ -12,6 +12,7 @@ import {
   createThumbnailUrl
 } from './types';
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
+import { extractDateFromTitle } from './date-extractor';
 
 // Google Drive API configuration
 // const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
@@ -323,6 +324,9 @@ class GoogleDriveService {
           // Get AI analysis (cached or basic)
           const aiAnalysis = await this.analyzeDocumentWithAI(fileName);
           
+          // Extract date from filename/title
+          const dateFromTitle = extractDateFromTitle(cleanTitle) || this.extractDateFromFilename(fileName);
+          
           fileList.push({
             id: createDriveFileId(typedFile.id),
             name: createFileName(fileName),
@@ -334,6 +338,7 @@ class GoogleDriveService {
             modifiedTime: typedFile.modifiedTime,
             size: parseInt(typedFile.size || '0'),
             mimeType: typedFile.mimeType,
+            dateFromTitle: dateFromTitle || null,
             // AI-generated metadata
             subject: aiAnalysis.subject,
             topicGroup: aiAnalysis.topicGroup,
@@ -358,19 +363,33 @@ class GoogleDriveService {
         .map(filteredFile => fileList.find(f => f.id === filteredFile.id))
         .filter((f): f is FileInfo => f !== undefined);
       
-      // Sort by lesson date (newest first) - extract date from filename
+      // Sort by lesson date (newest first) - use dateFromTitle if available
       const sortedFiles = filteredFiles.sort((a, b) => {
-        const dateA = this.extractDateFromFilename(a.name);
-        const dateB = this.extractDateFromFilename(b.name);
+        const dateA = a.dateFromTitle;
+        const dateB = b.dateFromTitle;
+        
+        // Helper to convert date to Date object
+        const toDate = (d: Date | string | null | undefined): Date | null => {
+          if (!d) return null;
+          if (d instanceof Date) return d;
+          if (typeof d === 'string') {
+            const parsed = new Date(d);
+            return isNaN(parsed.getTime()) ? null : parsed;
+          }
+          return null;
+        };
+        
+        const dateAObj = toDate(dateA);
+        const dateBObj = toDate(dateB);
         
         // If both have dates, sort by date
-        if (dateA && dateB) {
-          return dateB.getTime() - dateA.getTime();
+        if (dateAObj && dateBObj) {
+          return dateBObj.getTime() - dateAObj.getTime();
         }
         
         // If only one has date, prioritize it
-        if (dateA && !dateB) return -1;
-        if (!dateA && dateB) return 1;
+        if (dateAObj && !dateBObj) return -1;
+        if (!dateAObj && dateBObj) return 1;
         
         // If neither has date, fall back to modification time
         return new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime();
@@ -663,31 +682,52 @@ class GoogleDriveService {
       
       console.log('Analyzing document with AI: ' + fileName);
       
-      // Prepare prompt for OpenAI with comprehensive taxonomy
+      // Load taxonomy dynamically
+      const { TaxonomyService } = await import('@stephen/taxonomy');
+      const taxonomyService = new TaxonomyService();
+      const taxonomy = await taxonomyService.getTaxonomyData();
+      
+      // Build dynamic taxonomy prompt from loaded data
+      const subjectsList = taxonomy.subjects.map((s: { name: string }) => s.name).join(', ');
+      
+      // Group topic groups by subject
+      const topicGroupsBySubject: Record<string, string[]> = {};
+      for (const tg of taxonomy.topicGroups) {
+        if (!topicGroupsBySubject[tg.subjectId]) {
+          topicGroupsBySubject[tg.subjectId] = [];
+        }
+        topicGroupsBySubject[tg.subjectId].push(tg.name);
+      }
+      
+      // Build topic groups section
+      let topicGroupsSection = '';
+      for (const subject of taxonomy.subjects) {
+        const subjectDisplayName = subject.displayName || subject.name;
+        const topicGroups = topicGroupsBySubject[subject.id] || [];
+        if (topicGroups.length > 0) {
+          topicGroupsSection += `${subjectDisplayName}: ${topicGroups.join(', ')}\n`;
+        }
+      }
+      
+      // Get example topics
+      const exampleTopics = taxonomy.topics.slice(0, 10).map((t: { name: string }) => t.name).join(', ');
+      
+      // Prepare prompt for OpenAI with dynamic taxonomy
       const prompt = `Analyze this educational document and extract metadata. Return a JSON object with:
 
 SUBJECTS (choose the most appropriate):
-- rekenen-basis, wiskunde-a, wiskunde-b, wiskunde-c, wiskunde-d
-- economie, natuurkunde, scheikunde, biologie
-- nederlands, engels, informatica
+${subjectsList}
 
 TOPIC GROUPS (choose based on subject):
-Wiskunde: rekenen-getallen, algebra-vergelijkingen, functies-grafieken, meetkunde-ruimtelijk, analyse-calculus, kans-statistiek, verdieping-vwo
-Economie: micro, macro, publiek-financien, persoonlijke-financien, internationaal, vaardigheden-modelleren
-Natuurkunde: mechanica, elektriciteit-magnetisme, golf-optica, thermodynamica, moderne-fysica, metingen-vaardigheden
-Scheikunde: materie-structuur, stoichiometrie, reacties, kinetiek-evenwicht, organische-chemie, analyse-vaardigheden
-Biologie: cel-biochemie, genetica-evolutie, fysiologie-mens, ecologie, microbiologie-immuniteit, planten, bio-vaardigheden
-Nederlands: lezen-luisteren, schrijven, taalbeschouwing-grammatica, literatuur, nl-vaardigheden
-Engels: reading-listening, writing, speaking, grammar-vocabulary, literature-culture, exam-skills
-Informatica: programmeren, web-databases, algoritmen, ethiek-veiligheid
+${topicGroupsSection}
 
 TOPICS (choose specific topic from the topic group):
-Examples: breuken-optellen, lineaire-vergelijking, pythagoras, differentiëren-somregel, vraag-en-aanbod, newton, zuur-base, dna-rna, etc.
+Examples: ${exampleTopics}, etc. Use topics that belong to the selected topic group.
 
 LEVELS: po, vo-vmbo-bb, vo-vmbo-kb, vo-vmbo-gt, vo-havo-onderbouw, vo-vwo-onderbouw, vo-havo-bovenbouw, vo-vwo-bovenbouw, mbo, hbo-propedeuse, hbo-hoofdfase, wo-bachelor, wo-master, wo-phd, mixed
 
 Return JSON with:
-- subject: One of the subjects above
+- subject: One of the subjects above (use the exact subject name/ID)
 - topicGroup: One of the topic groups above (must match the subject)
 - topic: Specific topic from the topic group
 - level: Educational level from the list above
@@ -727,7 +767,28 @@ Return only valid JSON, no other text.`;
       });
       
       const responseData = await response.json();
-      const analysis = JSON.parse(responseData.choices[0].message.content);
+      let analysis = JSON.parse(responseData.choices[0].message.content);
+      
+      // Resolve synonyms using taxonomy service
+      if (analysis.subject) {
+        const resolvedSubjectId = await taxonomyService.resolveSubject(analysis.subject);
+        if (resolvedSubjectId) {
+          const subject = taxonomy.subjects.find((s: { id: string; name: string }) => s.id === resolvedSubjectId);
+          if (subject) {
+            analysis.subject = subject.name; // Use canonical subject name
+          }
+        }
+      }
+      
+      if (analysis.topicGroup) {
+        const resolvedTopicGroupId = await taxonomyService.resolveTopicGroup(analysis.topicGroup);
+        if (resolvedTopicGroupId) {
+          const topicGroup = taxonomy.topicGroups.find((tg: { id: string; name: string }) => tg.id === resolvedTopicGroupId);
+          if (topicGroup) {
+            analysis.topicGroup = topicGroup.name; // Use canonical topic group name
+          }
+        }
+      }
       
       // Cache the result
       this.setCache(cacheKey, {
