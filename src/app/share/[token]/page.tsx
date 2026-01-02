@@ -25,9 +25,42 @@ export default function ShareRedirectPage() {
         const data = await response.json();
 
         if (data.success && data.student) {
-          // Redirect to search page with student name as query parameter
-          // This allows the user to see search results and click on the student
           const studentName = data.student.name || data.student.displayName;
+          const studentId = data.student.id;
+          const datalakePath = data.student.datalakePath;
+          
+          // Check if student is logged in via sessionStorage
+          let isOwnStudent = false;
+          if (typeof window !== 'undefined') {
+            try {
+              const sessionData = sessionStorage.getItem('studentSession');
+              if (sessionData) {
+                const session = JSON.parse(sessionData);
+                // Check if logged in student matches this student
+                // Match by ID, datalakePath, or displayName
+                const sessionId = session.studentId || '';
+                const sessionName = session.displayName?.toLowerCase() || '';
+                const studentNameLower = studentName?.toLowerCase() || '';
+                
+                if (sessionId === studentId || 
+                    sessionId === datalakePath ||
+                    sessionName === studentNameLower) {
+                  isOwnStudent = true;
+                }
+              }
+            } catch (e) {
+              // Session check failed, continue with normal flow
+            }
+          }
+          
+          // If student is viewing their own shared page, redirect directly to student page
+          if (isOwnStudent && (studentId || datalakePath)) {
+            const studentPageId = datalakePath || studentId;
+            router.push(`/student/${studentPageId}`);
+            return;
+          }
+          
+          // Otherwise, redirect to search page with student name
           if (studentName) {
             router.push(`/?student=${encodeURIComponent(studentName)}`);
           } else {

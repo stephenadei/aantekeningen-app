@@ -24,6 +24,7 @@ export async function GET(
       select: {
         id: true,
         name: true,
+        pin: true, // Include pin for admin visibility
         pinHash: true,
       },
     });
@@ -35,6 +36,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       hasPin: !!student.pinHash,
+      pin: student.pin || null, // Return PIN for admin visibility
       student: {
         id: student.id,
         name: student.name,
@@ -90,15 +92,19 @@ export async function PUT(
     // Hash the new PIN
     const pinHash = await bcrypt.hash(pin, 10);
 
-    // Update student PIN
+    // Update student PIN (store both pin and pinHash for admin visibility)
     await prisma.student.update({
       where: { id },
-      data: { pinHash },
+      data: { 
+        pin: pin, // Store plain text for admin visibility
+        pinHash: pinHash 
+      },
     });
 
     return NextResponse.json({
       success: true,
       message: 'PIN updated successfully',
+      pin: pin, // Return PIN so admin can see it
       student: {
         id: student.id,
         name: student.name,
@@ -144,10 +150,13 @@ export async function POST(
     const defaultPin = '000000';
     const pinHash = await bcrypt.hash(defaultPin, 10);
 
-    // Update student PIN
+    // Update student PIN (store both pin and pinHash for admin visibility)
     await prisma.student.update({
       where: { id },
-      data: { pinHash },
+      data: { 
+        pin: defaultPin, // Store plain text for admin visibility
+        pinHash: pinHash 
+      },
     });
 
     return NextResponse.json({

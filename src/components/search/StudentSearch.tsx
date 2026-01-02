@@ -42,7 +42,7 @@ export default function StudentSearch({
             <h2 className="text-2xl font-bold text-yellow-100 dark:text-yellow-300">Zoek je aantekeningen</h2>
           </div>
           <div className="flex items-center gap-3">
-            {isAdmin && (
+            {isAdmin ? (
               <Link
                 href="/admin"
                 className="flex items-center gap-2 px-4 py-2 bg-blue-900/80 dark:bg-slate-800/80 hover:bg-blue-900 dark:hover:bg-slate-700 text-yellow-100 dark:text-yellow-300 rounded-lg transition-colors border border-yellow-300/30 dark:border-yellow-500/30 hover:border-yellow-300/50 dark:hover:border-yellow-500/50"
@@ -50,6 +50,15 @@ export default function StudentSearch({
               >
                 <Shield className="w-5 h-5" />
                 <span className="hidden sm:inline">Admin</span>
+              </Link>
+            ) : (
+              <Link
+                href="/admin/login"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-900/80 dark:bg-slate-800/80 hover:bg-blue-900 dark:hover:bg-slate-700 text-yellow-100 dark:text-yellow-300 rounded-lg transition-colors border border-yellow-300/30 dark:border-yellow-500/30 hover:border-yellow-300/50 dark:hover:border-yellow-500/50"
+                title="Admin Login"
+              >
+                <Shield className="w-5 h-5" />
+                <span className="hidden sm:inline">Login</span>
               </Link>
             )}
             <DarkModeToggle />

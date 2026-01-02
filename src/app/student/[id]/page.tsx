@@ -15,6 +15,7 @@ import {
   getTopicGroupDisplayNameFromString 
 } from '@/data/taxonomy';
 import { getFileDate } from '@/lib/date-extractor';
+import StudentPinChanger from '@/components/student/StudentPinChanger';
 import type { ApiFileInfo, StudentPageStudent, StudentPageStudentOverview, FileInfo } from '@/lib/interfaces';
 
 // FileInfo interface is now imported from @/lib/interfaces
@@ -30,6 +31,7 @@ export default function StudentPage() {
   const [shareableUrl, setShareableUrl] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isStudentLoggedIn, setIsStudentLoggedIn] = useState(false);
 
   // Use React Query for files
   const {
@@ -61,6 +63,32 @@ export default function StudentPage() {
   useEffect(() => {
     if (studentId) {
       loadStudentData();
+    }
+    
+    // Check if student is logged in via sessionStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const sessionData = sessionStorage.getItem('studentSession');
+        if (sessionData) {
+          const session = JSON.parse(sessionData);
+          // Check if the logged in student matches the current student
+          // Match by ID, datalakePath, or displayName
+          if (student) {
+            const sessionId = session.studentId || '';
+            const sessionName = session.displayName?.toLowerCase() || '';
+            const studentNameLower = student.displayName?.toLowerCase() || '';
+            const studentIdMatch = sessionId === student.id || sessionId === student.driveFolderId;
+            const studentNameMatch = sessionName === studentNameLower;
+            
+            if (studentIdMatch || studentNameMatch) {
+              setIsStudentLoggedIn(true);
+            }
+          }
+        }
+      } catch (e) {
+        // Session data invalid or not found
+        setIsStudentLoggedIn(false);
+      }
     }
   }, [studentId]);
 
@@ -400,6 +428,16 @@ export default function StudentPage() {
             </div>
           </div>
         </div>
+
+        {/* PIN Changer - Only show if student is logged in */}
+        {isStudentLoggedIn && student && (
+          <div className="mb-8">
+            <StudentPinChanger 
+              studentId={student.id} 
+              studentName={student.displayName}
+            />
+          </div>
+        )}
 
         {/* Last File Details */}
         {studentOverview && studentOverview.lastFile && (

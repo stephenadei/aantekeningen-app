@@ -105,7 +105,7 @@ export default function FileCard({
     <div className="flex-1 flex items-center justify-between gap-4">
       <div className="flex items-center gap-4 flex-1 min-w-0">
         <div 
-          className="w-20 h-14 rounded-lg overflow-hidden relative group cursor-pointer flex-shrink-0"
+          className="w-20 h-14 rounded-lg overflow-hidden relative group cursor-pointer flex-shrink-0" 
         >
           <Thumbnail
             src={file.thumbnailUrl} 

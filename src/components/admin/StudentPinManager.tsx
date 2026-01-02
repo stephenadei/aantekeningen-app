@@ -39,8 +39,11 @@ export default function StudentPinManager({
       const data = await response.json();
       
       if (data.success) {
-        if (data.hasPin) {
-          setSuccess('Student heeft een PIN code ingesteld');
+        if (data.hasPin && data.pin) {
+          setPin(data.pin); // Store PIN for display
+          setSuccess(`Student heeft PIN code: ${data.pin}`);
+        } else if (data.hasPin) {
+          setSuccess('Student heeft een PIN code ingesteld (PIN niet beschikbaar)');
         } else {
           setError('Student heeft nog geen PIN code');
         }
@@ -287,6 +290,29 @@ export default function StudentPinManager({
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
           <Check className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-green-800 dark:text-green-200">{success}</p>
+        </div>
+      )}
+
+      {/* Current PIN Display */}
+      {pin && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-1">Huidige PIN</h4>
+              <p className="text-2xl font-mono font-bold text-blue-600 dark:text-blue-400">{pin}</p>
+            </div>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(pin);
+                setSuccess('PIN gekopieerd naar klembord!');
+                setTimeout(() => setSuccess(null), 2000);
+              }}
+              className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+              title="Kopieer PIN"
+            >
+              <Copy className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       )}
 
