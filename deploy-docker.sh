@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # Aantekeningen App Docker Deploy Script
+# NOTE: This script can be replaced with the generic deploy script:
+#   source ~/scripts/deploy/deploy-docker.sh
+#   deploy_docker "Aantekeningen App" "aantekeningen-app" ".env.local" "nginx-aantekeningen.conf" "stephensprive.app" "stephensprive.app www.stephensprive.app" "package.json"
 set -e
 
 echo "🚀 Deploying Aantekeningen App with Docker..."
