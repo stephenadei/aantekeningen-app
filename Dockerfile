@@ -9,6 +9,7 @@ WORKDIR /workspace
 # Copy root package.json and workspace config
 COPY package.json package-lock.json* tsconfig.base.json ./
 # Copy all package.json files for workspace resolution
+COPY packages/business-config/package.json ./packages/business-config/
 COPY packages/database/package.json ./packages/database/
 COPY packages/datalake/package.json ./packages/datalake/
 COPY packages/shared-types/package.json ./packages/shared-types/
@@ -28,12 +29,16 @@ COPY --from=deps /workspace/package-lock.json ./package-lock.json
 COPY --from=deps /workspace/tsconfig.base.json ./tsconfig.base.json
 
 # Copy packages source
+COPY packages/business-config ./packages/business-config
 COPY packages/database ./packages/database
 COPY packages/datalake ./packages/datalake
 COPY packages/shared-types ./packages/shared-types
 COPY packages/taxonomy ./packages/taxonomy
 
-# Build packages
+# Build packages — business-config first because shared-types/pricing imports it
+WORKDIR /workspace/packages/business-config
+RUN npm run build
+
 WORKDIR /workspace/packages/database
 RUN npm run build
 RUN npm run db:generate
