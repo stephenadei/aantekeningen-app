@@ -9,7 +9,9 @@ import { prisma } from '@stephenadei/database';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-describe('Student Search API', () => {
+// Requires a live datalake (S3/MinIO). Skipped unless RUN_DATALAKE_TESTS is set,
+// so CI (no datalake) stays green; run locally with RUN_DATALAKE_TESTS=1.
+describe.skipIf(!process.env.RUN_DATALAKE_TESTS)('Student Search API', () => {
   let testStudentName: string;
 
   beforeAll(async () => {
