@@ -67,7 +67,10 @@ jobs:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: aantekeningen_test
         ports:
+          # 5432 for prisma db push; 5435 because @stephenadei/database rewrites
+          # localhost:5432 -> localhost:5435 in dev (matching the dev Docker map).
           - 5432:5432
+          - 5435:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
