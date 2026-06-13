@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { TaxonomySyncService, TaxonomyService } from '@stephenadei/taxonomy';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
     const { direction } = body; // 'datalake-to-database' or 'database-to-datalake'
@@ -44,11 +41,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const taxonomyService = new TaxonomyService();
     const syncService = new TaxonomySyncService();

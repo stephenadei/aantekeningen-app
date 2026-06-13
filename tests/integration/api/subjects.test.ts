@@ -19,15 +19,15 @@ vi.mock('@stephenadei/database', () => ({
   prisma: new Proxy({}, { get: () => prismaModel }),
 }));
 
-const mockGetAuthSession = vi.fn();
-const mockIsAuthorizedAdmin = vi.fn();
+const mockRequireAdmin = vi.fn();
 
-vi.mock('@/lib/auth', () => ({
-  getAuthSession: mockGetAuthSession,
-  isAuthorizedAdmin: mockIsAuthorizedAdmin,
-}));
+vi.mock('@/lib/auth', async () => {
+  const actual = await vi.importActual('@/lib/auth');
+  return { ...actual, requireAdmin: mockRequireAdmin };
+});
 
-vi.mock('next-auth', () => ({ getServerSession: vi.fn() }));
+vi.mock('next-auth', () => ({ getServerSession: vi.fn(), default: vi.fn() }));
+vi.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }));
 
 describe('Subjects API Integration', () => {
   const mockAdminUser = {
@@ -39,8 +39,7 @@ describe('Subjects API Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetAuthSession.mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-    mockIsAuthorizedAdmin.mockReturnValue(true);
+    mockRequireAdmin.mockResolvedValue({ ok: true, user: mockAdminUser });
   });
 
   afterEach(() => {

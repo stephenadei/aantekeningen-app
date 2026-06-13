@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@stephenadei/database';
 import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
 import { Prisma } from '@prisma/client';
@@ -8,11 +8,8 @@ import { datalakeMetadataService } from '@/lib/datalake-metadata';
 
 export async function GET(request: NextRequest) {
   try {
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
@@ -134,11 +131,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
