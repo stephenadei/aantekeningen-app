@@ -120,7 +120,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
                 fontWeight: 500,
               }}
             >
-              Gedeeld door Stephen's Privelessen
+              {"Gedeeld door Stephen's Privelessen"}
             </div>
           </div>
         </div>
