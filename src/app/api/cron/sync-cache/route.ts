@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backgroundSyncService } from '@/lib/background-sync';
+import { syncOrchestrator } from '@/lib/sync-orchestrator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
 
     console.log('🔄 Cron job triggered: Starting background sync...');
     
-    // Start background sync (don't wait for completion)
-    backgroundSyncService.runFullSync().catch(error => {
+    // Start background file sync (don't wait for completion)
+    syncOrchestrator.syncFiles().catch(error => {
       console.error('Cron sync failed:', error);
     });
 
