@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStudentByShareToken } from '@/lib/share-token';
 import { datalakeService } from '@/lib/datalake-simple';
+import { resolveDatalakePathForStudent } from '@/lib/student-resolution';
 
 export async function GET(
   request: NextRequest,
@@ -26,19 +27,18 @@ export async function GET(
       );
     }
 
-    // Get student path (datalakePath or generate from name)
-    let studentPath: string | null = null;
-    
-    if (student.datalakePath) {
-      studentPath = student.datalakePath;
-    } else {
-      // Try to find student path in datalake by name
-      const allStudents = await datalakeService.getAllStudentFolders();
-      const datalakeStudent = allStudents.find(s => s.name === student.name);
-      if (datalakeStudent) {
-        studentPath = datalakeStudent.id;
-      }
-    }
+    // Resolve the student's datalake location through the single shared seam
+    // (stored path -> targeted name-lookup fallback). Replaces a per-route
+    // getAllStudentFolders()+linear-scan that loaded every folder per request.
+    const location = await resolveDatalakePathForStudent(
+      {
+        datalakePath: student.datalakePath,
+        driveFolderId: (student as { driveFolderId?: string }).driveFolderId,
+        name: student.name,
+      },
+      { getStudentPath: (name, subject) => datalakeService.getStudentPath(name, subject) },
+    );
+    const studentPath: string | null = location.kind === 'resolved' ? location.datalakePath : null;
 
     return NextResponse.json({
       success: true,
