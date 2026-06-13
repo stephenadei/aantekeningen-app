@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main, dev/v1-migration ]
 
+# Auth for `npm ci` to read the private @stephenadei/* packages from GitHub
+# Packages (see .npmrc). Available to every job's install step.
+env:
+  NODE_AUTH_TOKEN: ${{ secrets.GHP_READ_TOKEN }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
