@@ -14,6 +14,7 @@ import {
 } from '@/lib/types';
 import { createErrorResponse, handleUnknownError, InvalidStudentIdError } from '@/lib/errors';
 import { resolveStudentRequest } from '@/lib/student-resolution';
+import { sliceByOffset } from '@/lib/pagination';
 
 // Identity + location resolution lives in one tested seam (student-resolution.ts).
 // The route only maps the resolution outcome to its HTTP shape.
@@ -116,19 +117,14 @@ export async function GET(
           });
         }
 
-        let files = enrichedFiles;
-        if (limit) {
-          const limitNum = parseInt(limit);
-          const offsetNum = offset ? parseInt(offset) : 0;
-          files = enrichedFiles.slice(offsetNum, offsetNum + limitNum);
-        }
+        const { items: files, hasMore } = sliceByOffset(enrichedFiles, limit, offset);
 
         return NextResponse.json({
           success: true,
           files,
           count: files.length,
           totalCount: enrichedFiles.length,
-          hasMore: limit ? (enrichedFiles.length > (parseInt(limit) + (offset ? parseInt(offset) : 0))) : false,
+          hasMore,
           fromCache: false,
           cacheEnriched: true,
           cacheFresh: isFresh,
@@ -139,12 +135,7 @@ export async function GET(
     }
 
     // Apply pagination if requested
-    let files = allFiles;
-    if (limit) {
-      const limitNum = parseInt(limit);
-      const offsetNum = offset ? parseInt(offset) : 0;
-      files = allFiles.slice(offsetNum, offsetNum + limitNum);
-    }
+    const { items: files, hasMore } = sliceByOffset(allFiles, limit, offset);
 
     // Trigger background sync to update datalake metadata (non-blocking, optional)
     backgroundSyncService.forceSyncStudent(studentId).catch(error => {
@@ -156,7 +147,7 @@ export async function GET(
       files,
       count: files.length,
       totalCount: allFiles.length,
-      hasMore: limit ? (allFiles.length > (parseInt(limit) + (offset ? parseInt(offset) : 0))) : false,
+      hasMore,
       fromCache: false,
       studentName,
       idType: resolvedIdType,
