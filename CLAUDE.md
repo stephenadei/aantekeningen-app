@@ -63,9 +63,9 @@ prisma/                # Legacy local schema copy — DO NOT EDIT (SSOT is packa
 └── migrations/        # Local migration history
 ```
 
-**Database:** `@stephen/database` (shared Prisma schema — never edit local schema).
+**Database:** `@stephenadei/database` (shared Prisma schema — never edit local schema).
 **AI:** LangChain + OpenAI GPT-4o — server-side only; never import in client components.
-**Storage:** S3 via `@stephen/datalake`; Bronze = raw PDFs; Silver = enriched metadata.
+**Storage:** S3 via `@stephenadei/datalake`; Bronze = raw PDFs; Silver = enriched metadata.
 
 ---
 
