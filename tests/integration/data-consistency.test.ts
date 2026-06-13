@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { datalakeService } from '@/lib/datalake-simple';
 import { datalakeMetadataService } from '@/lib/datalake-metadata';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 
 describe('Data Consistency', () => {
   beforeAll(async () => {

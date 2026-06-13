@@ -1,46 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
-// Mock Firebase Admin with proper Firestore mocking
-vi.mock('@/lib/firebase-admin', () => {
-  const mockCollectionRef = {
-    doc: vi.fn(),
-    add: vi.fn(),
-    get: vi.fn().mockResolvedValue({ docs: [] }),
-    where: vi.fn().mockReturnThis(),
-    orderBy: vi.fn().mockReturnThis(),
-  };
-
-  const mockDocRef = {
-    set: vi.fn().mockResolvedValue(undefined),
-    get: vi.fn().mockResolvedValue({ exists: false, data: () => null }),
-    update: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-  };
-
-  mockCollectionRef.doc.mockReturnValue(mockDocRef);
-  mockCollectionRef.add.mockResolvedValue(mockDocRef);
-
-  return {
-    db: {
-      collection: vi.fn().mockReturnValue(mockCollectionRef),
-      runTransaction: vi.fn().mockImplementation((callback) => callback({})),
-      batch: vi.fn().mockReturnValue({
-        set: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
-        commit: vi.fn().mockResolvedValue(undefined),
-      }),
-    },
-    auth: {
-      verifyIdToken: vi.fn(),
-      getUser: vi.fn(),
-      setCustomUserClaims: vi.fn(),
-    },
-  };
-});
-
-// Mock Auth (NextAuth)
+// The app migrated off Firebase to Prisma/datalake; these routes no longer use
+// firebase-admin. We mock only what they actually depend on now: the auth seam.
 const mockGetAuthSession = vi.fn();
 const mockIsAuthorizedAdmin = vi.fn();
 
@@ -53,14 +15,9 @@ vi.mock('@/lib/auth', async () => {
   };
 });
 
-// Mock NextAuth
 vi.mock('next-auth', async () => {
   const actual = await vi.importActual('next-auth');
-  return {
-    ...actual,
-    getServerSession: vi.fn(),
-    default: vi.fn(),
-  };
+  return { ...actual, getServerSession: vi.fn(), default: vi.fn() };
 });
 
 describe('Admin Management API Integration', () => {
@@ -68,14 +25,11 @@ describe('Admin Management API Integration', () => {
     uid: 'admin-uid',
     email: 'admin@stephensprivelessen.nl',
     name: 'Admin User',
-    picture: 'https://example.com/photo.jpg',
     emailVerified: true,
-    customClaims: { role: 'admin' }
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default mock responses for auth
     mockGetAuthSession.mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
     mockIsAuthorizedAdmin.mockReturnValue(true);
   });
@@ -85,59 +39,21 @@ describe('Admin Management API Integration', () => {
   });
 
   describe('GET /api/admin/drive-data', () => {
-    it('should get drive data statistics', async () => {
-      const { db } = await import('@/lib/firebase-admin');
-      // Mocks are set up in beforeEach
-
-      const mockSnapshot = {
-        docs: [
-          {
-            id: 'file-1',
-            data: () => ({
-              id: 'file-1',
-              name: 'Test File',
-              studentId: 'student-1',
-              createdAt: new Date(),
-            })
-          }
-        ]
-      };
-
-      vi.mocked(db.collection).mockReturnValue({
-        get: vi.fn().mockResolvedValue(mockSnapshot)
-      } as unknown as ReturnType<typeof db.collection>);
-
-      try {
-        const { GET } = await import('@/app/api/admin/drive-data/route');
-        const response = await GET();
-        const data = await response.json();
-
-        expect([200, 400, 500]).toContain(response.status);
-        expect(data).toBeDefined();
-      } catch (error: unknown) {
-        // If route doesn't exist or import fails, test passes - it's a structure issue
-        expect((error as Error)?.message).toBeDefined();
-      }
+    it('returns a well-formed response (data comes from Prisma/datalake)', async () => {
+      // drive-data reads from the database; in the test env those calls may fail.
+      // The contract we assert here is only that the route resolves to a valid
+      // HTTP response and never throws out of the handler.
+      const { GET } = await import('@/app/api/admin/drive-data/route');
+      const response = await GET();
+      expect([200, 400, 401, 403, 500]).toContain(response.status);
+      const data = await response.json();
+      expect(data).toBeDefined();
     });
   });
 
   describe('POST /api/admin/clear-cache', () => {
-    it('should clear cache successfully', async () => {
-      const { db } = await import('@/lib/firebase-admin');
-      // Mocks are set up in beforeEach
-
-      const mockSnapshot = {
-        docs: []
-      };
-
-      vi.mocked(db.collection).mockReturnValue({
-        get: vi.fn().mockResolvedValue(mockSnapshot)
-      } as unknown as ReturnType<typeof db.collection>);
-
-      const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', {
-        method: 'POST',
-      });
-
+    it('clears the cache successfully for an authorized admin', async () => {
+      const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', { method: 'POST' });
       const { POST } = await import('@/app/api/admin/clear-cache/route');
       const response = await POST(request);
       const data = await response.json();
@@ -146,28 +62,8 @@ describe('Admin Management API Integration', () => {
       expect(data).toHaveProperty('success');
     });
 
-    it('should handle cache type parameter', async () => {
-      const { db } = await import('@/lib/firebase-admin');
-      // Mocks are set up in beforeEach
-
-      const mockSnapshot = {
-        docs: []
-      };
-
-      const mockQueryRef = {
-        get: vi.fn().mockResolvedValue(mockSnapshot),
-        where: vi.fn().mockReturnThis(),
-      };
-
-      vi.mocked(db.collection).mockReturnValue({
-        get: vi.fn().mockResolvedValue(mockSnapshot),
-        where: vi.fn().mockReturnValue(mockQueryRef)
-      } as unknown as ReturnType<typeof db.collection>);
-
-      const request = new NextRequest('http://localhost:3000/api/admin/clear-cache?type=fileMetadata', {
-        method: 'POST',
-      });
-
+    it('accepts a cache type parameter', async () => {
+      const request = new NextRequest('http://localhost:3000/api/admin/clear-cache?type=fileMetadata', { method: 'POST' });
       const { POST } = await import('@/app/api/admin/clear-cache/route');
       const response = await POST(request);
       const data = await response.json();
@@ -176,13 +72,11 @@ describe('Admin Management API Integration', () => {
       expect(data).toHaveProperty('success');
     });
 
-    it('should reject unauthorized users', async () => {
+    it('rejects unauthorized users', async () => {
       mockGetAuthSession.mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
+      mockIsAuthorizedAdmin.mockReturnValue(false);
 
-      const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', {
-        method: 'POST',
-      });
-
+      const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', { method: 'POST' });
       const { POST } = await import('@/app/api/admin/clear-cache/route');
       const response = await POST(request);
 

@@ -15,27 +15,7 @@ import {
   createUserAgent,
 } from '@/lib/types';
 
-// Mock Firebase Admin before importing
-vi.mock('@/lib/firebase-admin', () => ({
-  db: {
-    collection: vi.fn(() => ({
-      doc: vi.fn(() => ({
-        get: vi.fn(),
-        set: vi.fn(),
-        update: vi.fn()
-      })),
-      where: vi.fn(() => ({
-        get: vi.fn(),
-        limit: vi.fn(() => ({
-          get: vi.fn()
-        }))
-      })),
-      add: vi.fn()
-    }))
-  }
-}));
-
-import type { 
+import type {
   FileInfo, 
   FilterState, 
   DriveStudent, 
@@ -53,9 +33,8 @@ import type {
   CreateKeyConceptInput, 
   CreateStudentTagInput, 
   CreateUnlinkedFolderInput, 
-  CreateLoginAuditInput, 
-  FirebaseUser, 
-  AuthResult, 
+  CreateLoginAuditInput,
+  AuthResult,
   DriveCache, 
   FileMetadata, 
   RateLimitOptions, 
@@ -213,26 +192,6 @@ describe('Interface Consistency', () => {
 
       expect(cacheWithString.createdAt).toBe('2024-01-15T10:30:00Z');
       expect(cacheWithDate.createdAt).toBeInstanceOf(Date);
-    });
-  });
-
-  describe('FirebaseUser Interface', () => {
-    it('should have all required properties', () => {
-      const firebaseUser: FirebaseUser = {
-        uid: 'test-uid',
-        email: 'test@example.com',
-        name: 'Test User',
-        displayName: 'Test User Display',
-        picture: 'https://example.com/picture.jpg',
-        photoURL: 'https://example.com/photo.jpg',
-        emailVerified: true,
-        customClaims: { role: 'admin' }
-      };
-
-      expect(firebaseUser.uid).toBe('test-uid');
-      expect(firebaseUser.email).toBe('test@example.com');
-      expect(firebaseUser.name).toBe('Test User');
-      expect(firebaseUser.picture).toBe('https://example.com/picture.jpg');
     });
   });
 

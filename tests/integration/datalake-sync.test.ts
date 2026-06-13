@@ -6,7 +6,7 @@
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { datalakeService } from '@/lib/datalake-simple';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import { getTestStudents } from '../helpers/datalake-test-data';
 
 describe('Datalake Sync Integration', () => {
