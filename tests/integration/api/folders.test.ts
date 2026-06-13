@@ -1,17 +1,19 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-// Folder routes use the auth seam; sync delegates to backgroundSyncService.
+// Folder routes gate on requireAdmin(); sync delegates to backgroundSyncService.
 // link/confirm/reject are auth-gated placeholders. No Firebase anymore.
-const mockGetAuthSession = vi.fn();
-const mockIsAuthorizedAdmin = vi.fn();
+const mockRequireAdmin = vi.fn();
 
-vi.mock('@/lib/auth', () => ({
-  getAuthSession: mockGetAuthSession,
-  isAuthorizedAdmin: mockIsAuthorizedAdmin,
-}));
+vi.mock('@/lib/auth', async () => {
+  const actual = await vi.importActual('@/lib/auth');
+  return { ...actual, requireAdmin: mockRequireAdmin };
+});
 
-vi.mock('next-auth', () => ({ getServerSession: vi.fn() }));
+vi.mock('next-auth', () => ({ getServerSession: vi.fn(), default: vi.fn() }));
+vi.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }));
+
+const unauthorized = () => ({ ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) });
 
 vi.mock('@/lib/background-sync', () => ({
   backgroundSyncService: {
@@ -29,8 +31,7 @@ describe('Folder Management API Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetAuthSession.mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-    mockIsAuthorizedAdmin.mockReturnValue(true);
+    mockRequireAdmin.mockResolvedValue({ ok: true, user: mockAdminUser });
   });
 
   afterEach(() => {
@@ -49,8 +50,7 @@ describe('Folder Management API Integration', () => {
     });
 
     it('rejects unauthorized users', async () => {
-      mockGetAuthSession.mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
-      mockIsAuthorizedAdmin.mockReturnValue(false);
+      mockRequireAdmin.mockResolvedValue(unauthorized());
 
       const request = new NextRequest('http://localhost:3000/api/admin/folders/sync', { method: 'POST' });
       const { POST } = await import('@/app/api/admin/folders/sync/route');
