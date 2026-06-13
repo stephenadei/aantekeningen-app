@@ -8,6 +8,7 @@ import {
 } from './types';
 import type { DriveCache, FileMetadata } from './interfaces';
 import type { CacheType } from './types';
+import { TtlCache, hoursToMs } from './ttl-cache';
 
 // Cache configuration
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
@@ -20,8 +21,8 @@ const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
 // File metadata schema for optimized queries
 // FileMetadata interface is now imported from ./interfaces
 
-// In-memory cache (replaces database cache)
-const memoryCacheMap = new Map<string, { data: Record<string, unknown>; expiresAt: number }>();
+// In-memory cache — one shared TTL primitive (see ttl-cache.ts).
+const memoryCache = new TtlCache<Record<string, unknown>>(hoursToMs(CACHE_DURATION_HOURS));
 
 /**
  * Get cached data from memory cache
@@ -30,24 +31,15 @@ export async function getCachedData(
   cacheKey: string
 ): Promise<Record<string, unknown> | null> {
   try {
-    const cached = memoryCacheMap.get(cacheKey);
-    
-    if (!cached) {
+    const data = memoryCache.get(cacheKey);
+
+    if (data === undefined) {
       console.log(`Cache miss: ${cacheKey}`);
       return null;
     }
 
-    const now = Date.now();
-
-    // Check if cache is expired
-    if (now > cached.expiresAt) {
-      console.log(`Cache expired: ${cacheKey}`);
-      memoryCacheMap.delete(cacheKey);
-      return null;
-    }
-
     console.log(`Cache hit: ${cacheKey}`);
-    return cached.data;
+    return data;
   } catch (error) {
     console.error(`Error getting cache for ${cacheKey}:`, error);
     return null;
@@ -67,14 +59,7 @@ export async function setCachedData(
   lastModified?: Date
 ): Promise<void> {
   try {
-    const now = Date.now();
-    const expiresAt = now + (ttlHours * 60 * 60 * 1000);
-
-    memoryCacheMap.set(cacheKey, {
-      data,
-      expiresAt
-    });
-    
+    memoryCache.set(cacheKey, data, hoursToMs(ttlHours));
     console.log(`Cache set: ${cacheKey} (expires in ${ttlHours}h)`);
   } catch (error) {
     console.error(`Error setting cache for ${cacheKey}:`, error);
@@ -194,16 +179,9 @@ export async function setFileMetadata(files: FileMetadata[]): Promise<void> {
  */
 export async function invalidateCache(pattern: string): Promise<void> {
   try {
-    // Invalidate memory cache entries matching pattern
-      let invalidatedCount = 0;
-    for (const [key] of memoryCacheMap.entries()) {
-      if (key.includes(pattern) || key.startsWith(pattern)) {
-        memoryCacheMap.delete(key);
-          invalidatedCount++;
-        }
-    }
-
-      if (invalidatedCount > 0) {
+    // Invalidate memory cache entries whose key contains the pattern.
+    const invalidatedCount = memoryCache.invalidate(pattern);
+    if (invalidatedCount > 0) {
       console.log(`Invalidated ${invalidatedCount} cache entries matching ${pattern}`);
     }
 
@@ -219,16 +197,7 @@ export async function invalidateCache(pattern: string): Promise<void> {
  */
 export async function cleanupExpiredCache(): Promise<void> {
   try {
-    const now = Date.now();
-    let cleanedCount = 0;
-    
-    for (const [key, value] of memoryCacheMap.entries()) {
-      if (now > value.expiresAt) {
-        memoryCacheMap.delete(key);
-        cleanedCount++;
-      }
-    }
-    
+    const cleanedCount = memoryCache.cleanup();
     if (cleanedCount > 0) {
       console.log(`Cleaned up ${cleanedCount} expired cache entries`);
     } else {
@@ -248,25 +217,24 @@ export async function getCacheStats(): Promise<{
   byType: Record<string, number>;
 }> {
   try {
-    const now = Date.now();
     let expiredCount = 0;
     const byType: Record<string, number> = {};
-    
-    for (const [key, value] of memoryCacheMap.entries()) {
+
+    for (const key of memoryCache.keys()) {
       // Try to infer type from key
-      const type = key.includes('files') ? 'files' : 
-                   key.includes('metadata') ? 'metadata' : 
-                   key.includes('students') ? 'students' : 
+      const type = key.includes('files') ? 'files' :
+                   key.includes('metadata') ? 'metadata' :
+                   key.includes('students') ? 'students' :
                    'fileMetadata';
       byType[type] = (byType[type] || 0) + 1;
-      
-      if (now > value.expiresAt) {
+
+      if (memoryCache.ttlRemaining(key) === 0) {
         expiredCount++;
       }
     }
 
     return {
-      totalEntries: memoryCacheMap.size,
+      totalEntries: memoryCache.size,
       expiredEntries: expiredCount,
       byType,
     };

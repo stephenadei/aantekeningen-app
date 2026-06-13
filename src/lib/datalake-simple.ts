@@ -16,6 +16,7 @@ import {
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
 import { MedallionBuckets } from '@stephenadei/datalake';
 import { extractDateFromTitle } from './date-extractor';
+import { TtlCache, hoursToMs } from './ttl-cache';
 
 // Datalake configuration - Bronze layer for raw PDFs
 const BUCKET_NAME = MedallionBuckets.BRONZE_EDUCATION;
@@ -25,7 +26,7 @@ const CACHE_KEY_STUDENTS = 'cached_students';
 const CACHE_KEY_FILES = 'cached_files_';
 
 // In-memory cache
-const memoryCache = new Map<string, { data: Record<string, unknown>; timestamp: number }>();
+const memoryCache = new TtlCache<Record<string, unknown>>(hoursToMs(CACHE_DURATION_HOURS));
 
 class DatalakeService {
   private minioClient!: MinIO.Client;
@@ -173,27 +174,12 @@ class DatalakeService {
   /**
    * Cache management functions
    */
-  private getCache(key: string) {
-    const cached = memoryCache.get(key);
-    if (cached) {
-      const now = new Date().getTime();
-      const cacheAge = now - cached.timestamp;
-      const maxAge = CACHE_DURATION_HOURS * 60 * 60 * 1000;
-      
-      if (cacheAge < maxAge) {
-        return cached.data;
-      } else {
-        memoryCache.delete(key);
-      }
-    }
-    return null;
+  private getCache(key: string): Record<string, unknown> | null {
+    return memoryCache.get(key) ?? null;
   }
 
-  private setCache(key: string, data: any) {
-    memoryCache.set(key, {
-      data,
-      timestamp: new Date().getTime()
-    });
+  private setCache(key: string, data: Record<string, unknown>) {
+    memoryCache.set(key, data);
   }
 
   /**
@@ -987,7 +973,7 @@ Return only valid JSON, no other text.`;
       });
       
       const responseData = await response.json();
-      let analysis = JSON.parse(responseData.choices[0].message.content);
+      const analysis = JSON.parse(responseData.choices[0].message.content);
       
       // Resolve synonyms using taxonomy service
       if (analysis.subject) {

@@ -13,6 +13,7 @@ import {
 } from './types';
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
 import { extractDateFromTitle } from './date-extractor';
+import { TtlCache, hoursToMs } from './ttl-cache';
 
 // Google Drive API configuration
 // const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
@@ -23,16 +24,14 @@ const PRIVELES_FOLDER_NAME = 'Priveles';
 
 // Cache configuration
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12'); // Half daily refresh
-const METADATA_CACHE_DURATION_HOURS = 12; // Half daily metadata refresh
-const METADATA_CACHE_DURATION_MS = METADATA_CACHE_DURATION_HOURS * 60 * 60 * 1000;
 
 const CACHE_KEY_STUDENTS = 'cached_students';
 const CACHE_KEY_FILES = 'cached_files_';
 const CACHE_KEY_AI_ANALYSIS = 'cached_ai_analysis_';
 const CACHE_KEY_METADATA = 'cached_metadata';
 
-// In-memory cache (in production, consider using Redis)
-const memoryCache = new Map<string, { data: Record<string, unknown>; timestamp: number }>();
+// In-memory cache — one shared TTL primitive (see ttl-cache.ts).
+const memoryCache = new TtlCache<Record<string, unknown>>(hoursToMs(CACHE_DURATION_HOURS));
 
 // DriveStudent and FileInfo interfaces are now imported from ./interfaces
 
@@ -92,27 +91,12 @@ class GoogleDriveService {
   /**
    * Cache management functions
    */
-  private getCache(key: string) {
-    const cached = memoryCache.get(key);
-    if (cached) {
-      const now = new Date().getTime();
-      const cacheAge = now - cached.timestamp;
-      const maxAge = CACHE_DURATION_HOURS * 60 * 60 * 1000; // Convert to milliseconds
-      
-      if (cacheAge < maxAge) {
-        return cached.data;
-      } else {
-        memoryCache.delete(key);
-      }
-    }
-    return null;
+  private getCache(key: string): Record<string, unknown> | null {
+    return memoryCache.get(key) ?? null;
   }
 
-  private setCache(key: string, data: any) {
-    memoryCache.set(key, {
-      data,
-      timestamp: new Date().getTime()
-    });
+  private setCache(key: string, data: Record<string, unknown>) {
+    memoryCache.set(key, data);
   }
 
   /**
@@ -767,7 +751,7 @@ Return only valid JSON, no other text.`;
       });
       
       const responseData = await response.json();
-      let analysis = JSON.parse(responseData.choices[0].message.content);
+      const analysis = JSON.parse(responseData.choices[0].message.content);
       
       // Resolve synonyms using taxonomy service
       if (analysis.subject) {
@@ -896,7 +880,7 @@ Return only valid JSON, no other text.`;
    */
   clearCache(): { success: boolean; message: string } {
     try {
-      memoryCache.clear();
+      memoryCache.invalidate();
       console.log('✅ Cache cleared successfully');
       return { success: true, message: 'Cache cleared' };
     } catch (error) {
@@ -1119,11 +1103,8 @@ Return only valid JSON, no other text.`;
    * Check if metadata cache is valid
    */
   isMetadataCacheValid(): boolean {
-    const cached = memoryCache.get(CACHE_KEY_METADATA);
-    if (!cached) return false;
-    
-    const age = Date.now() - cached.timestamp;
-    return age < METADATA_CACHE_DURATION_MS;
+    // TtlCache.has() already accounts for expiry (default 12h TTL).
+    return memoryCache.has(CACHE_KEY_METADATA);
   }
 }
 
