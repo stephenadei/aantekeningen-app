@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backgroundSyncService } from '@/lib/background-sync';
-import { runFullDatalakeSync } from '@/lib/datalake-sync';
+import { syncOrchestrator } from '@/lib/sync-orchestrator';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,13 +18,9 @@ export async function GET(request: NextRequest) {
 
     console.log('🔄 Starting scheduled sync...');
 
-    // 1. Sync database with datalake (create/update students)
-    console.log('📊 Step 1: Syncing database with datalake...');
-    const datalakeSync = await runFullDatalakeSync();
-
-    // 2. Sync file metadata cache (existing functionality)
-    console.log('\n📁 Step 2: Syncing file metadata cache...');
-    await backgroundSyncService.runFullSync();
+    // Reconcile students from the datalake, then sync file metadata.
+    // Ordering (students-before-files) is owned by the orchestrator.
+    const datalakeSync = await syncOrchestrator.syncAll();
 
     console.log('\n✅ Scheduled sync completed.');
 

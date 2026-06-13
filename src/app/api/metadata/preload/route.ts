@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { backgroundSyncService } from '@/lib/background-sync';
+import { syncOrchestrator } from '@/lib/sync-orchestrator';
 
 export async function GET() {
   try {
     console.log('🔄 Starting metadata preload via GET...');
     
-    // Use background sync service to sync all students
-    await backgroundSyncService.runFullSync();
+    // Use the sync orchestrator to sync all student files
+    await syncOrchestrator.syncFiles();
     
     return NextResponse.json({
       success: true,
@@ -26,8 +26,8 @@ export async function POST() {
   try {
     console.log('🔄 Starting metadata preload...');
     
-    // Use background sync service to sync all students
-    await backgroundSyncService.runFullSync();
+    // Use the sync orchestrator to sync all student files
+    await syncOrchestrator.syncFiles();
     
     return NextResponse.json({
       success: true,
