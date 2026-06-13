@@ -103,6 +103,9 @@ jobs:
     - name: Set up test database schema
       run: npx prisma db push --skip-generate --accept-data-loss
 
+    - name: Seed an admin user for the E2E login test
+      run: node scripts/create-admin-user.mjs admin@stephensprivelessen.nl
+
     - name: Install Playwright browsers (Chromium only)
       run: npx playwright install chromium
       env:
