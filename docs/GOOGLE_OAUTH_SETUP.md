@@ -15,9 +15,8 @@ LOCAL DEVELOPMENT:
 - http://localhost:3000/api/auth/callback/google
 - http://localhost:3001/api/auth/callback/google (backup port)
 
-PRODUCTION (Vercel):
-- https://your-app.vercel.app/api/auth/callback/google
-- https://your-app-git-main.vercel.app/api/auth/callback/google (preview deployments)
+PRODUCTION (Self-Hosted):
+- https://stephensprive.app/api/auth/callback/google
 
 7. Copy the Client ID and Client Secret to your .env.local file
 8. Save the configuration

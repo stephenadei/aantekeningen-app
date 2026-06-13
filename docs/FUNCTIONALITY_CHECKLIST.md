@@ -35,12 +35,17 @@ NEXTAUTH_SECRET=K3GytrQtCLZb4Rt/5pImVfqeuxxofWOXlWOaZg7RJrk=
 GOOGLE_CLIENT_ID=<van Google Cloud Console>
 GOOGLE_CLIENT_SECRET=<van Google Cloud Console>
 
-# MinIO Datalake (vereist voor bestanden)
-MINIO_ENDPOINT=localhost  # of je MinIO server
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=<minio access key>
-MINIO_SECRET_KEY=<minio secret key>
-MINIO_SECURE=false  # true voor HTTPS
+# Datalake: optie A – Platform API (aanbevolen)
+PLATFORM_API_URL=http://localhost:8082
+PLATFORM_API_KEY=<platform-api-key>
+# Datalake: optie B – direct S3
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+DATALAKE_BUCKET=
+# Optioneel: legacy S3-compat (MinIO)
+MINIO_ENDPOINT=localhost
+MINIO_ACCESS_KEY=
+MINIO_SECRET_KEY=
 ```
 
 ### Optioneel (voor Firestore fallback):
@@ -76,7 +81,7 @@ CRON_SECRET=<random-secret>
 
 ### ⚠️ Vereist Environment Setup:
 - **Admin Login**: Vereist `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **File Access**: Vereist MinIO credentials
+- **File Access**: Vereist Platform API of S3/datalake credentials
 - **AI Analysis**: Vereist `OPENAI_API_KEY`
 - **Student Data**: Vereist Firestore credentials (voor student lookup)
 
@@ -87,8 +92,8 @@ CRON_SECRET=<random-secret>
    - Redirect URI moet zijn: `{NEXTAUTH_URL}/api/auth/callback/google`
 
 2. **Thumbnail Storage**:
-   - Vereist MinIO server draaiend
-   - Vereist correcte MinIO credentials
+   - Vereist datalake (Platform API of S3) bereikbaar
+   - Vereist correcte credentials (API key of AWS_*)
 
 3. **Firestore Fallback**:
    - Student data lookup vereist Firestore
@@ -113,10 +118,9 @@ CRON_SECRET=<random-secret>
    - Voeg authorized redirect URI toe: `{your-domain}/api/auth/callback/google`
    - Kopieer Client ID en Secret
 
-3. **MinIO Server**:
-   - Zorg dat MinIO server draait
-   - Configureer credentials
-   - Test connectie
+3. **Datalake**:
+   - Zet PLATFORM_API_URL + PLATFORM_API_KEY, of AWS_* + DATALAKE_BUCKET
+   - Test connectie (student list, file listing)
 
 4. **Test Admin Login**:
    - Ga naar `/admin/login`
@@ -180,12 +184,17 @@ NEXTAUTH_SECRET=K3GytrQtCLZb4Rt/5pImVfqeuxxofWOXlWOaZg7RJrk=
 GOOGLE_CLIENT_ID=<van Google Cloud Console>
 GOOGLE_CLIENT_SECRET=<van Google Cloud Console>
 
-# MinIO Datalake (vereist voor bestanden)
-MINIO_ENDPOINT=localhost  # of je MinIO server
-MINIO_PORT=9000
-MINIO_ACCESS_KEY=<minio access key>
-MINIO_SECRET_KEY=<minio secret key>
-MINIO_SECURE=false  # true voor HTTPS
+# Datalake: optie A – Platform API (aanbevolen)
+PLATFORM_API_URL=http://localhost:8082
+PLATFORM_API_KEY=<platform-api-key>
+# Datalake: optie B – direct S3
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+DATALAKE_BUCKET=
+# Optioneel: legacy S3-compat (MinIO)
+MINIO_ENDPOINT=localhost
+MINIO_ACCESS_KEY=
+MINIO_SECRET_KEY=
 ```
 
 ### Optioneel (voor Firestore fallback):
@@ -221,7 +230,7 @@ CRON_SECRET=<random-secret>
 
 ### ⚠️ Vereist Environment Setup:
 - **Admin Login**: Vereist `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- **File Access**: Vereist MinIO credentials
+- **File Access**: Vereist Platform API of S3/datalake credentials
 - **AI Analysis**: Vereist `OPENAI_API_KEY`
 - **Student Data**: Vereist Firestore credentials (voor student lookup)
 
@@ -232,8 +241,8 @@ CRON_SECRET=<random-secret>
    - Redirect URI moet zijn: `{NEXTAUTH_URL}/api/auth/callback/google`
 
 2. **Thumbnail Storage**:
-   - Vereist MinIO server draaiend
-   - Vereist correcte MinIO credentials
+   - Vereist datalake (Platform API of S3) bereikbaar
+   - Vereist correcte credentials (API key of AWS_*)
 
 3. **Firestore Fallback**:
    - Student data lookup vereist Firestore
@@ -258,10 +267,9 @@ CRON_SECRET=<random-secret>
    - Voeg authorized redirect URI toe: `{your-domain}/api/auth/callback/google`
    - Kopieer Client ID en Secret
 
-3. **MinIO Server**:
-   - Zorg dat MinIO server draait
-   - Configureer credentials
-   - Test connectie
+3. **Datalake**:
+   - Zet PLATFORM_API_URL + PLATFORM_API_KEY, of AWS_* + DATALAKE_BUCKET
+   - Test connectie (student list, file listing)
 
 4. **Test Admin Login**:
    - Ga naar `/admin/login`

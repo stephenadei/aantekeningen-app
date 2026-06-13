@@ -1,4 +1,5 @@
-import { prisma } from '@stephen/database';
+import { prisma, idempotencyService, IdempotencyService } from '@stephenadei/database';
+import crypto from 'crypto';
 import { 
   FirestoreStudentId, 
   DriveFolderId, 
@@ -142,12 +143,13 @@ export const getStudent = async (id: FirestoreStudentId): Promise<Result<Student
     if (!student) {
       return Err(new Error(`Student not found: ${id}`));
     }
-    // Map datalakePath to driveFolderId if driveFolderId is not available
-    const studentWithDriveFolderId = {
+    // Map Prisma student (with 'name') to Student interface (with 'displayName')
+    const mappedStudent = {
       ...student,
+      displayName: student.name,
       driveFolderId: (student as any).driveFolderId || student.datalakePath as DriveFolderId | undefined
     };
-    return Ok(studentWithDriveFolderId as unknown as Student);
+    return Ok(mappedStudent as unknown as Student);
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to get student'));
   }
@@ -162,7 +164,13 @@ export const getStudentByName = async (displayName: StudentName): Promise<Result
     if (!student) {
       return Err(new Error(`Student not found with name: ${displayName}`));
     }
-    return Ok(student as unknown as Student);
+    // Map Prisma student (with 'name') to Student interface (with 'displayName')
+    const mappedStudent = {
+      ...student,
+      displayName: student.name,
+      driveFolderId: (student as any).driveFolderId || student.datalakePath as DriveFolderId | undefined
+    };
+    return Ok(mappedStudent as unknown as Student);
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to get student by name'));
   }
@@ -182,12 +190,13 @@ export const getStudentByDriveFolderId = async (driveFolderId: DriveFolderId): P
     if (!student) {
       return Err(new Error(`Student not found with Drive folder ID: ${driveFolderId}`));
     }
-    // Map datalakePath to driveFolderId if driveFolderId is not available
-    const studentWithDriveFolderId = {
+    // Map Prisma student (with 'name') to Student interface (with 'displayName')
+    const mappedStudent = {
       ...student,
+      displayName: student.name,
       driveFolderId: (student as any).driveFolderId || student.datalakePath as DriveFolderId | undefined
     };
-    return Ok(studentWithDriveFolderId as unknown as Student);
+    return Ok(mappedStudent as unknown as Student);
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to get student by Drive folder ID'));
   }
@@ -245,7 +254,13 @@ export const getAllStudents = async (): Promise<Result<Student[]>> => {
     const students = await prisma.student.findMany({
       include: { tags: true }
     });
-    return Ok(students as unknown as Student[]);
+    // Map Prisma student (with 'name') to Student interface (with 'displayName')
+    const mappedStudents = students.map(student => ({
+      ...student,
+      displayName: student.name,
+      driveFolderId: (student as any).driveFolderId || student.datalakePath as DriveFolderId | undefined
+    }));
+    return Ok(mappedStudents as unknown as Student[]);
   } catch (error) {
     return Err(error instanceof Error ? error : new Error('Failed to get all students'));
   }
@@ -641,15 +656,56 @@ export const runTransaction = async <T>(
 
 // BATCH OPERATIONS
 export const batchWrite = async (operations: BatchOperation[]): Promise<void> => {
-  await prisma.$transaction(async (tx: any) => {
-    for (const op of operations) {
-      if (op.collection === 'students') {
-        if (op.type === 'create') await tx.student.create({ data: op.data });
-        else if (op.type === 'update' && op.docId) await tx.student.update({ where: { id: op.docId }, data: op.data });
-        else if (op.type === 'delete' && op.docId) await tx.student.delete({ where: { id: op.docId } });
+  // Generate idempotency key for batch operation
+  const operationsHash = crypto.createHash('sha256')
+    .update(JSON.stringify(operations))
+    .digest('hex')
+  const requestHash = crypto.createHash('sha256')
+    .update(`${Date.now()}-${operations.length}`)
+    .digest('hex')
+  const idempotencyKey = IdempotencyService.generateKeyWithPrefix(
+    'batch',
+    operations[0]?.type || 'unknown',
+    operationsHash,
+    requestHash
+  )
+
+  // Check idempotency
+  const idempotencyCheck = await idempotencyService.checkAndReserve(
+    idempotencyKey,
+    'batch_write',
+    'batch',
+    3600 // 1 hour TTL
+  )
+
+  // If already completed, skip
+  if (idempotencyCheck.exists && !idempotencyCheck.reserved) {
+    return
+  }
+
+  // If still pending, throw conflict error
+  if (idempotencyCheck.reserved && idempotencyCheck.exists) {
+    throw new Error('Batch operation already in progress')
+  }
+
+  try {
+    await prisma.$transaction(async (tx: any) => {
+      for (const op of operations) {
+        if (op.collection === 'students') {
+          if (op.type === 'create') await tx.student.create({ data: op.data });
+          else if (op.type === 'update' && op.docId) await tx.student.update({ where: { id: op.docId }, data: op.data });
+          else if (op.type === 'delete' && op.docId) await tx.student.delete({ where: { id: op.docId } });
+        }
       }
-    }
-  });
+    });
+
+    // Mark idempotency as completed
+    await idempotencyService.complete(idempotencyKey, 'batch_completed')
+  } catch (error) {
+    // Mark idempotency as failed
+    await idempotencyService.fail(idempotencyKey).catch(() => {})
+    throw error
+  }
 };
 
 // ============================================================================

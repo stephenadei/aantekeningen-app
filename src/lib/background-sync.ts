@@ -1,4 +1,5 @@
 import { prisma } from './prisma';
+import { idempotencyService, IdempotencyService } from '@stephenadei/database';
 import { datalakeService } from './datalake-simple';
 import { datalakeMetadataService } from './datalake-metadata';
 import { thumbnailGeneratorService } from './thumbnail-generator';
@@ -223,8 +224,36 @@ export class BackgroundSyncService {
             aiAnalysis || undefined
           );
 
+          // Generate idempotency key for metadata write
+          const metadataHash = crypto.createHash('sha256')
+            .update(JSON.stringify(fileMeta))
+            .digest('hex')
+          const metadataIdempotencyKey = IdempotencyService.generateKeyWithPrefix(
+            'metadata',
+            fullFilePath,
+            fileMeta.modifiedTime,
+            metadataHash
+          )
+
+          // Check idempotency for metadata write
+          const metadataIdempotencyCheck = await idempotencyService.checkAndReserve(
+            metadataIdempotencyKey,
+            'metadata_write',
+            'file_metadata',
+            3600
+          )
+
+          // If already completed, skip metadata write
+          if (!metadataIdempotencyCheck.exists || !metadataIdempotencyCheck.reserved) {
           // Write metadata to datalake
-          await datalakeMetadataService.saveFileMetadata(fullFilePath, fileMeta);
+            try {
+              await datalakeMetadataService.saveFileMetadata(fullFilePath, fileMeta)
+              await idempotencyService.complete(metadataIdempotencyKey, fullFilePath)
+            } catch (metadataError) {
+              console.error(`   ❌ Failed to write metadata:`, metadataError)
+              await idempotencyService.fail(metadataIdempotencyKey).catch(() => {})
+            }
+          }
 
           // Sync to PostgreSQL
           try {
@@ -245,6 +274,34 @@ export class BackgroundSyncService {
                 where: { datalakePath: fullFilePath }
               });
 
+              // Generate idempotency key for note operation
+              const noteIdempotencyKey = IdempotencyService.generateKeyWithPrefix(
+                'note',
+                existingNote ? 'update' : 'create',
+                existingNote?.id || fullFilePath,
+                fileMeta.modifiedTime
+              )
+
+              // Check idempotency for note operation
+              const noteIdempotencyCheck = await idempotencyService.checkAndReserve(
+                noteIdempotencyKey,
+                existingNote ? 'note_update' : 'note_create',
+                'note',
+                3600
+              )
+
+              // If already completed, skip
+              if (noteIdempotencyCheck.exists && !noteIdempotencyCheck.reserved && noteIdempotencyCheck.resourceId) {
+                console.log(`   ⏭️  Note already synced (idempotent), skipping`);
+                continue
+              }
+
+              // If still pending, skip
+              if (noteIdempotencyCheck.reserved && noteIdempotencyCheck.exists) {
+                console.log(`   ⏳ Note sync already in progress, skipping`);
+                continue
+              }
+
               const noteData = {
                 studentId: dbStudent.id,
                 type: 'PDF' as const,
@@ -260,20 +317,32 @@ export class BackgroundSyncService {
                 updatedAt: new Date(fileMeta.modifiedTime)
               };
 
+              let noteId: string
+              try {
               if (existingNote) {
                 await prisma.note.update({
                   where: { id: existingNote.id },
                   data: noteData
                 });
+                  noteId = existingNote.id
               } else {
-                await prisma.note.create({
+                  const newNote = await prisma.note.create({
                   data: {
                     ...noteData,
                     createdAt: new Date(fileMeta.createdAt || new Date())
                   }
                 });
-              }
+                  noteId = newNote.id
+                }
+
+                // Mark idempotency as completed
+                await idempotencyService.complete(noteIdempotencyKey, noteId)
               console.log(`   ↳ Synced to Postgres for student: ${dbStudent.name}`);
+              } catch (noteError) {
+                // Mark idempotency as failed
+                await idempotencyService.fail(noteIdempotencyKey).catch(() => {})
+                throw noteError
+              }
             }
           } catch (pgError) {
             console.error(`   ❌ Failed to sync to Postgres:`, pgError);

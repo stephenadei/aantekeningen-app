@@ -114,10 +114,17 @@ export class ThumbnailService {
    * Test if thumbnail URL is accessible
    */
   private async testThumbnailUrl(url: string): Promise<boolean> {
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'thumbnail-service.ts:116',message:'testThumbnailUrl entry',data:{url,isClient:typeof window !== 'undefined'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+    
     try {
       // For client-side, we can't reliably test URLs due to CORS
       // So we'll assume they work and let the actual image loading handle validation
       if (typeof window !== 'undefined') {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'thumbnail-service.ts:122',message:'Client-side: returning true',data:{url},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+        // #endregion
         return true;
       }
       
@@ -132,8 +139,17 @@ export class ThumbnailService {
       
       clearTimeout(timeoutId);
       
-      return response.ok;
-    } catch {
+      const result = response.ok;
+      
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'thumbnail-service.ts:138',message:'testThumbnailUrl result',data:{url,status:response.status,ok:result},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      
+      return result;
+    } catch (error: any) {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/ad08b7f1-3612-41b2-8ac8-a7e245539c08',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'thumbnail-service.ts:143',message:'testThumbnailUrl error',data:{url,error:error?.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
       return false;
     }
   }

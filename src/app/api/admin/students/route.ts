@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       const searchLower = search.toLowerCase();
       students = students.filter(s => 
-        s.displayName.toLowerCase().includes(searchLower) ||
+        (s.displayName || '').toLowerCase().includes(searchLower) ||
         s.email?.toLowerCase().includes(searchLower)
       );
     }

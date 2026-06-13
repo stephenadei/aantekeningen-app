@@ -1,6 +1,6 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import { compare } from 'bcrypt';
 import { createLoginAudit } from '@/lib/database';
 import { createIPAddress, createUserAgent } from '@/lib/types';

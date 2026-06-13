@@ -1,6 +1,6 @@
 # Ontbrekende Environment Variables
 
-## ✅ Wat We Hebben (uit Vercel)
+## ✅ Wat We Hebben
 
 De volgende variabelen zijn succesvol geëxporteerd:
 
@@ -17,7 +17,7 @@ De volgende variabelen zijn succesvol geëxporteerd:
 
 ## ❌ Wat Ontbreekt
 
-Deze variabelen staan **niet** in Vercel (of in een andere environment):
+Deze variabelen staan **niet** in de huidige environment:
 
 ### Firebase Variabelen (10 stuks)
 ```
@@ -36,10 +36,10 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 ### Andere
 ```
 GOOGLE_REDIRECT_URI
-MINIO_ENDPOINT (als gebruikt)
-MINIO_ACCESS_KEY (als gebruikt)
-MINIO_SECRET_KEY (als gebruikt)
-MINIO_SECURE (als gebruikt)
+PLATFORM_API_URL (als datalake via API)
+PLATFORM_API_KEY (als datalake via API)
+AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, DATALAKE_BUCKET (als direct S3)
+MINIO_* (optioneel, legacy S3-compat)
 CRON_SECRET (als gebruikt)
 ```
 
@@ -47,26 +47,26 @@ CRON_SECRET (als gebruikt)
 
 **Mogelijke redenen:**
 
-1. **Firebase variabelen staan niet in Vercel**
+1. **Firebase variabelen staan niet in .env.local**
    - Ze zijn misschien alleen lokaal geconfigureerd
-   - Of ze zijn verwijderd uit Vercel
+   - Of ze zijn verwijderd
 
 2. **Ze staan in een andere environment**
    - Preview environment
-   - Development environment (al gecheckt - niet gevonden)
+   - Development environment
 
-3. **Ze zijn nooit toegevoegd aan Vercel**
+3. **Ze zijn nooit toegevoegd**
    - Misschien alleen lokaal gebruikt
 
 ## ✅ Oplossing
 
-### Optie 1: Haal Ze Uit Vercel Dashboard (Handmatig)
+### Optie 1: Haal Ze Uit Firebase Console
 
-1. Ga naar [Vercel Dashboard](https://vercel.com/dashboard)
-2. Selecteer je project → **Settings** → **Environment Variables**
-3. Check alle environments (Production, Preview, Development)
-4. Zoek naar Firebase variabelen
-5. Kopieer ze handmatig naar `.env.local`
+1. Ga naar [Firebase Console](https://console.firebase.google.com)
+2. Selecteer je project
+3. Ga naar Project Settings → General
+4. Scroll naar "Your apps" sectie
+5. Kopieer Firebase configuratie naar `.env.local`
 
 ### Optie 2: Haal Ze Uit Je Lokale Backup
 
@@ -82,7 +82,7 @@ cat .env.local.backup.YYYYMMDD_HHMMSS | grep FIREBASE
 
 ### Optie 3: Haal Ze Uit Firebase Console
 
-Als ze niet in Vercel staan, haal ze uit Firebase Console:
+Haal ze uit Firebase Console:
 
 1. Ga naar [Firebase Console](https://console.firebase.google.com/)
 2. Selecteer je project
@@ -96,19 +96,9 @@ Als ze niet in Vercel staan, haal ze uit Firebase Console:
 6. **General** tab → **Your apps** → Web app config:
    - Kopieer alle `NEXT_PUBLIC_FIREBASE_*` waarden
 
-### Optie 4: Check Vercel Dashboard voor Alle Environments
-
-```bash
-# Check preview environment
-vercel env pull .env.local --environment=preview --yes
-
-# Check alle environments
-vercel env ls
-```
-
 ## 📝 Volgende Stappen
 
-1. **Check Vercel Dashboard** voor Firebase variabelen
+1. **Check Firebase Console** voor Firebase configuratie
 2. **Voeg ontbrekende variabelen toe** aan `.env.local`
 3. **Update URLs:**
    ```env

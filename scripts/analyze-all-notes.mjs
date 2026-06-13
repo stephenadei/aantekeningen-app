@@ -18,7 +18,7 @@ config({ path: join(__dirname, '..', '.env.local') });
 config({ path: join(__dirname, '..', '.env') });
 
 // MinIO config - use shared utility
-import { createMinioClient } from '@stephen/datalake';
+import { createMinioClient } from '@stephenadei/datalake';
 
 const BUCKET_NAME = process.env.MINIO_BRONZE_EDUCATION_BUCKET || 'bronze-education';
 const BASE_PATH = 'notability/Priveles';

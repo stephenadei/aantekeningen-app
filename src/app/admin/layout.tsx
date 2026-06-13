@@ -16,6 +16,18 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [isClient, setIsClient] = useState(false);
 
+  // Check for NextAuth configuration on mount
+  useEffect(() => {
+    // Check if we're in the browser and if NextAuth URL is configured
+    if (typeof window !== 'undefined') {
+      // This will be caught by error boundary if NextAuth isn't configured
+      const nextAuthUrl = process.env.NEXT_PUBLIC_NEXTAUTH_URL || '';
+      if (!nextAuthUrl && window.location.hostname !== 'localhost') {
+        console.warn('NEXTAUTH_URL might not be configured for production');
+      }
+    }
+  }, []);
+
   // Prevent hydration mismatch by only checking pathname on client
   useEffect(() => {
     setIsClient(true);
@@ -35,7 +47,7 @@ export default function AdminLayout({
     }
 
     // Check if user email is from allowed domain (should be handled by NextAuth, but double-check)
-    if (!session.user?.email?.endsWith('@stephensprivelessen.nl')) {
+    if (session?.user?.email && !session.user.email.endsWith('@stephensprivelessen.nl')) {
       router.push('/admin/login?error=AccessDenied');
       return;
     }
@@ -46,6 +58,7 @@ export default function AdminLayout({
   if (isClient && pathname === '/admin/login') {
     return <>{children}</>;
   }
+
 
   if (status === 'loading') {
     return (

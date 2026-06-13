@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@stephen/database';
+import { prisma, pinAuditService } from '@stephenadei/database';
 import bcrypt from 'bcrypt';
 import { verifyStudentPin } from '@/lib/dashboard-api';
 
@@ -76,13 +76,28 @@ export async function PUT(
     // Hash the new PIN
     const pinHash = await bcrypt.hash(newPin, 10);
 
-    // Update student PIN (store both pin and pinHash for admin visibility)
+    // Get IP address and user agent for audit
+    const ipAddress = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined;
+    const userAgent = request.headers.get('user-agent') || undefined;
+
+    // Update student PIN (removed: pin field - no longer storing plain text PIN)
     await prisma.student.update({
       where: { id },
       data: { 
-        pin: newPin, // Store plain text for admin visibility
+        // Removed: pin: newPin - no longer storing plain text PIN
         pinHash: pinHash 
       },
+    });
+
+    // Log PIN update in audit log
+    await pinAuditService.logAction({
+      studentId: id,
+      action: 'updated',
+      actorType: 'student',
+      ipAddress,
+      userAgent,
+      success: true,
+      metadata: { source: 'self_service' },
     });
 
     return NextResponse.json({

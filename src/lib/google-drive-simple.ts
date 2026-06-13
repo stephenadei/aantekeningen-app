@@ -680,115 +680,27 @@ class GoogleDriveService {
         return this.basicAnalysis(fileName);
       }
       
-      console.log('Analyzing document with AI: ' + fileName);
+      console.log('Analyzing document with AI (LangChain): ' + fileName);
       
       // Load taxonomy dynamically
-      const { TaxonomyService } = await import('@stephen/taxonomy');
+      const { TaxonomyService } = await import('@stephenadei/taxonomy');
       const taxonomyService = new TaxonomyService();
       const taxonomy = await taxonomyService.getTaxonomyData();
       
-      // Build dynamic taxonomy prompt from loaded data
-      const subjectsList = taxonomy.subjects.map((s: { name: string }) => s.name).join(', ');
+      // Import LangChain analysis service
+      const { LangChainAnalysisService } = await import('@stephenadei/datalake');
       
-      // Group topic groups by subject
-      const topicGroupsBySubject: Record<string, string[]> = {};
-      for (const tg of taxonomy.topicGroups) {
-        if (!topicGroupsBySubject[tg.subjectId]) {
-          topicGroupsBySubject[tg.subjectId] = [];
-        }
-        topicGroupsBySubject[tg.subjectId].push(tg.name);
-      }
-      
-      // Build topic groups section
-      let topicGroupsSection = '';
-      for (const subject of taxonomy.subjects) {
-        const subjectDisplayName = subject.displayName || subject.name;
-        const topicGroups = topicGroupsBySubject[subject.id] || [];
-        if (topicGroups.length > 0) {
-          topicGroupsSection += `${subjectDisplayName}: ${topicGroups.join(', ')}\n`;
-        }
-      }
-      
-      // Get example topics
-      const exampleTopics = taxonomy.topics.slice(0, 10).map((t: { name: string }) => t.name).join(', ');
-      
-      // Prepare prompt for OpenAI with dynamic taxonomy
-      const prompt = `Analyze this educational document and extract metadata. Return a JSON object with:
-
-SUBJECTS (choose the most appropriate):
-${subjectsList}
-
-TOPIC GROUPS (choose based on subject):
-${topicGroupsSection}
-
-TOPICS (choose specific topic from the topic group):
-Examples: ${exampleTopics}, etc. Use topics that belong to the selected topic group.
-
-LEVELS: po, vo-vmbo-bb, vo-vmbo-kb, vo-vmbo-gt, vo-havo-onderbouw, vo-vwo-onderbouw, vo-havo-bovenbouw, vo-vwo-bovenbouw, mbo, hbo-propedeuse, hbo-hoofdfase, wo-bachelor, wo-master, wo-phd, mixed
-
-Return JSON with:
-- subject: One of the subjects above (use the exact subject name/ID)
-- topicGroup: One of the topic groups above (must match the subject)
-- topic: Specific topic from the topic group
-- level: Educational level from the list above
-- schoolYear: School year in format "YYYY-YYYY" (e.g., "2024-2025")
-- keywords: Array of 3-5 relevant keywords
-- summary: Brief 1-sentence summary in Dutch
-- summaryEn: Brief 1-sentence summary in English
-- topicEn: The specific topic in English
-- keywordsEn: Array of 3-5 relevant keywords in English
-
-Document name: "${fileName}"
-
-Return only valid JSON, no other text.`;
-      
-      // Call OpenAI API
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + process.env.OPENAI_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert at analyzing educational documents and extracting metadata. Always return valid JSON.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 300,
-          temperature: 0.3
-        })
+      // Create LangChain analysis service
+      const analysisService = new LangChainAnalysisService({
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-3.5-turbo',
+        temperature: 0.3,
+        maxTokens: 300,
+        maxRetries: 3
       });
-      
-      const responseData = await response.json();
-      let analysis = JSON.parse(responseData.choices[0].message.content);
-      
-      // Resolve synonyms using taxonomy service
-      if (analysis.subject) {
-        const resolvedSubjectId = await taxonomyService.resolveSubject(analysis.subject);
-        if (resolvedSubjectId) {
-          const subject = taxonomy.subjects.find((s: { id: string; name: string }) => s.id === resolvedSubjectId);
-          if (subject) {
-            analysis.subject = subject.name; // Use canonical subject name
-          }
-        }
-      }
-      
-      if (analysis.topicGroup) {
-        const resolvedTopicGroupId = await taxonomyService.resolveTopicGroup(analysis.topicGroup);
-        if (resolvedTopicGroupId) {
-          const topicGroup = taxonomy.topicGroups.find((tg: { id: string; name: string }) => tg.id === resolvedTopicGroupId);
-          if (topicGroup) {
-            analysis.topicGroup = topicGroup.name; // Use canonical topic group name
-          }
-        }
-      }
+
+      // Perform analysis with structured output
+      const analysis = await analysisService.analyzeDocument(fileName, taxonomy, taxonomyService);
       
       // Cache the result
       this.setCache(cacheKey, {

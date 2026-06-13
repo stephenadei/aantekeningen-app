@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/database';
 import { config, ensureConfigValidated } from '@/lib/config';
-import { extractSubjectFromDatalakePath } from '@stephen/datalake';
+import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
 import { 
   StudentIdType, 
   detectIdType, 
@@ -14,7 +14,7 @@ import {
 } from '@/lib/types';
 import { createErrorResponse, handleUnknownError, InvalidStudentIdError } from '@/lib/errors';
 import { getOrCreateShareToken } from '@/lib/share-token';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 
 export async function GET(
   request: NextRequest,
@@ -94,27 +94,82 @@ export async function GET(
     } else {
       // Auto-detect ID type (backward compatibility)
       console.log('🔄 Auto-detecting ID type...');
-      try {
-        const detectedType = detectIdType(id);
-        console.log('✅ Detected ID type:', detectedType);
-        
-        if (detectedType === 'firestore') {
-          const studentResult = await getStudent(createFirestoreStudentId(id));
-          if (isOk(studentResult)) {
-            const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
-            student = { 
-              id: studentResult.data.id, 
-              displayName: studentResult.data.displayName,
-              subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
-              driveFolderId: studentResult.data.driveFolderId
-            };
-            actualId = id;
-          } else {
-            student = null;
-          }
+      // detectIdType never throws now, so we can safely call it
+      const detectedType = detectIdType(id);
+      console.log('✅ Detected ID type:', detectedType);
+      
+      if (detectedType === 'firestore') {
+        const studentResult = await getStudent(createFirestoreStudentId(id));
+        if (isOk(studentResult)) {
+          const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
+          student = { 
+            id: studentResult.data.id, 
+            displayName: studentResult.data.displayName,
+            subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
+            driveFolderId: studentResult.data.driveFolderId
+          };
+          actualId = id;
         } else {
-          // Handle datalake paths with slashes
-          if (id.includes('/')) {
+          student = null;
+        }
+      } else {
+        // Handle datalake paths with slashes
+        if (id.includes('/')) {
+          // First, try to find student by datalakePath in database
+          const dbStudentByPath = await prisma.student.findFirst({
+            where: { datalakePath: id }
+          });
+          
+          if (dbStudentByPath) {
+            // Found in database, but we need to get full student info
+            try {
+              const driveFolderId = createDriveFolderId(id);
+              const studentResult = await getStudentByDriveFolderId(driveFolderId);
+              if (isOk(studentResult)) {
+                student = { 
+                  id: studentResult.data.id, 
+                  displayName: studentResult.data.displayName,
+                  subject: extractSubjectFromDatalakePath(dbStudentByPath.datalakePath || null) || undefined,
+                  driveFolderId: studentResult.data.driveFolderId
+                };
+                actualId = id;
+              } else {
+                // Use database student info as fallback
+                student = {
+                  id: dbStudentByPath.id,
+                  displayName: dbStudentByPath.name,
+                  subject: extractSubjectFromDatalakePath(dbStudentByPath.datalakePath || null) || undefined,
+                  driveFolderId: null
+                };
+                actualId = id;
+              }
+            } catch (error) {
+              // If validation fails, try without validation
+              const studentResult = await getStudentByDriveFolderId(id as DriveFolderId);
+              if (isOk(studentResult)) {
+                const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
+                student = { 
+                  id: studentResult.data.id, 
+                  displayName: studentResult.data.displayName,
+                  subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
+                  driveFolderId: studentResult.data.driveFolderId
+                };
+                actualId = id;
+              } else if (dbStudentByPath) {
+                // Use database student info as fallback
+                student = {
+                  id: dbStudentByPath.id,
+                  displayName: dbStudentByPath.name,
+                  subject: extractSubjectFromDatalakePath(dbStudentByPath.datalakePath || null) || undefined,
+                  driveFolderId: null
+                };
+                actualId = id;
+              } else {
+                student = null;
+              }
+            }
+          } else {
+            // Not found in database, try Drive folder lookup
             try {
               const driveFolderId = createDriveFolderId(id);
               const studentResult = await getStudentByDriveFolderId(driveFolderId);
@@ -146,34 +201,30 @@ export async function GET(
                 student = null;
               }
             }
+          }
+        } else {
+          const studentResult = await getStudentByDriveFolderId(createDriveFolderId(id));
+          if (isOk(studentResult)) {
+            const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
+            student = { 
+              id: studentResult.data.id, 
+              displayName: studentResult.data.displayName,
+              subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
+              driveFolderId: studentResult.data.driveFolderId
+            };
+            actualId = id;
           } else {
-            const studentResult = await getStudentByDriveFolderId(createDriveFolderId(id));
-            if (isOk(studentResult)) {
-              const dbStudent = await prisma.student.findUnique({ where: { id: studentResult.data.id } });
-              student = { 
-                id: studentResult.data.id, 
-                displayName: studentResult.data.displayName,
-                subject: extractSubjectFromDatalakePath(dbStudent?.datalakePath || null) || undefined,
-                driveFolderId: studentResult.data.driveFolderId
-              };
-              actualId = id;
-            } else {
-              student = null;
-            }
+            student = null;
           }
         }
-      } catch (error) {
-        console.log('❌ Unable to determine ID type:', error);
-        return NextResponse.json(
-          createErrorResponse(handleUnknownError(error)),
-          { status: 400 }
-        );
       }
     }
     
     if (!student) {
+      // Use detected type if available, otherwise use provided idType or 'unknown'
+      const finalIdType = idType || (id.includes('/') ? 'drive' : 'unknown');
       return NextResponse.json(
-        createErrorResponse(new InvalidStudentIdError(id, idType || 'unknown')),
+        createErrorResponse(new InvalidStudentIdError(id, finalIdType)),
         { status: 404 }
       );
     }
@@ -247,6 +298,9 @@ export async function GET(
       const baseUrl = config.baseUrl;
       const shareableUrl = `${baseUrl}/student/${actualId}`;
       
+      // detectIdType never throws now, so we can safely call it
+      const fallbackIdType = idType || detectIdType(id);
+      
       return NextResponse.json({
         success: true,
         student: {
@@ -258,7 +312,7 @@ export async function GET(
         shareableUrl: shareableUrl,
         directDriveUrl: student.driveFolderId ? `https://drive.google.com/drive/folders/${student.driveFolderId}` : null,
         message: 'Shareable link generated successfully (fallback)',
-        idType: idType || detectIdType(id)
+        idType: fallbackIdType
       });
     }
 
@@ -268,6 +322,9 @@ export async function GET(
     const shareableUrl = `${baseUrl}/share/${shareToken}`;
     
     const dbStudentFinal = await prisma.student.findFirst({ where: { id: student.id } });
+    // detectIdType never throws now, so we can safely call it
+    const finalIdType = idType || detectIdType(id);
+    
     return NextResponse.json({
       success: true,
       student: {
@@ -280,7 +337,7 @@ export async function GET(
       shareToken: shareToken,
       directDriveUrl: student.driveFolderId ? `https://drive.google.com/drive/folders/${student.driveFolderId}` : null,
       message: 'Shareable link generated successfully',
-      idType: idType || detectIdType(id)
+      idType: finalIdType
     });
 
   } catch (error) {

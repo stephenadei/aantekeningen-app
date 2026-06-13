@@ -543,17 +543,31 @@ export function isStudentId(id: string): id is FirestoreStudentId | DriveFolderI
 
 /**
  * Determine the most likely ID type based on the string format
+ * Never throws errors - always returns a valid type, defaulting to 'drive' for unrecognizable IDs
  */
 export function detectIdType(id: string): StudentIdType {
+  // Check for Firestore ID first (alphanumeric, 20-30 chars, no slashes)
   if (isFirestoreStudentId(id)) {
     return 'firestore';
-  } else if (isDriveFolderId(id)) {
-    return 'drive';
-  } else {
-    // If it contains slashes, it's likely a datalake path, treat as drive
-    if (id.includes('/')) {
-      return 'drive';
-    }
-    throw new Error(`Unable to detect ID type for: ${id}`);
   }
+  
+  // Check for Drive folder ID (includes datalake paths with slashes)
+  if (isDriveFolderId(id)) {
+    return 'drive';
+  }
+  
+  // Fallback: If it contains slashes, it's likely a datalake path, treat as drive
+  if (id.includes('/')) {
+    return 'drive';
+  }
+  
+  // If it's a long alphanumeric string without slashes, might be a Drive folder ID
+  if (id.length > 20 && /^[a-zA-Z0-9_-]+$/.test(id)) {
+    return 'drive';
+  }
+  
+  // Last resort: default to 'drive' for unrecognizable IDs instead of throwing
+  // This ensures we can always attempt to process the ID
+  console.warn(`⚠️ Unable to detect ID type for: ${id}, defaulting to 'drive'`);
+  return 'drive';
 }

@@ -114,9 +114,9 @@ export async function GET(
     } else {
       // Auto-detect ID type (backward compatibility)
       console.log('🔄 Auto-detecting ID type...');
-      try {
-        const detectedType = detectIdType(studentId);
-        console.log('✅ Detected ID type:', detectedType);
+      // detectIdType never throws now, so we can safely call it
+      const detectedType = detectIdType(studentId);
+      console.log('✅ Detected ID type:', detectedType);
         
         if (detectedType === 'firestore') {
           const validationResult = await validateFirestoreStudentId(studentId);
@@ -222,13 +222,6 @@ export async function GET(
             }
           }
         }
-      } catch (error) {
-        console.log('❌ Unable to determine ID type:', error);
-        return NextResponse.json(
-          createErrorResponse(handleUnknownError(error)),
-          { status: 400 }
-        );
-      }
     }
 
     console.log('🔄 Fetching student overview from Datalake...');
@@ -254,11 +247,14 @@ export async function GET(
     const overview = await datalakeService.getStudentOverview(datalakePath || '', studentName || undefined);
     console.log('✅ Overview fetched:', overview);
 
+    // detectIdType never throws now, so we can safely call it
+    const finalIdType = idType || detectIdType(studentId);
+    
     return NextResponse.json({
       success: true,
       overview,
       studentName,
-      idType: idType || detectIdType(studentId)
+      idType: finalIdType
     });
 
   } catch (error) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import bcrypt from 'bcrypt';
 
 /**

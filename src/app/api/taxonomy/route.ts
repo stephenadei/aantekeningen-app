@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TaxonomyService } from '@stephen/taxonomy';
+import { TaxonomyService } from '@stephenadei/taxonomy';
 
 /**
  * Public Taxonomy API
@@ -45,10 +45,18 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching taxonomy:', error);
-    return NextResponse.json(
-      { error: `Failed to fetch taxonomy: ${error instanceof Error ? error.message : 'Unknown error'}` },
-      { status: 500 }
-    );
+    // Return a more graceful error response that won't break the UI
+    // Return empty taxonomy structure instead of 500 to prevent UI errors
+    return NextResponse.json({
+      success: false,
+      error: `Failed to fetch taxonomy: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      version: '0.0.0',
+      lastUpdated: new Date().toISOString(),
+      subjects: [],
+      topicGroups: [],
+      topics: [],
+      synonyms: {},
+    }, { status: 200 }); // Return 200 with error flag so client can handle gracefully
   }
 }
 

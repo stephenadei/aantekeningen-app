@@ -47,7 +47,12 @@ export function useStudentSelection() {
       console.log('📁 Fetching files for student:', student.id);
       // Get files (this is where AI analysis happens)
       const filesApiUrl = `/api/students/files/${student.id}`;
-      const filesResponse = await fetch(filesApiUrl);
+      const filesResponse = await fetch(filesApiUrl).catch((fetchError) => {
+        throw fetchError;
+      });
+      if (!filesResponse.ok) {
+        console.warn('⚠️ Files API response not OK:', filesResponse.status, filesResponse.statusText);
+      }
       const filesData = await filesResponse.json();
 
       console.log('📁 Files response:', filesData);

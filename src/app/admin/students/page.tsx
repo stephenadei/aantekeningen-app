@@ -323,8 +323,8 @@ export default function StudentsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900 flex items-center gap-2">
-                          {student.displayName}
-                          {student.displayName.startsWith('Unknown Student') && (
+                          {student.displayName || 'Unknown Student'}
+                          {student.displayName?.startsWith('Unknown Student') && (
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                               Orphaned
                             </span>
@@ -378,7 +378,7 @@ export default function StudentsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
-                        {student.displayName.startsWith('Unknown Student') ? (
+                        {student.displayName?.startsWith('Unknown Student') ? (
                           <Button
                             variant="primary"
                             size="sm"
@@ -409,7 +409,7 @@ export default function StudentsPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleDelete(student.id, student.displayName)}
+                              onClick={() => handleDelete(student.id, student.displayName || 'Unknown Student')}
                               title="Delete Student"
                               className="text-red-600 hover:text-red-700"
                             >

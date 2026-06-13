@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og'
 import { getStudentByShareToken } from '@/lib/share-token'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 export const alt = 'Aantekeningen gedeeld'
 export const size = {
   width: 1200,
@@ -120,7 +120,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
                 fontWeight: 500,
               }}
             >
-              Gedeeld door Stephen's Privelessen
+              Gedeeld door Stephen&apos;s Privelessen
             </div>
           </div>
         </div>

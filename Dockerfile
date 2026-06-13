@@ -35,9 +35,12 @@ COPY packages/datalake ./packages/datalake
 COPY packages/shared-types ./packages/shared-types
 COPY packages/taxonomy ./packages/taxonomy
 
-# Build packages — business-config first because shared-types/pricing imports it
+# Build packages — business-config first because shared-types/pricing imports it.
+# Skip the npm-script (which chains 'tsc && ts-node ... scripts/generate-json.ts')
+# because ts-node hoists oddly in workspaces and rates.json is already committed
+# in repo. Plain tsc is enough to produce dist/ for downstream typing.
 WORKDIR /workspace/packages/business-config
-RUN npm run build
+RUN npx tsc
 
 WORKDIR /workspace/packages/database
 RUN npm run build

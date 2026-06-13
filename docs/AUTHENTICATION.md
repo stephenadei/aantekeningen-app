@@ -130,7 +130,7 @@ This script will:
 
 1. **Never commit credentials to git**
    - Use `.env.local` for local development
-   - Use environment variables in production (Vercel)
+   - Use environment variables in production (Docker/.env.local)
 
 2. **Rotate credentials regularly**
    - Refresh tokens: Every 6 months

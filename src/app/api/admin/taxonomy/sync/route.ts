@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { TaxonomySyncService, TaxonomyService } from '@stephen/taxonomy';
+import { TaxonomySyncService, TaxonomyService } from '@stephenadei/taxonomy';
 
 export async function POST(request: NextRequest) {
   try {

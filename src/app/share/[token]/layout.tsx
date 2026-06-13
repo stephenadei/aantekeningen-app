@@ -7,9 +7,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   try {
     const student = await getStudentByShareToken(token)
     const studentName = student?.name || 'Leerling'
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3001'
     
     return {
       title: `Aantekeningen van ${studentName} - Stephen's Privelessen`,
@@ -59,4 +57,5 @@ export default function ShareLayout({
 }) {
   return children
 }
+
 

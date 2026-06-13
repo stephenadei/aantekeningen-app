@@ -1,23 +1,23 @@
 /**
  * Data Consistency Tests
- * 
- * Tests that verify consistency between MinIO datalake, database, and metadata
+ *
+ * Tests that verify consistency between datalake (S3/Platform API), database, and metadata
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { datalakeService } from '@/lib/datalake-simple';
 import { datalakeMetadataService } from '@/lib/datalake-metadata';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 
 describe('Data Consistency', () => {
   beforeAll(async () => {
     // Ensure services are initialized
     await datalakeService.getAllStudentFolders();
-  }, 30000); // 30 second timeout for MinIO connection
+  }, 30000); // 30 second timeout for datalake connection
 
-  describe('MinIO and Database Consistency', () => {
-    it('should have matching student folders between MinIO and database', async () => {
-      // Get all students from MinIO
+  describe('Datalake and Database Consistency', () => {
+    it('should have matching student folders between datalake and database', async () => {
+      // Get all students from datalake
       const datalakeStudents = await datalakeService.getAllStudentFolders();
       const datalakeNames = new Set(
         datalakeStudents.map((s) => {
@@ -62,13 +62,13 @@ describe('Data Consistency', () => {
       // Report mismatches but don't fail (might be expected)
       if (inDatalakeNotInDb.length > 0) {
         console.warn(
-          `⚠️ Students in MinIO but not in database: ${inDatalakeNotInDb.join(', ')}`
+          `⚠️ Students in datalake but not in database: ${inDatalakeNotInDb.join(', ')}`
         );
       }
 
       if (inDbNotInDatalake.length > 0) {
         console.warn(
-          `⚠️ Students in database but not in MinIO: ${inDbNotInDatalake.join(', ')}`
+          `⚠️ Students in database but not in datalake: ${inDbNotInDatalake.join(', ')}`
         );
       }
 
@@ -130,7 +130,7 @@ describe('Data Consistency', () => {
   });
 
   describe('PDF Count Consistency', () => {
-    it('should have consistent PDF counts between MinIO and metadata', async () => {
+    it('should have consistent PDF counts between datalake and metadata', async () => {
       const testStudents = await datalakeService.getAllStudentFolders();
       const studentsToTest = testStudents.slice(0, 5); // Test first 5
 
@@ -210,7 +210,7 @@ describe('Data Consistency', () => {
   });
 
   describe('Orphaned Data Detection', () => {
-    it('should not have orphaned folders in MinIO without database records', async () => {
+    it('should not have orphaned folders in datalake without database records', async () => {
       const datalakeStudents = await datalakeService.getAllStudentFolders();
       const datalakeNames = new Set(
         datalakeStudents.map((s) => {
@@ -230,7 +230,7 @@ describe('Data Consistency', () => {
         allDbStudents.map((s) => s.name.toLowerCase())
       );
 
-      // Find orphaned folders (in MinIO but not in database at all)
+      // Find orphaned folders (in datalake but not in database at all)
       const orphaned: string[] = [];
       for (const name of datalakeNames) {
         if (!dbNames.has(name)) {
@@ -241,7 +241,7 @@ describe('Data Consistency', () => {
       // Report orphaned folders (these should be synced)
       if (orphaned.length > 0) {
         console.warn(
-          `⚠️ Orphaned folders in MinIO (not in database): ${orphaned.join(', ')}`
+          `⚠️ Orphaned folders in datalake (not in database): ${orphaned.join(', ')}`
         );
         console.warn('   These should be synced to database');
       }
@@ -250,10 +250,10 @@ describe('Data Consistency', () => {
       // But log it so we know what needs to be fixed
     });
 
-    it('should have Teresa in both MinIO and database', async () => {
-      // Check MinIO
+    it('should have Teresa in both datalake and database', async () => {
+      // Check datalake
       const datalakeStudents = await datalakeService.getAllStudentFolders();
-      const teresaInMinIO = datalakeStudents.some((s) => {
+      const teresaInDatalake = datalakeStudents.some((s) => {
         const name = typeof s.name === 'string' ? s.name : String(s.name);
         return name.toLowerCase() === 'teresa';
       });
@@ -272,9 +272,9 @@ describe('Data Consistency', () => {
       expect(teresaInDb?.datalakePath).toBeTruthy();
 
       // Teresa should be in database (we just added her)
-      // If not in MinIO, that's okay - files might still be syncing
-      if (!teresaInMinIO) {
-        console.warn('⚠️ Teresa folder not found in MinIO - files might still be syncing');
+      // If not in datalake, that's okay - files might still be syncing
+      if (!teresaInDatalake) {
+        console.warn('⚠️ Teresa folder not found in datalake - files might still be syncing');
       }
     });
   });

@@ -1,8 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { datalakeService } from '@/lib/datalake-simple';
-import { prisma } from '@stephen/database';
-import type { MainPageStudent } from '@/lib/interfaces';
-import { extractSubjectFromDatalakePath } from '@stephen/datalake';
+import { prisma } from '@stephenadei/database';
+import type { MainPageStudent, DriveStudent } from '@/lib/interfaces';
+import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
+
+// Helper function to add timeout to promises
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, errorMessage: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error(errorMessage)), timeoutMs)
+    )
+  ]);
+}
+
+// Helper function to check if two names are very similar (fuzzy matching)
+// This handles cases like "Teresa" vs "Teressa" (double letters)
+function areNamesSimilar(name1: string, name2: string): boolean {
+  const n1 = name1.toLowerCase().trim();
+  const n2 = name2.toLowerCase().trim();
+  
+  // Exact match after normalization
+  if (n1 === n2) return true;
+  
+  // Remove consecutive duplicate letters and compare
+  const normalize = (str: string) => str.replace(/(.)\1+/g, '$1');
+  if (normalize(n1) === normalize(n2)) return true;
+  
+  // Check if one is a substring of the other (for very short names)
+  if (n1.length <= 4 || n2.length <= 4) {
+    if (n1.includes(n2) || n2.includes(n1)) return true;
+  }
+  
+  // Simple Levenshtein-like check: if names differ by only 1-2 characters, consider similar
+  const len1 = n1.length;
+  const len2 = n2.length;
+  if (Math.abs(len1 - len2) > 2) return false;
+  
+  // Count differences (simple character-by-character comparison)
+  let differences = 0;
+  const maxLen = Math.max(len1, len2);
+  for (let i = 0; i < maxLen; i++) {
+    if (n1[i] !== n2[i]) {
+      differences++;
+      if (differences > 2) return false;
+    }
+  }
+  
+  return differences <= 2;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,10 +70,18 @@ export async function GET(request: NextRequest) {
     const results: MainPageStudent[] = [];
     const studentMap = new Map<string, MainPageStudent>(); // Key: lowercase name
 
-    // 1. Search Prisma database first (finds ALL students, with or without datalakePath)
-    try {
-      console.log(`🔍 Querying database for: "${query}"`);
-      const dbStudents = await prisma.student.findMany({
+    // Check if MinIO credentials are available
+    const hasMinIOCredentials = !!(
+      process.env.MINIO_ACCESS_KEY && 
+      process.env.MINIO_SECRET_KEY
+    );
+
+    // Execute all queries in parallel using Promise.allSettled
+    console.log(`🔍 Starting parallel search for: "${query}"`);
+    
+    const [dbResult, datalakeResult, calendarResult] = await Promise.allSettled([
+      // 1. Database query
+      prisma.student.findMany({
         where: {
           name: {
             contains: query,
@@ -39,8 +93,35 @@ export async function GET(request: NextRequest) {
           name: true,
           datalakePath: true,
         },
-      });
+      }),
+      // 2. MinIO notes search (with timeout)
+      hasMinIOCredentials
+        ? withTimeout(
+            datalakeService.findStudentFolders(query),
+            5000,
+            'MinIO notes search timeout'
+          ).catch((timeoutError) => {
+            console.warn('⚠️ MinIO notes search timed out or failed');
+            return [];
+          })
+        : Promise.resolve([]),
+      // 3. MinIO calendar search (with timeout)
+      hasMinIOCredentials
+        ? withTimeout(
+            datalakeService.findStudentsWithCalendarEvents(query),
+            5000,
+            'MinIO calendar search timeout'
+          ).catch((timeoutError) => {
+            console.warn('⚠️ MinIO calendar search timed out or failed');
+            return [];
+          })
+        : Promise.resolve([]),
+    ]);
 
+    // Handle database results
+    let dbStudents: Array<{ id: string; name: string; datalakePath: string | null }> = [];
+    if (dbResult.status === 'fulfilled') {
+      dbStudents = dbResult.value;
       console.log(`✅ Found ${dbStudents.length} students in database`);
 
       for (const student of dbStudents) {
@@ -55,26 +136,72 @@ export async function GET(request: NextRequest) {
           hasAppointments: false, // Will be updated when we check calendar events
         };
 
-        const key = student.name.toLowerCase();
-        studentMap.set(key, mainPageStudent);
-        results.push(mainPageStudent);
+        // Use normalized name for deduplication (trim and lowercase)
+        const normalizedName = student.name.toLowerCase().trim();
+        const key = normalizedName;
+        
+        // Check for exact match first
+        if (studentMap.has(key)) {
+          const existing = studentMap.get(key)!;
+          // Prefer the student with datalakePath (has notes)
+          if (student.datalakePath && !existing.hasNotes) {
+            studentMap.set(key, mainPageStudent);
+            const existingIndex = results.findIndex(s => s.id === existing.id);
+            if (existingIndex !== -1) {
+              results[existingIndex] = mainPageStudent;
+            }
+          } else if (student.datalakePath && existing.hasNotes) {
+            if (!existing.url && student.datalakePath) {
+              existing.url = student.datalakePath;
+            }
+            if (!existing.subject && subject) {
+              existing.subject = subject;
+            }
+          }
+        } else {
+          // Check for similar names (fuzzy matching) to handle spelling variations
+          let foundSimilar = false;
+          for (const [existingKey, existing] of studentMap.entries()) {
+            if (areNamesSimilar(student.name, existing.displayName)) {
+              foundSimilar = true;
+              // Merge: prefer the one with datalakePath, or keep the first one found
+              if (student.datalakePath && !existing.hasNotes) {
+                // Replace with student that has notes
+                studentMap.delete(existingKey);
+                studentMap.set(key, mainPageStudent);
+                const existingIndex = results.findIndex(s => s.id === existing.id);
+                if (existingIndex !== -1) {
+                  results[existingIndex] = mainPageStudent;
+                }
+              } else if (student.datalakePath && existing.hasNotes) {
+                // Both have notes, merge information
+                if (!existing.url && student.datalakePath) {
+                  existing.url = student.datalakePath;
+                }
+                if (!existing.subject && subject) {
+                  existing.subject = subject;
+                }
+              }
+              // If new student doesn't have notes, keep existing (skip adding new one)
+              break;
+            }
+          }
+          
+          if (!foundSimilar) {
+            studentMap.set(key, mainPageStudent);
+            results.push(mainPageStudent);
+          }
+        }
       }
-    } catch (dbError) {
-      console.error('❌ Database search failed:', dbError);
-      console.error('❌ Error details:', dbError instanceof Error ? dbError.message : String(dbError));
-      // Continue with MinIO search even if database fails
+    } else {
+      console.error('❌ Database search failed:', dbResult.reason);
     }
 
-    // 2. Search MinIO for notes folders (supplement)
-    try {
-      const hasMinIOCredentials = !!(
-        process.env.MINIO_ACCESS_KEY && 
-        process.env.MINIO_SECRET_KEY
-      );
-
-      if (hasMinIOCredentials) {
-        const datalakeStudents = await datalakeService.findStudentFolders(query);
-        console.log(`✅ Found ${datalakeStudents.length} students with notes in Datalake`);
+    // Handle MinIO notes results
+    let datalakeStudents: DriveStudent[] = [];
+    if (datalakeResult.status === 'fulfilled') {
+      datalakeStudents = datalakeResult.value;
+      console.log(`✅ Found ${datalakeStudents.length} students with notes in Datalake`);
 
         for (const student of datalakeStudents) {
           const key = student.name.toLowerCase();
@@ -103,48 +230,39 @@ export async function GET(request: NextRequest) {
             results.push(mainPageStudent);
           }
         }
-      }
-    } catch (datalakeError) {
-      console.error('❌ Datalake notes search failed:', datalakeError);
-      // Continue with calendar search
+    } else {
+      console.error('❌ Datalake notes search failed:', datalakeResult.reason);
     }
 
-    // 3. Search MinIO for calendar events (supplement)
-    try {
-      const hasMinIOCredentials = !!(
-        process.env.MINIO_ACCESS_KEY && 
-        process.env.MINIO_SECRET_KEY
-      );
+    // Handle MinIO calendar results
+    let calendarStudents: Array<{ name: string; calendarPath: string }> = [];
+    if (calendarResult.status === 'fulfilled') {
+      calendarStudents = calendarResult.value;
+      console.log(`✅ Found ${calendarStudents.length} students with calendar events in Datalake`);
 
-      if (hasMinIOCredentials) {
-        const calendarStudents = await datalakeService.findStudentsWithCalendarEvents(query);
-        console.log(`✅ Found ${calendarStudents.length} students with calendar events in Datalake`);
-
-        for (const student of calendarStudents) {
-          const key = student.name.toLowerCase();
-          
-          // If student already exists in map, update hasAppointments
-          if (studentMap.has(key)) {
-            const existing = studentMap.get(key)!;
-            existing.hasAppointments = true;
-          } else {
-            // New student from calendar (not in database or notes yet)
-            const mainPageStudent: MainPageStudent = {
-              id: `calendar-${student.name}`, // Temporary ID
-              displayName: student.name,
-              subject: '',
-              url: '',
-              hasNotes: false,
-              hasAppointments: true,
-            };
-            studentMap.set(key, mainPageStudent);
-            results.push(mainPageStudent);
-          }
+      for (const student of calendarStudents) {
+        const key = student.name.toLowerCase();
+        
+        // If student already exists in map, update hasAppointments
+        if (studentMap.has(key)) {
+          const existing = studentMap.get(key)!;
+          existing.hasAppointments = true;
+        } else {
+          // New student from calendar (not in database or notes yet)
+          const mainPageStudent: MainPageStudent = {
+            id: `calendar-${student.name}`, // Temporary ID
+            displayName: student.name,
+            subject: '',
+            url: '',
+            hasNotes: false,
+            hasAppointments: true,
+          };
+          studentMap.set(key, mainPageStudent);
+          results.push(mainPageStudent);
         }
       }
-    } catch (calendarError) {
-      console.error('❌ Datalake calendar search failed:', calendarError);
-      // Continue anyway
+    } else {
+      console.error('❌ Datalake calendar search failed:', calendarResult.reason);
     }
 
     // Deduplicate by name (case-insensitive) - already handled by Map

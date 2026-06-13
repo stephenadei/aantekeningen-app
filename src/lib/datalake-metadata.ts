@@ -1,9 +1,9 @@
 import * as MinIO from 'minio';
 
-import { MedallionBuckets } from '@stephen/datalake';
+import { MedallionBuckets, createMinioClient } from '@stephenadei/datalake';
 
-// Silver layer for processed metadata
-const BUCKET_NAME = MedallionBuckets.SILVER_EDUCATION;
+// Silver layer for processed metadata (S3 bucket when DATALAKE_BUCKET set)
+const BUCKET_NAME = process.env.DATALAKE_BUCKET || MedallionBuckets.SILVER_EDUCATION;
 
 export interface FileMetadata {
   id?: string;
@@ -43,20 +43,10 @@ export class DatalakeMetadataService {
   private initializeMinIO() {
     try {
       if (typeof window !== 'undefined') {
-        throw new Error('MinIO client can only be used server-side');
+        throw new Error('S3/datalake client can only be used server-side');
       }
 
-      const accessKey = process.env.MINIO_ACCESS_KEY || 'minioadmin';
-      const secretKey = process.env.MINIO_SECRET_KEY || 'minioadmin';
-
-      // Always use localhost for internal operations (MinIO runs locally)
-      this.minioClient = new MinIO.Client({
-        endPoint: 'localhost',
-        port: 9000,
-        useSSL: false,
-        accessKey: accessKey,
-        secretKey: secretKey,
-      });
+      this.minioClient = createMinioClient();
 
       this.isInitialized = true;
       console.log('✅ Datalake Metadata Service initialized');

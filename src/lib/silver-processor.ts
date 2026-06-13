@@ -4,7 +4,10 @@
  */
 
 import * as Minio from 'minio';
-import { MedallionBuckets, MedallionPaths, createMinioClient } from '@stephen/datalake';
+import { MedallionBuckets, MedallionPaths, createMinioClient } from '@stephenadei/datalake';
+
+const BRONZE_BUCKET = process.env.DATALAKE_BUCKET || MedallionBuckets.BRONZE_EDUCATION;
+const SILVER_BUCKET = process.env.DATALAKE_BUCKET || MedallionBuckets.SILVER_EDUCATION;
 import { datalakeService } from './datalake-simple';
 import { datalakeThumbnailService } from './datalake-thumbnails';
 import { datalakeMetadataService } from './datalake-metadata';
@@ -27,7 +30,7 @@ export class SilverProcessor {
     try {
       // 1. Get PDF from Bronze
       const pdfStream = await this.bronzeClient.getObject(
-        MedallionBuckets.BRONZE_EDUCATION,
+        BRONZE_BUCKET,
         bronzePath
       );
       
@@ -86,7 +89,7 @@ export class SilverProcessor {
   async processStudentFolder(subject: string, studentName: string): Promise<{ processed: number; errors: number }> {
     const prefix = MedallionPaths.notabilityPriveles(subject, studentName);
     const stream = this.bronzeClient.listObjects(
-      MedallionBuckets.BRONZE_EDUCATION,
+      BRONZE_BUCKET,
       prefix,
       true
     );
@@ -116,7 +119,7 @@ export class SilverProcessor {
   async processSubjectFolder(subject: string): Promise<{ processed: number; errors: number }> {
     const prefix = `notability/Priveles/${subject}/`;
     const stream = this.bronzeClient.listObjects(
-      MedallionBuckets.BRONZE_EDUCATION,
+      BRONZE_BUCKET,
       prefix,
       true
     );

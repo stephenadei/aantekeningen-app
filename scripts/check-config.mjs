@@ -21,7 +21,7 @@ console.log('🔍 Checking Aantekeningen App Configuration...\n');
 console.log('📊 Current Configuration:');
 console.log('========================');
 console.log(`Environment: ${config.debug.environment}`);
-console.log(`Platform: ${config.debug.isVercel ? 'Vercel' : 'Local'}`);
+console.log(`Platform: ${config.debug.environment === 'production' ? 'Production' : 'Local Development'}`);
 console.log(`Base URL: ${config.debug.baseUrl}`);
 console.log(`Database: ${config.debug.databaseType}`);
 console.log(`OAuth Redirect: ${config.debug.oauthRedirectUri}`);
@@ -50,7 +50,7 @@ const isValid = validateConfig();
 if (isValid) {
   console.log('\n🎉 Configuration is valid! Your app should work correctly.');
   
-  if (!config.debug.isVercel) {
+  if (config.debug.environment === 'development') {
     console.log('\n💡 Local Development Tips:');
     console.log('- Make sure your Google OAuth redirect URI includes:');
     console.log(`  ${config.debug.oauthRedirectUri}`);
@@ -58,9 +58,10 @@ if (isValid) {
     console.log('- Run `npm run dev` to start the development server');
   } else {
     console.log('\n🚀 Production Deployment Tips:');
-    console.log('- Make sure all environment variables are set in Vercel Dashboard');
-    console.log('- Verify your Google OAuth redirect URI includes your Vercel domain');
+    console.log('- Make sure all environment variables are set in .env.local');
+    console.log('- Verify your Google OAuth redirect URI includes your production domain');
     console.log('- Check that your database is properly configured');
+    console.log('- Ensure Docker container is running: docker compose ps');
   }
 } else {
   console.log('\n❌ Configuration has errors. Please fix them before running the app.');

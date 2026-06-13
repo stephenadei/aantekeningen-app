@@ -11,22 +11,22 @@ const projectRoot = path.resolve(__dirname, '..');
 console.log('🚀 Setting up environment configuration for Aantekeningen App...\n');
 
 // Check current environment
-const isVercel = !!process.env.VERCEL;
+const isProduction = process.env.NODE_ENV === 'production';
 
-console.log(`📍 Current environment: ${isVercel ? 'Vercel Production' : 'Local Development'}`);
+console.log(`📍 Current environment: ${isProduction ? 'Production' : 'Local Development'}`);
 
 // Environment-specific configuration (commented out as not used in current implementation)
 // const configs = {
 //   local: {
-//     NEXTAUTH_URL: 'http://localhost:3000',
-//     DATABASE_URL: 'file:./dev.db',
-//     GOOGLE_REDIRECT_URI: 'http://localhost:3000/api/auth/callback/google',
+//     NEXTAUTH_URL: 'http://localhost:3001',
+//     DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/platform',
+//     GOOGLE_REDIRECT_URI: 'http://localhost:3001/api/auth/callback/google',
 //     NODE_ENV: 'development',
 //   },
-//   vercel: {
-//     NEXTAUTH_URL: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://your-app.vercel.app',
-//     DATABASE_URL: 'postgres://username:password@host:port/database', // Will be set by Vercel
-//     GOOGLE_REDIRECT_URI: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}/api/auth/callback/google` : 'https://your-app.vercel.app/api/auth/callback/google',
+//   production: {
+//     NEXTAUTH_URL: 'https://stephensprive.app',
+//     DATABASE_URL: 'postgresql://postgres:postgres@platform-postgres:5432/platform',
+//     GOOGLE_REDIRECT_URI: 'https://stephensprive.app/api/auth/callback/google',
 //     NODE_ENV: 'production',
 //   }
 // };
@@ -36,7 +36,7 @@ const envLocalTemplate = `# ===========================================
 # AANTEKENINGEN APP - LOCAL DEVELOPMENT
 # ===========================================
 # This file is for local development only
-# Production values are set in Vercel Dashboard
+# Production values should be set in .env.local or Docker environment
 
 # ===========================================
 # REQUIRED: Google OAuth Configuration
@@ -80,65 +80,7 @@ CACHE_DURATION_HOURS=24
 # ===========================================
 # OPTIONAL: External Integrations
 # ===========================================
-NEXT_PUBLIC_AANTEKENINGEN_APP_URL=https://your-main-app.vercel.app
-`;
-
-// Create Vercel environment variables template
-const vercelTemplate = `# ===========================================
-# VERCEL ENVIRONMENT VARIABLES
-# ===========================================
-# Copy these to Vercel Dashboard → Settings → Environment Variables
-# Replace placeholder values with your actual values
-
-# ===========================================
-# REQUIRED: Database (PostgreSQL)
-# ===========================================
-# Get this from Vercel Dashboard → Storage → Create Postgres Database
-DATABASE_URL=postgres://username:password@host:port/database
-
-# ===========================================
-# REQUIRED: NextAuth Configuration
-# ===========================================
-NEXTAUTH_SECRET=your-production-secret-key-here
-NEXTAUTH_URL=https://your-app.vercel.app
-
-# ===========================================
-# REQUIRED: Google OAuth Configuration
-# ===========================================
-# Same values as local development
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
-
-# ===========================================
-# SECURITY CONFIGURATION
-# ===========================================
-ALLOWED_TEACHER_DOMAIN=stephensprivelessen.nl
-TEACHER_EMAIL=lessons@stephensprivelessen.nl
-
-# ===========================================
-# OPTIONAL: Google Drive API
-# ===========================================
-GOOGLE_REFRESH_TOKEN=your_refresh_token_here
-
-# ===========================================
-# OPTIONAL: AI Features
-# ===========================================
-OPENAI_API_KEY=your_openai_api_key_here
-
-# ===========================================
-# OPTIONAL: Cache Configuration
-# ===========================================
-CACHE_DURATION_HOURS=24
-
-# ===========================================
-# OPTIONAL: External Integrations
-# ===========================================
-NEXT_PUBLIC_AANTEKENINGEN_APP_URL=https://your-main-app.vercel.app
-
-# ===========================================
-# PRODUCTION FLAGS
-# ===========================================
-NODE_ENV=production
+NEXT_PUBLIC_AANTEKENINGEN_APP_URL=https://stephensprive.app
 `;
 
 // Google OAuth setup instructions
@@ -159,9 +101,8 @@ LOCAL DEVELOPMENT:
 - http://localhost:3000/api/auth/callback/google
 - http://localhost:3001/api/auth/callback/google (backup port)
 
-PRODUCTION (Vercel):
-- https://your-app.vercel.app/api/auth/callback/google
-- https://your-app-git-main.vercel.app/api/auth/callback/google (preview deployments)
+PRODUCTION (Self-Hosted):
+- https://stephensprive.app/api/auth/callback/google
 
 7. Copy the Client ID and Client Secret to your .env.local file
 8. Save the configuration
@@ -181,10 +122,6 @@ async function setupEnvironments() {
       console.log('ℹ️  .env.local already exists');
     }
 
-    // Create Vercel environment template
-    const vercelEnvPath = path.join(projectRoot, '.env.vercel.template');
-    fs.writeFileSync(vercelEnvPath, vercelTemplate);
-    console.log('✅ Created .env.vercel.template');
 
     // Create Google OAuth instructions
     const oauthInstructionsPath = path.join(projectRoot, 'GOOGLE_OAUTH_SETUP.md');
@@ -195,10 +132,10 @@ async function setupEnvironments() {
     console.log('\n📋 Next steps:');
     console.log('1. Edit .env.local with your Google OAuth credentials');
     console.log('2. Follow instructions in GOOGLE_OAUTH_SETUP.md');
-    console.log('3. For Vercel deployment, copy .env.vercel.template to Vercel Dashboard');
+    console.log('3. For production deployment, ensure .env.local is configured in Docker');
     console.log('\n🔗 Useful links:');
     console.log('- Google Cloud Console: https://console.cloud.google.com/');
-    console.log('- Vercel Dashboard: https://vercel.com/dashboard');
+    console.log('- Docker deployment: See DEPLOYMENT.md');
 
   } catch (error) {
     console.error('❌ Error setting up environments:', error.message);

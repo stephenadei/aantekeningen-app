@@ -1,5 +1,5 @@
 import * as MinIO from 'minio';
-import { createMinioClient, getMinioConfig } from '@stephen/datalake';
+import { createMinioClient, getMinioConfig } from '@stephenadei/datalake';
 import { 
   createDriveFolderId,
   createStudentName,
@@ -14,11 +14,18 @@ import {
   type Subject
 } from './types';
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
-import { MedallionBuckets } from '@stephen/datalake';
+import { studentMetadataReader } from '@stephenadei/datalake';
+import { MedallionBuckets } from '@stephenadei/datalake';
 import { extractDateFromTitle } from './date-extractor';
+import {
+  isPlatformApiConfigured,
+  listStudents as apiListStudents,
+  getStudentFiles as apiGetStudentFiles,
+  getFileDownloadUrl as apiGetFileDownloadUrl,
+} from './datalake-api-client';
 
-// Datalake configuration - Bronze layer for raw PDFs
-const BUCKET_NAME = MedallionBuckets.BRONZE_EDUCATION;
+// Datalake configuration - S3 bucket when using direct S3; logical name when using Platform API
+const BUCKET_NAME = process.env.DATALAKE_BUCKET || MedallionBuckets.BRONZE_EDUCATION;
 const BASE_PATH = 'notability/Priveles';
 const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
 const CACHE_KEY_STUDENTS = 'cached_students';
@@ -69,18 +76,30 @@ class DatalakeService {
   }
 
   constructor() {
+    if (!isPlatformApiConfigured()) {
+      this.initializeMinIO();
+    }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (this.isInitialized) return;
+    if (isPlatformApiConfigured()) {
+      this.isInitialized = true;
+      return;
+    }
     this.initializeMinIO();
+    this.isInitialized = true;
   }
 
   private initializeMinIO() {
     try {
       if (typeof window !== 'undefined') {
-        throw new Error('MinIO client can only be used server-side');
+        throw new Error('S3/datalake client can only be used server-side');
       }
 
       // Use shared utility for base config and internal client
       const baseConfig = getMinioConfig();
-      const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
+      const endpoint = process.env.MINIO_ENDPOINT || process.env.AWS_ACCESS_KEY_ID ? undefined : 'localhost';
       const publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost';
       
       // Create internal client for operations using shared utility
@@ -164,12 +183,6 @@ class DatalakeService {
     }
   }
 
-  private async ensureInitialized() {
-    if (!this.isInitialized) {
-      this.initializeMinIO();
-    }
-  }
-
   /**
    * Cache management functions
    */
@@ -198,10 +211,65 @@ class DatalakeService {
 
   /**
    * Get all student folders from the datalake
+   * When Platform API is configured, uses API; otherwise Silver layer first, then Bronze folder scanning
    */
   async getAllStudentFolders(): Promise<DriveStudent[]> {
     await this.ensureInitialized();
 
+    if (isPlatformApiConfigured()) {
+      try {
+        const students = await apiListStudents();
+        return students.map((r) => ({
+          id: createDriveFolderId(r.id || r.name),
+          name: createStudentName(r.name),
+          subject: createSubject('wiskunde-a'),
+          url: `/${BUCKET_NAME}/${r.path}` as any,
+        }));
+      } catch (error) {
+        console.error('Error listing students via Platform API:', error);
+        return [];
+      }
+    }
+
+    try {
+      // Try Silver layer first
+      const silverStudents = await studentMetadataReader.listStudentsWithFallback();
+      
+      if (silverStudents.length > 0) {
+        console.log(`✅ Found ${silverStudents.length} students via Silver layer`);
+        // Convert to DriveStudent format
+        return silverStudents.map(student => {
+          const subjectLower = student.subject.toLowerCase() as 'vo' | 'rekenen' | 'wo';
+          
+          // Map subject to the correct format
+          let subjectType: 'wiskunde-a' | 'rekenen-basis' | 'wiskunde-b' = 'wiskunde-a';
+          if (subjectLower === 'rekenen') {
+            subjectType = 'rekenen-basis';
+          } else if (subjectLower === 'vo' || subjectLower === 'wo') {
+            subjectType = 'wiskunde-a';
+          }
+
+          return {
+            id: createDriveFolderId(student.datalakePath),
+            name: createStudentName(student.name),
+            subject: createSubject(subjectType),
+            url: `/${BUCKET_NAME}/${student.datalakePath}` as any,
+          };
+        });
+      }
+    } catch (error) {
+      console.error('Error reading from Silver layer, falling back to Bronze:', error);
+    }
+
+    // Fallback to Bronze folder scanning
+    console.log('⚠️ Using Bronze folder scanning (fallback)');
+    return await this.getAllStudentFoldersFromBronze();
+  }
+
+  /**
+   * Get all student folders from Bronze layer (fallback method)
+   */
+  private async getAllStudentFoldersFromBronze(): Promise<DriveStudent[]> {
     const students: DriveStudent[] = [];
     const subjectFolders = ['VO', 'Rekenen', 'WO'];
 
@@ -280,6 +348,7 @@ class DatalakeService {
 
   /**
    * Find student folders by name (case-insensitive, partial match)
+   * When Platform API is configured, uses API; otherwise Silver layer first, then Bronze
    */
   async findStudentFolders(needle: string): Promise<DriveStudent[]> {
     try {
@@ -291,7 +360,54 @@ class DatalakeService {
       }
 
       await this.ensureInitialized();
+
+      if (isPlatformApiConfigured()) {
+        const students = await apiListStudents(needle);
+        const result = students.map((r) => ({
+          id: createDriveFolderId(r.id || r.name),
+          name: createStudentName(r.name),
+          subject: createSubject('wiskunde-a'),
+          url: `/${BUCKET_NAME}/${r.path}` as any,
+        }));
+        this.setCache(cacheKey, { students: result });
+        return result;
+      }
       
+      // Try Silver layer first
+      try {
+        const silverStudents = await studentMetadataReader.listStudentsWithFallback();
+        const searchLower = needle.toLowerCase();
+        
+        const silverMatches = silverStudents
+          .filter(student => student.name.toLowerCase().includes(searchLower))
+          .map(student => {
+            const subjectLower = student.subject.toLowerCase() as 'vo' | 'rekenen' | 'wo';
+            
+            // Map subject to the correct format
+            let subjectType: 'wiskunde-a' | 'rekenen-basis' | 'wiskunde-b' = 'wiskunde-a';
+            if (subjectLower === 'rekenen') {
+              subjectType = 'rekenen-basis';
+            } else if (subjectLower === 'vo' || subjectLower === 'wo') {
+              subjectType = 'wiskunde-a';
+            }
+
+            return {
+              id: createDriveFolderId(student.datalakePath),
+              name: createStudentName(student.name),
+              subject: createSubject(subjectType),
+              url: `/${BUCKET_NAME}/${student.datalakePath}` as any,
+            };
+          });
+
+        if (silverMatches.length > 0) {
+          this.setCache(cacheKey, { students: silverMatches });
+          return silverMatches;
+        }
+      } catch (error) {
+        console.error('Error searching Silver layer, falling back to Bronze:', error);
+      }
+
+      // Fallback to Bronze
       const allStudents = await this.getAllStudentFolders();
       
       const searchLower = needle.toLowerCase();
@@ -361,10 +477,18 @@ class DatalakeService {
 
   /**
    * Convert student name to datalake path
-   * Tries multiple subject folders (VO, Rekenen, WO) to find the student
+   * When Platform API is configured, returns student name (used as key for API list files).
+   * Otherwise tries multiple subject folders (VO, Rekenen, WO) to find the student
    */
   async getStudentPath(studentName: string, subject?: string): Promise<string | null> {
     await this.ensureInitialized();
+
+    if (isPlatformApiConfigured()) {
+      const students = await apiListStudents();
+      const normalized = studentName.trim().toLowerCase();
+      const match = students.find((s) => s.name.trim().toLowerCase() === normalized || s.name.toLowerCase().includes(normalized));
+      return match ? match.name : null;
+    }
 
     // If subject is provided, try that first
     if (subject) {
@@ -422,11 +546,43 @@ class DatalakeService {
 
   /**
    * List all files in a student folder
+   * When Platform API is configured, uses API by student name; otherwise Silver metadata then Bronze listing
    * Accepts either a datalake path or a student name
    */
   async listFilesInFolder(folderPathOrStudentName: string, studentName?: string): Promise<FileInfo[]> {
     try {
       await this.ensureInitialized();
+
+      const effectiveStudentName = studentName || (folderPathOrStudentName.includes('/') ? undefined : folderPathOrStudentName);
+
+      if (isPlatformApiConfigured() && effectiveStudentName) {
+        const cacheKey = CACHE_KEY_FILES + effectiveStudentName;
+        const cachedData = this.getCache(cacheKey);
+        if (cachedData) return cachedData.files as FileInfo[];
+        try {
+          const files = await apiGetStudentFiles(effectiveStudentName);
+          const fileInfos: FileInfo[] = files.map((f) => {
+            const cleanFileName = (f.name || f.path.split('/').pop() || '').replace(/\.(pdf|note|notability)$/i, '');
+            const downloadProxyUrl = `/api/download/${encodeURIComponent(f.path)}`;
+            return {
+              id: createDriveFileId(f.path),
+              name: createFileName(f.name || f.path),
+              title: createCleanFileName(cleanFileName),
+              url: downloadProxyUrl as any,
+              downloadUrl: (f.downloadUrl || downloadProxyUrl) as any,
+              viewUrl: downloadProxyUrl as any,
+              thumbnailUrl: createThumbnailUrl(`/api/thumbnail/${encodeURIComponent(f.path)}?size=medium`),
+              modifiedTime: f.modifiedTime,
+              size: f.size,
+            } as FileInfo;
+          });
+          this.setCache(cacheKey, { files: fileInfos });
+          return fileInfos;
+        } catch (error) {
+          console.error('Error listing files via Platform API:', error);
+          return [];
+        }
+      }
 
       // If it's a student name, convert to path
       let folderPath = folderPathOrStudentName;
@@ -449,6 +605,92 @@ class DatalakeService {
         return cachedData.files as FileInfo[];
       }
 
+      // Try to get from Silver metadata first
+      try {
+        const { datalakeMetadataService } = await import('./datalake-metadata');
+        const metadataFiles = await datalakeMetadataService.getStudentFileMetadata(folderPath);
+        
+        if (metadataFiles.length > 0) {
+          console.log(`✅ Found ${metadataFiles.length} files in Silver metadata`);
+          
+          // Convert metadata to FileInfo format
+          // Note: We'll get thumbnails synchronously later if needed
+          const files: FileInfo[] = metadataFiles.map(meta => {
+            // Extract file name from path
+            const fileName = meta.name.split('/').pop() || meta.name;
+            const cleanFileName = fileName.replace(/\.(pdf|note|notability)$/i, '');
+            
+            // Extract subject from path
+            const pathParts = meta.name.split('/').filter((p: string) => p);
+            let subject: Subject | undefined;
+            if (pathParts.length >= 2) {
+              const subjectFolder = pathParts[pathParts.length - 2];
+              if (subjectFolder === 'VO' || subjectFolder === 'WO') {
+                subject = 'wiskunde-a';
+              } else if (subjectFolder === 'Rekenen') {
+                subject = 'rekenen-basis';
+              }
+            }
+            
+            // Use metadata subject if available
+            if (meta.subject) {
+              const subjectMap: Record<string, Subject> = {
+                'VO': 'wiskunde-a',
+                'WO': 'wiskunde-a',
+                'Rekenen': 'rekenen-basis',
+              };
+              subject = subjectMap[meta.subject] || subject;
+            }
+            
+            // Get download URL from Bronze (actual file)
+            const downloadProxyUrl = `/api/download/${encodeURIComponent(meta.name)}`;
+            
+            // Thumbnail URL will be generated on-demand via API endpoint
+            const thumbnailUrl = `/api/thumbnail/${encodeURIComponent(meta.name)}?size=medium`;
+            
+            // Extract date from metadata or filename
+            const dateFromTitle = extractDateFromTitle(cleanFileName);
+            let pdfCreationDate: Date | null = null;
+            if (meta.createdAt) {
+              const parsed = new Date(meta.createdAt);
+              if (!isNaN(parsed.getTime())) {
+                pdfCreationDate = parsed;
+              }
+            }
+            
+            return {
+              id: createDriveFileId(meta.name),
+              name: createFileName(fileName),
+              title: createCleanFileName(cleanFileName),
+              url: downloadProxyUrl as any,
+              downloadUrl: downloadProxyUrl as any,
+              viewUrl: downloadProxyUrl as any,
+              thumbnailUrl: createThumbnailUrl(thumbnailUrl),
+              modifiedTime: meta.modifiedTime || meta.updatedAt,
+              size: meta.size,
+              subject: subject,
+              topicGroup: meta.topicGroup,
+              topic: meta.topic,
+              level: meta.level,
+              schoolYear: meta.schoolYear,
+              keywords: meta.keywords || [],
+              summary: meta.summary,
+              dateFromTitle: dateFromTitle,
+              pdfCreationDate: pdfCreationDate,
+            } as FileInfo;
+          });
+          
+          // Cache the results
+          this.setCache(cacheKey, { files });
+          return files;
+        }
+      } catch (error) {
+        console.error('Error reading from Silver metadata, falling back to Bronze:', error);
+      }
+
+      // Fallback to Bronze direct listing
+      console.log('⚠️ Using Bronze direct listing (fallback)');
+      
       // Normalize folder path (remove leading/trailing slashes, ensure it ends with /)
       const normalizedPath = folderPath.replace(/^\/+|\/+$/g, '');
       const prefix = normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`;
@@ -594,6 +836,7 @@ class DatalakeService {
   async uploadFile(path: string, buffer: Buffer, contentType: string = 'application/pdf'): Promise<void> {
     try {
       await this.ensureInitialized();
+      if (!this.minioClient) this.initializeMinIO();
       await this.minioClient.putObject(BUCKET_NAME, path, buffer, buffer.length, {
         'Content-Type': contentType
       });
@@ -855,6 +1098,13 @@ class DatalakeService {
    */
   async downloadFile(filePath: string): Promise<Buffer> {
     await this.ensureInitialized();
+
+    if (isPlatformApiConfigured()) {
+      const url = await apiGetFileDownloadUrl(filePath);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      return Buffer.from(await res.arrayBuffer());
+    }
     
     const dataStream = await this.minioClient.getObject(BUCKET_NAME, filePath);
     const chunks: Buffer[] = [];
@@ -900,115 +1150,27 @@ class DatalakeService {
         return this.basicAnalysis(fileName);
       }
       
-      console.log('Analyzing document with AI: ' + fileName);
+      console.log('Analyzing document with AI (LangChain): ' + fileName);
       
       // Load taxonomy dynamically
-      const { TaxonomyService } = await import('@stephen/taxonomy');
+      const { TaxonomyService } = await import('@stephenadei/taxonomy');
       const taxonomyService = new TaxonomyService();
       const taxonomy = await taxonomyService.getTaxonomyData();
       
-      // Build dynamic taxonomy prompt from loaded data
-      const subjectsList = taxonomy.subjects.map((s: { name: string }) => s.name).join(', ');
+      // Import LangChain analysis service
+      const { LangChainAnalysisService } = await import('@stephenadei/datalake');
       
-      // Group topic groups by subject
-      const topicGroupsBySubject: Record<string, string[]> = {};
-      for (const tg of taxonomy.topicGroups) {
-        if (!topicGroupsBySubject[tg.subjectId]) {
-          topicGroupsBySubject[tg.subjectId] = [];
-        }
-        topicGroupsBySubject[tg.subjectId].push(tg.name);
-      }
-      
-      // Build topic groups section
-      let topicGroupsSection = '';
-      for (const subject of taxonomy.subjects) {
-        const subjectDisplayName = subject.displayName || subject.name;
-        const topicGroups = topicGroupsBySubject[subject.id] || [];
-        if (topicGroups.length > 0) {
-          topicGroupsSection += `${subjectDisplayName}: ${topicGroups.join(', ')}\n`;
-        }
-      }
-      
-      // Get example topics
-      const exampleTopics = taxonomy.topics.slice(0, 10).map((t: { name: string }) => t.name).join(', ');
-      
-      // Prepare prompt for OpenAI with dynamic taxonomy
-      const prompt = `Analyze this educational document and extract metadata. Return a JSON object with:
-
-SUBJECTS (choose the most appropriate):
-${subjectsList}
-
-TOPIC GROUPS (choose based on subject):
-${topicGroupsSection}
-
-TOPICS (choose specific topic from the topic group):
-Examples: ${exampleTopics}, etc. Use topics that belong to the selected topic group.
-
-LEVELS: po, vo-vmbo-bb, vo-vmbo-kb, vo-vmbo-gt, vo-havo-onderbouw, vo-vwo-onderbouw, vo-havo-bovenbouw, vo-vwo-bovenbouw, mbo, hbo-propedeuse, hbo-hoofdfase, wo-bachelor, wo-master, wo-phd, mixed
-
-Return JSON with:
-- subject: One of the subjects above (use the exact subject name/ID)
-- topicGroup: One of the topic groups above (must match the subject)
-- topic: Specific topic from the topic group
-- level: Educational level from the list above
-- schoolYear: School year in format "YYYY-YYYY" (e.g., "2024-2025")
-- keywords: Array of 3-5 relevant keywords
-- summary: Brief 1-sentence summary in Dutch
-- summaryEn: Brief 1-sentence summary in English
-- topicEn: The specific topic in English
-- keywordsEn: Array of 3-5 relevant keywords in English
-
-Document name: "${fileName}"
-
-Return only valid JSON, no other text.`;
-      
-      // Call OpenAI API
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + process.env.OPENAI_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert at analyzing educational documents and extracting metadata. Always return valid JSON.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 300,
-          temperature: 0.3
-        })
+      // Create LangChain analysis service
+      const analysisService = new LangChainAnalysisService({
+        apiKey: process.env.OPENAI_API_KEY!,
+        model: 'gpt-3.5-turbo',
+        temperature: 0.3,
+        maxTokens: 300,
+        maxRetries: 3
       });
-      
-      const responseData = await response.json();
-      let analysis = JSON.parse(responseData.choices[0].message.content);
-      
-      // Resolve synonyms using taxonomy service
-      if (analysis.subject) {
-        const resolvedSubjectId = await taxonomyService.resolveSubject(analysis.subject);
-        if (resolvedSubjectId) {
-          const subject = taxonomy.subjects.find((s: { id: string; name: string }) => s.id === resolvedSubjectId);
-          if (subject) {
-            analysis.subject = subject.name; // Use canonical subject name
-          }
-        }
-      }
-      
-      if (analysis.topicGroup) {
-        const resolvedTopicGroupId = await taxonomyService.resolveTopicGroup(analysis.topicGroup);
-        if (resolvedTopicGroupId) {
-          const topicGroup = taxonomy.topicGroups.find((tg: { id: string; name: string }) => tg.id === resolvedTopicGroupId);
-          if (topicGroup) {
-            analysis.topicGroup = topicGroup.name; // Use canonical topic group name
-          }
-        }
-      }
+
+      // Perform analysis with structured output
+      const analysis = await analysisService.analyzeDocument(fileName, taxonomy, taxonomyService);
       
       // Cache the result
       this.setCache(cacheKey, {

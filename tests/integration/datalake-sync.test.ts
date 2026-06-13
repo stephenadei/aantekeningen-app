@@ -1,23 +1,23 @@
 /**
  * Datalake Integration Tests
  * 
- * Tests that verify data consistency between MinIO datalake and database
+ * Tests that verify data consistency between datalake datalake and database
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import { datalakeService } from '@/lib/datalake-simple';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import { getTestStudents } from '../helpers/datalake-test-data';
 
 describe('Datalake Sync Integration', () => {
   beforeAll(async () => {
     // Ensure datalake service is initialized
     await datalakeService.getAllStudentFolders();
-  }, 30000); // 30 second timeout for MinIO connection
+  }, 30000); // 30 second timeout for datalake connection
 
   describe('Student Consistency', () => {
-    it('should find all students in MinIO that exist in database', async () => {
-      // Get all students from MinIO
+    it('should find all students in datalake that exist in database', async () => {
+      // Get all students from datalake
       const datalakeStudents = await datalakeService.getAllStudentFolders();
       expect(datalakeStudents.length).toBeGreaterThan(0);
 
@@ -55,7 +55,7 @@ describe('Datalake Sync Integration', () => {
       expect(missingStudents).toEqual([]);
     });
 
-    it('should have valid MinIO folders for all database students with datalakePath', async () => {
+    it('should have valid datalake folders for all database students with datalakePath', async () => {
       const dbStudents = await prisma.student.findMany({
         where: {
           datalakePath: {
@@ -148,7 +148,7 @@ describe('Datalake Sync Integration', () => {
       }
     });
 
-    it('should find PDFs in MinIO for students with datalakePath', async () => {
+    it('should find PDFs in datalake for students with datalakePath', async () => {
       const dbStudents = await prisma.student.findMany({
         where: {
           datalakePath: {

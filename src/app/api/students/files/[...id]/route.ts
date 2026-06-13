@@ -3,7 +3,7 @@ import { datalakeService } from '@/lib/datalake-simple';
 import { getFileMetadata, isFileMetadataFresh } from '@/lib/cache';
 import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/database';
 import { backgroundSyncService } from '@/lib/background-sync';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import { formatFileTitle } from '@/lib/title-formatter';
 import { 
   StudentIdType, 
@@ -91,7 +91,16 @@ export async function GET(
           const studentNameForLookup = (student as any).name || student.displayName;
           if (!folderId && studentNameForLookup) {
             console.log(`🔍 No datalakePath found, searching datalake for student: ${studentNameForLookup}`);
-            const datalakePath = await datalakeService.getStudentPath(studentNameForLookup, student.subject || undefined);
+            // Add timeout to prevent hanging
+            const datalakePath = await Promise.race([
+              datalakeService.getStudentPath(studentNameForLookup, student.subject || undefined),
+              new Promise<string | null>((_, reject) => 
+                setTimeout(() => reject(new Error('getStudentPath timeout')), 10000)
+              )
+            ]).catch((err) => {
+              console.warn('⚠️ getStudentPath timed out or failed:', err);
+              return null;
+            });
             if (datalakePath) {
               folderId = datalakePath;
               console.log(`✅ Found datalake path: ${datalakePath}`);
@@ -119,9 +128,9 @@ export async function GET(
     } else {
       // Auto-detect ID type (backward compatibility)
       console.log('🔄 Auto-detecting ID type...');
-      try {
-        const detectedType = detectIdType(studentId);
-        console.log('✅ Detected ID type:', detectedType);
+      // detectIdType never throws now, so we can safely call it
+      const detectedType = detectIdType(studentId);
+      console.log('✅ Detected ID type:', detectedType);
         
         if (detectedType === 'firestore') {
           const validationResult = await validateFirestoreStudentId(studentId);
@@ -149,7 +158,16 @@ export async function GET(
           const studentNameForLookup = (student as any).name || student.displayName;
           if (!folderId && studentNameForLookup) {
             console.log(`🔍 No datalakePath found, searching datalake for student: ${studentNameForLookup}`);
-            const datalakePath = await datalakeService.getStudentPath(studentNameForLookup, student.subject || undefined);
+            // Add timeout to prevent hanging
+            const datalakePath = await Promise.race([
+              datalakeService.getStudentPath(studentNameForLookup, student.subject || undefined),
+              new Promise<string | null>((_, reject) => 
+                setTimeout(() => reject(new Error('getStudentPath timeout')), 10000)
+              )
+            ]).catch((err) => {
+              console.warn('⚠️ getStudentPath timed out or failed:', err);
+              return null;
+            });
             if (datalakePath) {
               folderId = datalakePath;
               console.log(`✅ Found datalake path: ${datalakePath}`);
@@ -223,92 +241,42 @@ export async function GET(
             }
           }
         }
-      } catch (error) {
-        console.log('❌ Unable to determine ID type:', error);
-        return NextResponse.json(
-          createErrorResponse(handleUnknownError(error)),
-          { status: 400 }
-        );
-      }
     }
 
     // Always fetch from Datalake first (primary source)
     console.log('🔄 Fetching files from Datalake...');
     
-    // Check if studentId is a Prisma database ID (not a path)
-    // Prisma IDs are typically CUIDs (24 chars) or UUIDs
-    let datalakePath: string | null = null;
-    let isPrismaId = false;
+    // Use the resolved driveFolderId as the datalake path
+    // driveFolderId should already be set to the correct datalake path from the ID resolution above
+    let datalakePath: string = driveFolderId;
     
-    // Check if it looks like a Prisma ID (CUID or UUID format, no slashes)
-    if (!studentId.includes('/') && (studentId.length >= 20 || studentId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i))) {
-      try {
-        // Try to find student in Prisma database
-        const dbStudent = await prisma.student.findUnique({
-          where: { id: studentId },
-          select: { id: true, name: true, datalakePath: true }
+    // If driveFolderId is a datalake path (contains slashes), use it directly
+    // Otherwise, it might be a Google Drive folder ID, which we need to handle differently
+    if (!datalakePath.includes('/')) {
+      // It's a Google Drive folder ID, not a datalake path
+      // Try to find the datalake path from the student name
+      if (!studentName) {
+        return NextResponse.json(
+          createErrorResponse(new InvalidStudentIdError(studentId, idType || 'unknown')),
+          { status: 400 }
+        );
+      }
+      
+      // Find the datalake path for this student
+      const resolvedPath = await datalakeService.getStudentPath(studentName) || '';
+      if (!resolvedPath) {
+        // Student exists but has no files in datalake
+        return NextResponse.json({
+          success: true,
+          files: [],
+          count: 0,
+          totalCount: 0,
+          hasMore: false,
+          studentName: studentName,
+          idType: idType || detectIdType(studentId)
         });
-        
-        if (dbStudent) {
-          isPrismaId = true;
-          studentName = dbStudent.name;
-          datalakePath = dbStudent.datalakePath;
-          
-          if (!datalakePath) {
-            // Student exists in database but has no datalakePath (no notes yet)
-            return NextResponse.json({
-              success: true,
-              files: [],
-              count: 0,
-              message: 'Deze student heeft nog geen aantekeningen',
-              studentName: dbStudent.name,
-              hasNotes: false
-            });
-          }
-        }
-      } catch (error) {
-        console.log('⚠️ Error checking Prisma database:', error);
-        // Continue with normal flow
       }
-    }
-    
-    // If studentId is already a datalake path, use it directly
-    if (!datalakePath) {
-      if (studentId.includes('/')) {
-        // It's already a full datalake path (e.g., "notability/Priveles/VO/Teresa")
-        datalakePath = studentId;
-        if (!studentName) {
-          const pathParts = studentId.split('/').filter(p => p); // Filter out empty parts
-          studentName = pathParts[pathParts.length - 1]; // Last part is student name
-        }
-      } else {
-        // It's just a student name, need to find the path
-        if (!studentName) {
-          // Try to extract student name from driveFolderId if it's a path
-          if (driveFolderId && driveFolderId.includes('/')) {
-            const pathParts = driveFolderId.split('/');
-            studentName = pathParts[pathParts.length - 1];
-          } else if (driveFolderId) {
-            studentName = driveFolderId;
-          }
-        }
-        
-        if (!studentName) {
-          return NextResponse.json(
-            createErrorResponse(new InvalidStudentIdError(studentId, 'firestore')),
-            { status: 400 }
-          );
-        }
-        
-        // Find the datalake path for this student
-        datalakePath = await datalakeService.getStudentPath(studentName) || '';
-        if (!datalakePath) {
-          return NextResponse.json(
-            createErrorResponse(new InvalidStudentIdError(`Student folder not found: ${studentName}`, 'firestore')),
-            { status: 404 }
-          );
-        }
-      }
+      datalakePath = resolvedPath;
     }
     
     // Extract student name from path if not already set

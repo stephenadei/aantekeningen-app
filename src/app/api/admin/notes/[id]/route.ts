@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { prisma } from '@stephen/database';
-import { extractSubjectFromDatalakePath } from '@stephen/datalake';
+import { prisma } from '@stephenadei/database';
+import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
 import { createDriveFileId } from '@/lib/types';
 import type { AdminNoteWithMetadata } from '@/lib/interfaces';
 

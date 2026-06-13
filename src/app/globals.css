@@ -13,24 +13,29 @@
   --foreground: #1E3A5F;
 }
 
-/* Dark mode variables - ensure html element has dark class */
-html.dark {
-  --background: #0F2439;
-  --foreground: #FCD34D;
-}
-
-/* Also support .dark class on html for Tailwind compatibility */
+/* Dark mode variables - Tailwind compatibility */
 .dark {
   --background: #0F2439;
   --foreground: #FCD34D;
+  /* Dark mode override colors using CSS custom properties */
+  --bg-white: #1e293b;
+  --bg-gray-50: #334155;
+  --text-gray-900: #f1f5f9;
+  --text-gray-700: #cbd5e1;
+  --text-gray-600: #94a3b8;
+  --text-gray-500: #64748b;
+  --border-gray-200: #475569;
+  --border-gray-300: #64748b;
 }
 
-/* Line clamp utility */
+/* Line clamp utility - modern implementation with fallback */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  /* Modern standard property */
+  line-clamp: 2;
 }
 
 @theme inline {
@@ -67,35 +72,35 @@ body {
   animation: shimmer 2s infinite;
 }
 
-/* Ensure proper contrast for dark mode */
+/* Ensure proper contrast for dark mode using CSS custom properties */
 .dark .bg-white {
-  background-color: #1e293b !important;
+  background-color: var(--bg-white);
 }
 
 .dark .bg-gray-50 {
-  background-color: #334155 !important;
+  background-color: var(--bg-gray-50);
 }
 
 .dark .text-gray-900 {
-  color: #f1f5f9 !important;
+  color: var(--text-gray-900);
 }
 
 .dark .text-gray-700 {
-  color: #cbd5e1 !important;
+  color: var(--text-gray-700);
 }
 
 .dark .text-gray-600 {
-  color: #94a3b8 !important;
+  color: var(--text-gray-600);
 }
 
 .dark .text-gray-500 {
-  color: #64748b !important;
+  color: var(--text-gray-500);
 }
 
 .dark .border-gray-200 {
-  border-color: #475569 !important;
+  border-color: var(--border-gray-200);
 }
 
 .dark .border-gray-300 {
-  border-color: #64748b !important;
+  border-color: var(--border-gray-300);
 }

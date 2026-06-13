@@ -1,20 +1,16 @@
 /**
  * Environment Configuration Helper
- * Automatically adapts to local development and Vercel production
+ * Automatically adapts to local development and production
  */
 
 export const config = {
   // Environment detection
   isDevelopment: process.env.NODE_ENV === 'development',
   isProduction: process.env.NODE_ENV === 'production',
-  isVercel: !!process.env.VERCEL,
   
   // Base URLs
   get baseUrl() {
-    if (this.isVercel) {
-      return process.env.NEXTAUTH_URL || `https://${process.env.VERCEL_URL}`;
-    }
-    return process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
   },
   
   // Database
@@ -47,7 +43,6 @@ export const config = {
   get debug() {
     return {
       environment: process.env.NODE_ENV,
-      isVercel: this.isVercel,
       baseUrl: this.baseUrl,
       databaseType: 'PostgreSQL',
     };

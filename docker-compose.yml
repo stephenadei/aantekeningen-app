@@ -14,12 +14,18 @@ services:
       - PORT=3001
       # Overriding DATABASE_URL to verify SSOT connection
       - DATABASE_URL=postgresql://postgres:postgres@platform-postgres:5432/platform?connect_timeout=10&pool_timeout=10
-      # MinIO configuration (use container name for internal Docker network)
-      - MINIO_ENDPOINT=platform-minio
+      # Datalake: prefer Platform API (no S3 creds in app) or direct S3
+      - PLATFORM_API_URL=${PLATFORM_API_URL:-}
+      - PLATFORM_API_KEY=${PLATFORM_API_KEY:-}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_REGION=${AWS_REGION:-eu-west-3}
+      - DATALAKE_BUCKET=${DATALAKE_BUCKET:-}
+      # Optional: legacy S3-compatible (e.g. local MinIO) when not using Platform API
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-platform-minio}
       - MINIO_PORT=9000
       - MINIO_SECURE=false
-      # Public endpoint for presigned URLs (accessible from browser)
-      - MINIO_PUBLIC_ENDPOINT=https://platform-minio.stephensprivelessen.nl
+      - MINIO_PUBLIC_ENDPOINT=${MINIO_PUBLIC_ENDPOINT:-https://platform-minio.stephensprivelessen.nl}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3001/api/test"]

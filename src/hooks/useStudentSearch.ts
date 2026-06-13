@@ -8,8 +8,10 @@ export function useStudentSearch() {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = async (query: string = searchQuery): Promise<void> => {
-    if (!query.trim()) {
+  const handleSearch = async (query: string | null | undefined = searchQuery): Promise<void> => {
+    // Ensure query is a string and not empty
+    const searchTerm = (query ?? searchQuery ?? '').toString().trim();
+    if (!searchTerm) {
       return;
     }
 
@@ -19,7 +21,7 @@ export function useStudentSearch() {
     setHasSearched(true);
 
     try {
-      const response = await fetch(`/api/students/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/students/search?q=${encodeURIComponent(searchTerm)}`);
       const data = await response.json();
 
       if (data.success) {

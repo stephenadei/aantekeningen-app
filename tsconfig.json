@@ -15,7 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "incremental": true,
     "plugins": [
       {
@@ -25,18 +25,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@stephen/database": [
-        "../../packages/database/src"
-      ],
-      "@stephen/datalake": [
-        "../../packages/datalake/src"
-      ],
-      "@stephen/shared-types": [
-        "../../packages/shared-types/src"
-      ],
-      "@stephen/taxonomy": [
-        "../../packages/taxonomy/dist"
       ]
     }
   },
@@ -50,6 +38,7 @@
   ],
   "exclude": [
     "node_modules",
+    "tests",
     "vitest.config.ts",
     "eslint.config.mjs"
   ]
