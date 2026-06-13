@@ -9,7 +9,9 @@ import { datalakeService } from '@/lib/datalake-simple';
 import { datalakeMetadataService } from '@/lib/datalake-metadata';
 import { prisma } from '@stephenadei/database';
 
-describe('Data Consistency', () => {
+// Requires a live datalake (S3/MinIO). Skipped unless RUN_DATALAKE_TESTS is set,
+// so CI (no datalake) stays green; run locally with RUN_DATALAKE_TESTS=1.
+describe.skipIf(!process.env.RUN_DATALAKE_TESTS)('Data Consistency', () => {
   beforeAll(async () => {
     // Ensure services are initialized
     await datalakeService.getAllStudentFolders();
