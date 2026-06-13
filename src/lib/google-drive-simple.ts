@@ -14,6 +14,7 @@ import {
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
 import { extractDateFromTitle } from './date-extractor';
 import { TtlCache, hoursToMs } from './ttl-cache';
+import { config } from './config';
 
 // Google Drive API configuration
 // const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
@@ -23,7 +24,7 @@ const NOTABILITY_FOLDER_NAME = 'Notability';
 const PRIVELES_FOLDER_NAME = 'Priveles';
 
 // Cache configuration
-const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12'); // Half daily refresh
+const CACHE_DURATION_HOURS = config.features.cache.durationHours; // Half daily refresh (from config)
 
 const CACHE_KEY_STUDENTS = 'cached_students';
 const CACHE_KEY_FILES = 'cached_files_';

@@ -38,7 +38,9 @@ export const config = {
         enabled: !!process.env.OPENAI_API_KEY,
       },
       cache: {
-        durationHours: parseInt(process.env.CACHE_DURATION_HOURS || '24'),
+        // Canonical cache TTL. Was inconsistently 24 here vs 12 at every cache
+        // call site; 12 is what the caches actually used, so 12 wins.
+        durationHours: parseInt(process.env.CACHE_DURATION_HOURS || '12'),
       },
     };
   },

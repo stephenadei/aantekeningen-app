@@ -9,9 +9,10 @@ import {
 import type { DriveCache, FileMetadata } from './interfaces';
 import type { CacheType } from './types';
 import { TtlCache, hoursToMs } from './ttl-cache';
+import { config } from './config';
 
-// Cache configuration
-const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
+// Cache TTL comes from the single config module.
+const CACHE_DURATION_HOURS = config.features.cache.durationHours;
 
 // Cache types are now imported from interfaces.ts
 

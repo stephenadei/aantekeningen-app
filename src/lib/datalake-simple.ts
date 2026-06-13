@@ -17,11 +17,12 @@ import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
 import { MedallionBuckets } from '@stephenadei/datalake';
 import { extractDateFromTitle } from './date-extractor';
 import { TtlCache, hoursToMs } from './ttl-cache';
+import { config } from './config';
 
 // Datalake configuration - Bronze layer for raw PDFs
 const BUCKET_NAME = MedallionBuckets.BRONZE_EDUCATION;
 const BASE_PATH = 'notability/Priveles';
-const CACHE_DURATION_HOURS = parseInt(process.env.CACHE_DURATION_HOURS || '12');
+const CACHE_DURATION_HOURS = config.features.cache.durationHours;
 const CACHE_KEY_STUDENTS = 'cached_students';
 const CACHE_KEY_FILES = 'cached_files_';
 
