@@ -1,4 +1,4 @@
-import { prisma } from './prisma';
+import { prisma } from '@stephenadei/database';
 import { datalakeService } from './datalake-simple';
 import { datalakeMetadataService } from './datalake-metadata';
 import { thumbnailGeneratorService } from './thumbnail-generator';
