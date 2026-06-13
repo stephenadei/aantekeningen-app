@@ -58,7 +58,32 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: aantekeningen_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # The E2E web server runs the real app, which needs a database and enough
+    # auth config to boot. Real Google OAuth tests self-skip (no REAL_AUTH).
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/aantekeningen_test
+      NEXTAUTH_SECRET: ci-e2e-test-secret
+      NEXTAUTH_URL: http://localhost:3001
+      GOOGLE_CLIENT_ID: ci-dummy-client-id
+      GOOGLE_CLIENT_SECRET: ci-dummy-client-secret
+      GOOGLE_REDIRECT_URI: http://localhost:3001/api/auth/callback/google
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -71,7 +96,10 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
-      
+
+    - name: Set up test database schema
+      run: npx prisma db push --skip-generate --accept-data-loss
+
     - name: Install Playwright browsers (Chromium only)
       run: npx playwright install chromium
       env:
