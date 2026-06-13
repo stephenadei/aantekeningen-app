@@ -5,8 +5,8 @@
  * and saves it to datalake, then syncs to database
  */
 
-import { createMinioClient } from '@stephen/datalake';
-import { MedallionBuckets } from '@stephen/datalake';
+import { createMinioClient } from '@stephenadei/datalake';
+import { MedallionBuckets } from '@stephenadei/datalake';
 import * as Minio from 'minio';
 
 // Import taxonomy data (we'll need to convert this)

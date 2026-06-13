@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { datalakeService } from '@/lib/datalake-simple';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import type { MainPageStudent } from '@/lib/interfaces';
-import { extractSubjectFromDatalakePath } from '@stephen/datalake';
+import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
 
 export async function GET(request: NextRequest) {
   try {

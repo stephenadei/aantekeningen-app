@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TaxonomyService } from '@stephen/taxonomy';
+import { TaxonomyService } from '@stephenadei/taxonomy';
 
 /**
  * Public Taxonomy API

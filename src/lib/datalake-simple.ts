@@ -1,5 +1,5 @@
 import * as MinIO from 'minio';
-import { createMinioClient, getMinioConfig } from '@stephen/datalake';
+import { createMinioClient, getMinioConfig } from '@stephenadei/datalake';
 import { 
   createDriveFolderId,
   createStudentName,
@@ -14,7 +14,7 @@ import {
   type Subject
 } from './types';
 import type { DriveStudent, FileInfo, StudentOverview } from './interfaces';
-import { MedallionBuckets } from '@stephen/datalake';
+import { MedallionBuckets } from '@stephenadei/datalake';
 import { extractDateFromTitle } from './date-extractor';
 
 // Datalake configuration - Bronze layer for raw PDFs
@@ -903,7 +903,7 @@ class DatalakeService {
       console.log('Analyzing document with AI: ' + fileName);
       
       // Load taxonomy dynamically
-      const { TaxonomyService } = await import('@stephen/taxonomy');
+      const { TaxonomyService } = await import('@stephenadei/taxonomy');
       const taxonomyService = new TaxonomyService();
       const taxonomy = await taxonomyService.getTaxonomyData();
       

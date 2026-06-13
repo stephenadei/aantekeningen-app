@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { TaxonomyService } from '@stephen/taxonomy';
+import { TaxonomyService } from '@stephenadei/taxonomy';
 
 export async function GET(request: NextRequest) {
   try {

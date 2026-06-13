@@ -1,7 +1,7 @@
 /**
  * DEPRECATED: Re-export from shared package for backward compatibility
- * Use @stephen/datalake instead
- * @deprecated Import from '@stephen/datalake' instead
+ * Use @stephenadei/datalake instead
+ * @deprecated Import from '@stephenadei/datalake' instead
  */
-export * from '@stephen/datalake';
+export * from '@stephenadei/datalake';
 

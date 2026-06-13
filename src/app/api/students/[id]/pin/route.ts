@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import bcrypt from 'bcrypt';
 import { verifyStudentPin } from '@/lib/dashboard-api';
 

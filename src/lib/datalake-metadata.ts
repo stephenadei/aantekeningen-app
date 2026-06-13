@@ -1,6 +1,6 @@
 import * as MinIO from 'minio';
 
-import { MedallionBuckets } from '@stephen/datalake';
+import { MedallionBuckets } from '@stephenadei/datalake';
 
 // Silver layer for processed metadata
 const BUCKET_NAME = MedallionBuckets.SILVER_EDUCATION;

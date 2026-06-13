@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
-import { TaxonomyService, TaxonomySyncService } from '@stephen/taxonomy';
-import type { TaxonomyData } from '@stephen/taxonomy';
+import { TaxonomyService, TaxonomySyncService } from '@stephenadei/taxonomy';
+import type { TaxonomyData } from '@stephenadei/taxonomy';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save to datalake
-    const { DatalakeTaxonomyLoader } = await import('@stephen/taxonomy');
+    const { DatalakeTaxonomyLoader } = await import('@stephenadei/taxonomy');
     const loader = new DatalakeTaxonomyLoader();
     
     // Update version and timestamp

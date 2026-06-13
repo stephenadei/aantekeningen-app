@@ -1,4 +1,4 @@
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 import { 
   FirestoreStudentId, 
   DriveFolderId, 

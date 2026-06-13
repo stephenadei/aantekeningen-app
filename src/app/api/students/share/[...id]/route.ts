@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStudent, getStudentByDriveFolderId, validateFirestoreStudentId, validateDriveFolderId } from '@/lib/database';
 import { config, ensureConfigValidated } from '@/lib/config';
-import { extractSubjectFromDatalakePath } from '@stephen/datalake';
+import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
 import { 
   StudentIdType, 
   detectIdType, 
@@ -14,7 +14,7 @@ import {
 } from '@/lib/types';
 import { createErrorResponse, handleUnknownError, InvalidStudentIdError } from '@/lib/errors';
 import { getOrCreateShareToken } from '@/lib/share-token';
-import { prisma } from '@stephen/database';
+import { prisma } from '@stephenadei/database';
 
 export async function GET(
   request: NextRequest,

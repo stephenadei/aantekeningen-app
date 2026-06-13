@@ -4,7 +4,7 @@
  */
 
 import * as Minio from 'minio';
-import { MedallionBuckets, MedallionPaths, createMinioClient } from '@stephen/datalake';
+import { MedallionBuckets, MedallionPaths, createMinioClient } from '@stephenadei/datalake';
 import { datalakeService } from './datalake-simple';
 import { datalakeThumbnailService } from './datalake-thumbnails';
 import { datalakeMetadataService } from './datalake-metadata';

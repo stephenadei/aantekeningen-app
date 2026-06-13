@@ -683,7 +683,7 @@ class GoogleDriveService {
       console.log('Analyzing document with AI: ' + fileName);
       
       // Load taxonomy dynamically
-      const { TaxonomyService } = await import('@stephen/taxonomy');
+      const { TaxonomyService } = await import('@stephenadei/taxonomy');
       const taxonomyService = new TaxonomyService();
       const taxonomy = await taxonomyService.getTaxonomyData();
       

@@ -2,7 +2,7 @@
  * Datalake Service Configuration
  */
 
-import { MedallionBuckets } from '@stephen/datalake';
+import { MedallionBuckets } from '@stephenadei/datalake';
 
 export const BUCKET_NAME = MedallionBuckets.BRONZE_EDUCATION;
 export const BASE_PATH = 'notability/Priveles';

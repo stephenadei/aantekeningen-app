@@ -4,9 +4,9 @@
  */
 
 import * as MinIO from 'minio';
-import { createMinioClient, getMinioConfig } from '@stephen/datalake';
+import { createMinioClient, getMinioConfig } from '@stephenadei/datalake';
 
-import { MedallionBuckets } from '@stephen/datalake';
+import { MedallionBuckets } from '@stephenadei/datalake';
 
 // Silver layer for thumbnails
 const BUCKET_NAME = MedallionBuckets.SILVER_EDUCATION;
