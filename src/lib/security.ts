@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { config } from './config';
 import { 
   Pin, 
   PinHash, 
@@ -140,8 +141,7 @@ export function getUserAgent(request: Request): UserAgent {
  * Validate email domain for teacher access
  */
 export function validateTeacherEmail(email: string): Result<TeacherEmail> {
-  const allowedDomain = process.env.ALLOWED_TEACHER_DOMAIN || 'stephensprivelessen.nl';
-  const primaryEmail = process.env.TEACHER_EMAIL || 'lessons@stephensprivelessen.nl';
+  const { allowedTeacherDomain: allowedDomain, teacherEmail: primaryEmail } = config.security;
   
   if (email === primaryEmail || email.endsWith(`@${allowedDomain}`)) {
     return Ok(createTeacherEmail(email));
