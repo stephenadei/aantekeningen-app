@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { getStudent, updateStudent } from '@/lib/database';
 import { getFileMetadata } from '@/lib/cache';
 import { isErr, isFirestoreStudentId, createFirestoreStudentId, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
@@ -10,11 +10,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // Validate student ID
     if (!isFirestoreStudentId(id)) {
@@ -69,11 +66,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // Validate student ID
     if (!isFirestoreStudentId(id)) {
@@ -140,11 +134,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // Validate student ID
     if (!isFirestoreStudentId(id)) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@stephenadei/database';
 import bcrypt from 'bcrypt';
 
@@ -13,11 +13,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const student = await prisma.student.findUnique({
       where: { id },
@@ -62,11 +59,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
     const { pin } = body;
@@ -130,11 +124,8 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // Check if student exists
     const student = await prisma.student.findUnique({

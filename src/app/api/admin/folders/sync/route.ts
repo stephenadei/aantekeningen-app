@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { backgroundSyncService } from '@/lib/background-sync';
-import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     console.log('Starting manual folder sync...');
     await backgroundSyncService.runFullSync();

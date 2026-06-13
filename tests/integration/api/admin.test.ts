@@ -1,24 +1,22 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 // The app migrated off Firebase to Prisma/datalake; these routes no longer use
-// firebase-admin. We mock only what they actually depend on now: the auth seam.
-const mockGetAuthSession = vi.fn();
-const mockIsAuthorizedAdmin = vi.fn();
+// firebase-admin. Admin routes now gate on the single requireAdmin() seam, so
+// that is the one thing we mock.
+const mockRequireAdmin = vi.fn();
 
 vi.mock('@/lib/auth', async () => {
   const actual = await vi.importActual('@/lib/auth');
-  return {
-    ...actual,
-    getAuthSession: mockGetAuthSession,
-    isAuthorizedAdmin: mockIsAuthorizedAdmin,
-  };
+  return { ...actual, requireAdmin: mockRequireAdmin };
 });
 
 vi.mock('next-auth', async () => {
   const actual = await vi.importActual('next-auth');
   return { ...actual, getServerSession: vi.fn(), default: vi.fn() };
 });
+
+const unauthorized = () => ({ ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) });
 
 describe('Admin Management API Integration', () => {
   const mockAdminUser = {
@@ -30,8 +28,7 @@ describe('Admin Management API Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetAuthSession.mockResolvedValue({ success: true, user: mockAdminUser, error: undefined });
-    mockIsAuthorizedAdmin.mockReturnValue(true);
+    mockRequireAdmin.mockResolvedValue({ ok: true, user: mockAdminUser });
   });
 
   afterEach(() => {
@@ -73,8 +70,7 @@ describe('Admin Management API Integration', () => {
     });
 
     it('rejects unauthorized users', async () => {
-      mockGetAuthSession.mockResolvedValue({ success: false, user: undefined, error: 'Unauthorized' });
-      mockIsAuthorizedAdmin.mockReturnValue(false);
+      mockRequireAdmin.mockResolvedValue(unauthorized());
 
       const request = new NextRequest('http://localhost:3000/api/admin/clear-cache', { method: 'POST' });
       const { POST } = await import('@/app/api/admin/clear-cache/route');

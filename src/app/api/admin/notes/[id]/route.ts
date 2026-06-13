@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@stephenadei/database';
 import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
 import { createDriveFileId } from '@/lib/types';
@@ -11,11 +11,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // Get note from Prisma
     const note = await prisma.note.findUnique({
@@ -81,11 +78,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
     const {
@@ -170,11 +164,8 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // Delete the note (Cascade will delete KeyConcepts)
     await prisma.note.delete({

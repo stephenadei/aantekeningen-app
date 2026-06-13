@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthSession, isAuthorizedAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 export async function GET(
   request: NextRequest,
@@ -7,11 +7,8 @@ export async function GET(
 ) {
   try {
     await params; // id not used in current implementation
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // TODO: Implement database query to get concepts for note
     return NextResponse.json({ 
@@ -34,11 +31,8 @@ export async function POST(
 ) {
   try {
     await params; // id not used in current implementation
-    const { user, error } = await getAuthSession();
-    
-    if (error || !user || !isAuthorizedAdmin(user)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireAdmin();
+    if (!auth.ok) return auth.response;
 
     // TODO: Implement database create concept
     return NextResponse.json({ 

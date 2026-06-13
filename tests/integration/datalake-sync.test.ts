@@ -9,7 +9,9 @@ import { datalakeService } from '@/lib/datalake-simple';
 import { prisma } from '@stephenadei/database';
 import { getTestStudents } from '../helpers/datalake-test-data';
 
-describe('Datalake Sync Integration', () => {
+// Requires a live datalake (S3/MinIO). Skipped unless RUN_DATALAKE_TESTS is set,
+// so CI (no datalake) stays green; run locally with RUN_DATALAKE_TESTS=1.
+describe.skipIf(!process.env.RUN_DATALAKE_TESTS)('Datalake Sync Integration', () => {
   beforeAll(async () => {
     // Ensure datalake service is initialized
     await datalakeService.getAllStudentFolders();

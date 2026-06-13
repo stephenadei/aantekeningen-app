@@ -9,7 +9,11 @@ export function useStudentSearch() {
   const [hasSearched, setHasSearched] = useState(false);
 
   const handleSearch = async (query: string = searchQuery): Promise<void> => {
-    if (!query.trim()) {
+    // handleSearch is sometimes wired straight onto an event (onClick/onSubmit),
+    // which passes the event object instead of a string. Fall back to the
+    // current query so `.trim()` never throws "query.trim is not a function".
+    const q = typeof query === 'string' ? query : searchQuery;
+    if (!q.trim()) {
       return;
     }
 
@@ -19,7 +23,7 @@ export function useStudentSearch() {
     setHasSearched(true);
 
     try {
-      const response = await fetch(`/api/students/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/students/search?q=${encodeURIComponent(q)}`);
       const data = await response.json();
 
       if (data.success) {

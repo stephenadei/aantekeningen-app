@@ -10,7 +10,9 @@ vi.mock('@/lib/cache', async () => {
   return { ...actual };
 });
 
-describe('Metadata API Integration', () => {
+// Requires a live datalake (S3/MinIO). Skipped unless RUN_DATALAKE_TESTS is set,
+// so CI (no datalake) stays green; run locally with RUN_DATALAKE_TESTS=1.
+describe.skipIf(!process.env.RUN_DATALAKE_TESTS)('Metadata API Integration', () => {
   let testData: { student: DriveStudent; files: FileMetadata[] } | null = null;
 
   beforeAll(async () => {
