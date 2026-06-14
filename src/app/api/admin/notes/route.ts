@@ -5,6 +5,7 @@ import { extractSubjectFromDatalakePath } from '@stephenadei/datalake';
 import { Prisma } from '@prisma/client';
 import { datalakeService } from '@/lib/datalake-simple';
 import { datalakeMetadataService } from '@/lib/datalake-metadata';
+import { parsePageParams, hasMorePages } from '@/lib/pagination';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +14,7 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const { page, limit, skip } = parsePageParams(searchParams, { defaultLimit: 50 });
     const search = searchParams.get('search') || '';
     const subject = searchParams.get('subject') || '';
     const topicGroup = searchParams.get('topicGroup') || '';
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
           }
         },
         orderBy: { updatedAt: 'desc' },
-        skip: (page - 1) * limit,
+        skip,
         take: limit
       }),
       prisma.note.count({ where })
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       total,
       page,
       limit,
-      hasMore: (page * limit) < total,
+      hasMore: hasMorePages(page, limit, total),
       appliedFilters: {
         search,
         subject,

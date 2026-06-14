@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@stephenadei/database';
-import { Prisma } from '@prisma/client';
+import { parsePageParams } from '@/lib/pagination';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,8 +9,7 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const { page, limit, skip } = parsePageParams(searchParams, { defaultLimit: 20 });
     const action = searchParams.get('action') || '';
     const dateFrom = searchParams.get('dateFrom') || '';
     const dateTo = searchParams.get('dateTo') || '';
@@ -66,7 +65,7 @@ export async function GET(request: NextRequest) {
     const audits = await prisma.loginAudit.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
+      skip,
       take: limit
     });
 

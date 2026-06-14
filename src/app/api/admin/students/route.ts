@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { getAllStudents, createStudent } from '@/lib/database';
 import { getFileMetadata } from '@/lib/cache';
+import { parsePageParams, paginateArray, hasMorePages } from '@/lib/pagination';
 import { isErr, createPin, createStudentName, createEmail, createDriveFolderId, createSubject } from '@/lib/types';
 import type { CreateStudentInput } from '@/lib/interfaces';
 import bcrypt from 'bcryptjs';
@@ -13,8 +14,7 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '25');
+    const { page, limit } = parsePageParams(searchParams, { defaultLimit: 25 });
     const search = searchParams.get('search') || '';
     const subject = searchParams.get('subject') || '';
     const activeFilter = searchParams.get('active');
@@ -72,16 +72,14 @@ export async function GET(request: NextRequest) {
     );
 
     // Apply pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedStudents = studentsWithMetadata.slice(startIndex, endIndex);
+    const paginatedStudents = paginateArray(studentsWithMetadata, page, limit);
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       students: paginatedStudents,
       total: studentsWithMetadata.length,
       page,
       limit,
-      hasMore: endIndex < studentsWithMetadata.length
+      hasMore: hasMorePages(page, limit, studentsWithMetadata.length)
     });
 
   } catch (error) {
