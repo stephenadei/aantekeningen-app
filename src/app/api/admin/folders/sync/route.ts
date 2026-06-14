@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backgroundSyncService } from '@/lib/background-sync';
+import { syncOrchestrator } from '@/lib/sync-orchestrator';
 import { requireAdmin } from '@/lib/auth';
 
 export async function POST(request: NextRequest) {
@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     if (!auth.ok) return auth.response;
 
     console.log('Starting manual folder sync...');
-    await backgroundSyncService.runFullSync();
+    await syncOrchestrator.syncFiles();
     console.log('✅ Folder sync completed');
 
     return NextResponse.json({

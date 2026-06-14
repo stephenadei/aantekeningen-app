@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { backgroundSyncService } from '@/lib/background-sync';
+import { syncOrchestrator } from '@/lib/sync-orchestrator';
 import { getCacheStats } from '@/lib/cache';
 
 export async function GET(request: NextRequest) {
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'full-sync':
         console.log('🔄 Starting full sync triggered by admin...');
-        // Start full sync in background (don't wait for completion)
-        backgroundSyncService.runFullSync().catch(error => {
+        // Start file sync in background (don't wait for completion)
+        syncOrchestrator.syncFiles().catch(error => {
           console.error('Full sync failed:', error);
         });
         
