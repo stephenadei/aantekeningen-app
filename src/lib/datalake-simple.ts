@@ -1,5 +1,5 @@
 import * as MinIO from 'minio';
-import { createMinioClient, getMinioConfig } from '@stephenadei/datalake';
+import { createMinioClient } from '@stephenadei/datalake';
 import { 
   createDriveFolderId,
   createStudentName,
@@ -31,44 +31,7 @@ const memoryCache = new TtlCache<Record<string, unknown>>(hoursToMs(CACHE_DURATI
 
 class DatalakeService {
   private minioClient!: MinIO.Client;
-  private presignedClient!: MinIO.Client; // Separate client for presigned URLs
   private isInitialized = false;
-  private presignedEndpoint: string | null = null;
-  private internalEndpoint: string | null = null;
-
-  /**
-   * Transform presigned URL to use public endpoint if needed
-   */
-  private transformPresignedUrl(url: string): string {
-    if (!this.presignedEndpoint) {
-      return url;
-    }
-    
-    // Replace internal endpoint with public endpoint in the URL
-    try {
-      const urlObj = new URL(url);
-      const publicUrlObj = new URL(this.presignedEndpoint);
-      
-      // Replace hostname and protocol
-      urlObj.hostname = publicUrlObj.hostname;
-      urlObj.protocol = publicUrlObj.protocol;
-      
-      // Always remove port for standard ports (80 for http, 443 for https)
-      // Nginx reverse proxy handles the routing
-      const standardPort = publicUrlObj.protocol === 'https:' ? 443 : 80;
-      const currentPort = urlObj.port ? parseInt(urlObj.port) : (urlObj.protocol === 'https:' ? 443 : 80);
-      
-      // Remove port if it's standard or if it's 9000 (internal MinIO port)
-      if (currentPort === standardPort || currentPort === 9000) {
-        urlObj.port = '';
-      }
-      
-      return urlObj.toString();
-    } catch (error) {
-      console.error('Error transforming presigned URL:', error);
-      return url;
-    }
-  }
 
   constructor() {
     this.initializeMinIO();
@@ -80,84 +43,9 @@ class DatalakeService {
         throw new Error('MinIO client can only be used server-side');
       }
 
-      // Use shared utility for base config and internal client
-      const baseConfig = getMinioConfig();
-      const endpoint = process.env.MINIO_ENDPOINT || 'localhost';
-      const publicEndpoint = process.env.MINIO_PUBLIC_ENDPOINT || process.env.MINIO_ENDPOINT || 'localhost';
-      
-      // Create internal client for operations using shared utility
+      // Files are served via the /api/download proxy, not presigned URLs, so
+      // only the internal client is needed here.
       this.minioClient = createMinioClient();
-      
-      // Extract internal connection details for presigned URL logic
-      const internalHostname = baseConfig.endPoint;
-      const internalPort = baseConfig.port;
-
-      // Create separate client for presigned URLs with public endpoint
-      // This ensures presigned URLs have correct signature for public domain
-      // Use MINIO_PUBLIC_ENDPOINT if set, otherwise try to detect from MINIO_ENDPOINT
-      const publicHostname = publicEndpoint.replace(/^https?:\/\//, '').split(':')[0].split('/')[0];
-      const isDockerContainerName = !publicHostname.includes('.') && publicHostname !== 'localhost' && !publicHostname.includes('127.0.0.1');
-      
-      if (isDockerContainerName) {
-        // If it's a Docker container name (like 'platform-minio'), we need a public endpoint
-        // Check if MINIO_PUBLIC_ENDPOINT is set
-        if (process.env.MINIO_PUBLIC_ENDPOINT) {
-          const publicUrl = process.env.MINIO_PUBLIC_ENDPOINT;
-          const publicUrlObj = new URL(publicUrl.startsWith('http') ? publicUrl : `https://${publicUrl}`);
-          // For presigned URLs, always use the public endpoint without port (Nginx handles routing)
-          // The signature is generated with internal endpoint, but URL is transformed to public
-          this.presignedEndpoint = `${publicUrlObj.protocol}//${publicUrlObj.hostname}`;
-          
-          // For presigned URLs, we need to connect to internal MinIO for signature generation
-          // But the URL will be transformed to use the public endpoint
-          // MinIO signatures are based on the endpoint used in the client, so we connect internally
-          this.presignedClient = new MinIO.Client({
-            endPoint: internalHostname, // Connect internally for signature generation
-            port: internalPort, // Use internal port
-            useSSL: false, // Internal connection is always HTTP
-            accessKey: baseConfig.accessKey,
-            secretKey: baseConfig.secretKey,
-          });
-          
-          this.internalEndpoint = `http://${internalHostname}:${internalPort}`;
-          console.log(`✅ MinIO client initialized (presigned URLs will use: ${this.presignedEndpoint})`);
-        } else {
-          // Fallback: use localhost but warn
-          this.presignedClient = new MinIO.Client({
-            endPoint: 'localhost',
-            port: internalPort,
-            useSSL: false,
-            accessKey: baseConfig.accessKey,
-            secretKey: baseConfig.secretKey,
-          });
-          console.log('⚠️  MinIO endpoint is a Docker container name but MINIO_PUBLIC_ENDPOINT is not set.');
-          console.log('   Presigned URLs will use localhost. Set MINIO_PUBLIC_ENDPOINT for production.');
-          this.presignedEndpoint = null;
-          this.internalEndpoint = null;
-        }
-      } else if (publicEndpoint !== 'localhost' && !publicEndpoint.includes('127.0.0.1')) {
-        // Extract hostname from public endpoint (remove protocol if present)
-        const protocol = publicEndpoint.includes('https://') ? 'https' : (baseConfig.useSSL ? 'https' : 'http');
-        // For presigned URLs, always use public endpoint without port (Nginx handles routing)
-        this.presignedEndpoint = `${protocol}://${publicHostname}`;
-        this.internalEndpoint = `http://${internalHostname}:${internalPort}`;
-        
-        // Create presigned client connecting internally (for signature generation)
-        // URL will be transformed to use public endpoint
-        this.presignedClient = new MinIO.Client({
-          endPoint: internalHostname, // Connect internally for signature
-          port: internalPort, // Use internal port
-          useSSL: false, // Internal connection is always HTTP
-          accessKey: baseConfig.accessKey,
-          secretKey: baseConfig.secretKey,
-        });
-        
-        console.log(`✅ MinIO client initialized (presigned URLs will use: ${this.presignedEndpoint})`);
-      } else {
-        this.presignedEndpoint = null;
-        this.presignedClient = this.minioClient; // Use same client if no public endpoint
-        console.log('✅ MinIO client initialized (using localhost for presigned URLs)');
-      }
 
       this.isInitialized = true;
     } catch (error) {
