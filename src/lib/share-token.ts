@@ -4,7 +4,7 @@
  * Tokens are short, URL-friendly, and don't contain student names
  */
 
-import { prisma } from './prisma';
+import { prisma } from '@stephenadei/database';
 import crypto from 'crypto';
 
 /**

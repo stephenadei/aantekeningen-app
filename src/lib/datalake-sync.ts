@@ -6,7 +6,7 @@
  * - Handles calendar events (optional)
  */
 
-import { prisma } from './prisma';
+import { prisma } from '@stephenadei/database';
 import { datalakeService } from './datalake-simple';
 import bcrypt from 'bcryptjs';
 import type { DriveStudent } from './interfaces';
