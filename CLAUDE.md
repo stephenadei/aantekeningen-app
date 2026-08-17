@@ -1,5 +1,7 @@
 # CLAUDE.md — aantekeningen-app
 
+**Laatst geverifieerd:** 2026-08-17
+
 **Room:** Notes & OCR
 **Domain:** tutoring / work
 **Language:** TypeScript (Next.js 16)
@@ -14,7 +16,9 @@ PDF notes management, OCR processing, AI-powered analysis, and student notebook 
 npm run dev              # Dev server on :3000
 npm run build            # Production build
 npm run lint             # ESLint
-npm run type-check       # tsc --noEmit (via package.json)
+# No type-check script: this repo has no tsc --noEmit anywhere in package.json.
+# CLAUDE.md claimed `npm run type-check` until 2026-08-17 — it would just fail.
+# Run npx tsc --noEmit directly if you need a type pass.
 
 # Tests
 npm run test             # Unit tests (Vitest)
